@@ -1,0 +1,6 @@
+[1] ptrace_syscall_interception: initial_sigstop=19 first_stop_sig=133 raw_status=0x857f getpid_seen=1 getpid_rval_is_child_pid=1
+[2] ptrace_syscall_info_api: first_op=1 second_op=2 alternates=1 arch_ok=1 info_ok=1
+[3] ptrace_fault_injection: injected_errno=2 child_ret=-1 child_errno=2 skipped_file_absent=1 control_ret_ok=1 control_file_present=1 tamper_ok=1 child_exit=0
+[4] proc_process_state: state_during_ptrace_stop=t tracer_pid_matches=1
+[5] proc_fd_and_fdinfo: devnull_resolves=1 pos=16384 flags_rdwr=1 deleted_suffix=1 nlink=0 size_before=16384 truncated=1 size_after_truncate=0 blocks_after_truncate=0 size_after_write=16385 sparse=1
+[6] socket_queue_sock_diag: found_listener=1 tcp_listen_state=10 recv_q_pending=2 send_q_backlog=5 backlog_arg=5 recv_q_after_accept=1 found_estab=1 estab_state=1 estab_recv_q=100 estab_send_q=0
