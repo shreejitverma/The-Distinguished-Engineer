@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import h11
+import httpx
 import pytest
+from starlette.applications import Starlette
+from starlette.responses import JSONResponse, StreamingResponse
+from starlette.routing import Route
 
 from api_labs.f01_http_semantics_and_wire_protocols.chunked import (
     decode_chunked,
+    decode_chunked_with_trailers,
     encode_chunked,
+    step_h11_server_exchange,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
+    from starlette.requests import Request
 
 
 @pytest.mark.unit
@@ -35,37 +48,197 @@ def test_decode_ignores_chunk_extensions() -> None:
 
 
 @pytest.mark.unit
-def test_h11_server_reassembles_chunked_request_body() -> None:
+def test_chunked_trailers_roundtrip_and_forbidden_field_rejection() -> None:
+    wire = encode_chunked(
+        b"stream-payload",
+        chunk_size=6,
+        trailers=[(b"Server-Timing", b"db;dur=4.2"), (b"X-Checksum-Sha256", b"deadbeef")],
+    )
+    decoded = decode_chunked_with_trailers(wire)
+    assert decoded.body == b"stream-payload"
+    assert decoded.trailers == (
+        (b"server-timing", b"db;dur=4.2"),
+        (b"x-checksum-sha256", b"deadbeef"),
+    )
+
+    for forbidden in (b"Content-Length", b"Transfer-Encoding", b"Host", b"Authorization"):
+        with pytest.raises(ValueError, match="forbidden trailer field"):
+            encode_chunked(b"x", trailers=[(forbidden, b"1")])
+        raw_bad_trailer = b"1\r\nx\r\n0\r\n" + forbidden + b": 1\r\n\r\n"
+        with pytest.raises(ValueError, match="forbidden trailer field"):
+            decode_chunked_with_trailers(raw_bad_trailer)
+
+
+@pytest.mark.unit
+def test_h11_server_reassembles_chunked_request_body_and_trailers() -> None:
     payload = b'{"event":"deploy","seq":42,"notes":"chunked wire test"}'
-    chunked_body = encode_chunked(payload, chunk_size=11)
+    chunked_body = encode_chunked(
+        payload,
+        chunk_size=11,
+        trailers=[(b"X-Stream-Digest", b"sha256=abc123")],
+    )
     raw_request = (
         b"POST /v1/events HTTP/1.1\r\n"
         b"Host: api.example.test\r\n"
         b"Transfer-Encoding: chunked\r\n"
+        b"Trailer: X-Stream-Digest\r\n"
         b"Content-Type: application/json\r\n"
         b"\r\n" + chunked_body
     )
 
     conn = h11.Connection(h11.SERVER)
-    conn.receive_data(raw_request)
+    summary = step_h11_server_exchange(
+        conn,
+        raw_request,
+        response_status=202,
+        response_headers=[(b"content-length", b"2")],
+        response_body=b"ok",
+    )
+    assert summary.method == b"POST"
+    assert summary.target == b"/v1/events"
+    assert summary.body == payload
+    assert summary.trailers == ((b"x-stream-digest", b"sha256=abc123"),)
+    assert summary.reusable is True
+    assert conn.states == {h11.CLIENT: h11.IDLE, h11.SERVER: h11.IDLE}
 
-    events: list[h11.Event] = []
-    while True:
-        event = conn.next_event()
-        if event is h11.NEED_DATA:
-            break
-        assert isinstance(event, h11.Event)
-        events.append(event)
-        if isinstance(event, h11.EndOfMessage):
-            break
 
-    assert isinstance(events[0], h11.Request)
-    assert events[0].method == b"POST"
-    assert events[0].target == b"/v1/events"
-    reassembled = b"".join(e.data for e in events if isinstance(e, h11.Data))
-    assert reassembled == payload
-    assert decode_chunked(chunked_body) == payload
-    assert isinstance(events[-1], h11.EndOfMessage)
+@pytest.mark.unit
+def test_h11_transfer_encoding_precedence_over_content_length() -> None:
+    chunked_body = encode_chunked(b"trusted-chunk", chunk_size=7)
+    raw_request = (
+        b"POST /v1/ingest HTTP/1.1\r\n"
+        b"Host: api.example.test\r\n"
+        b"Content-Length: 999\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"\r\n" + chunked_body
+    )
+    conn = h11.Connection(h11.SERVER)
+    summary = step_h11_server_exchange(
+        conn,
+        raw_request,
+        response_status=200,
+        response_headers=[(b"content-length", b"50"), (b"transfer-encoding", b"chunked")],
+        response_body=b"streamed",
+    )
+    assert summary.body == b"trusted-chunk"
+    assert b"Transfer-Encoding: chunked\r\n" in summary.wire_response
+    assert b"Content-Length" not in summary.wire_response
+    assert b"\r\n8\r\nstreamed\r\n0\r\n\r\n" in summary.wire_response
+
+
+@pytest.mark.unit
+def test_h11_persistent_connection_reuse_and_close_transitions() -> None:
+    conn = h11.Connection(h11.SERVER)
+    req1 = b"GET /v1/health HTTP/1.1\r\nHost: api.example.test\r\n\r\n"
+    req2 = b"GET /v1/final HTTP/1.1\r\nHost: api.example.test\r\nConnection: close\r\n\r\n"
+
+    first = step_h11_server_exchange(
+        conn,
+        req1,
+        response_status=204,
+    )
+    assert first.reusable is True
+    assert conn.states == {h11.CLIENT: h11.IDLE, h11.SERVER: h11.IDLE}
+
+    second = step_h11_server_exchange(
+        conn,
+        req2,
+        response_headers=[(b"content-length", b"4")],
+        response_body=b"done",
+    )
+    assert second.reusable is False
+    assert b"Connection: close\r\n" in second.wire_response
+    assert conn.states == {h11.CLIENT: h11.MUST_CLOSE, h11.SERVER: h11.MUST_CLOSE}
+    with pytest.raises(h11.LocalProtocolError, match="not in a reusable state"):
+        conn.start_next_cycle()
+
+    with pytest.raises(ValueError, match=r"expected h11\.Request"):
+        step_h11_server_exchange(h11.Connection(h11.SERVER), b"GET /incomplete HTTP/1.1\r\n")
+    with pytest.raises(ValueError, match="incomplete request body"):
+        step_h11_server_exchange(
+            h11.Connection(h11.SERVER),
+            b"POST /partial HTTP/1.1\r\nHost: api.example.test\r\nContent-Length: 10\r\n\r\nabc",
+        )
+
+
+@pytest.mark.unit
+def test_h11_early_response_with_unread_body_prevents_cycle_reuse() -> None:
+    conn = h11.Connection(h11.SERVER)
+    conn.receive_data(
+        b"POST /v1/upload HTTP/1.1\r\n"
+        b"Host: api.example.test\r\n"
+        b"Content-Length: 1024\r\n"
+        b"\r\n"
+        b"partial-bytes"
+    )
+    event = conn.next_event()
+    assert isinstance(event, h11.Request)
+    assert conn.their_state is h11.SEND_BODY
+
+    conn.send(
+        h11.Response(
+            status_code=413,
+            headers=[(b"content-length", b"0"), (b"connection", b"close")],
+        )
+    )
+    conn.send(h11.EndOfMessage())
+    assert conn.states == {h11.CLIENT: h11.SEND_BODY, h11.SERVER: h11.MUST_CLOSE}
+    with pytest.raises(h11.LocalProtocolError, match="not in a reusable state"):
+        conn.start_next_cycle()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "bad_footer_chunk",
+    [
+        b"3\r\nxxx__0\r\n\r\n",
+        b"3\r\nxxx\r_0\r\n\r\n",
+        b"3\r\nxxx_\n0\r\n\r\n",
+    ],
+)
+def test_h11_rejects_cve_2025_43859_non_crlf_chunk_footers(bad_footer_chunk: bytes) -> None:
+    conn = h11.Connection(h11.SERVER)
+    conn.receive_data(
+        b"POST /v1/smuggle HTTP/1.1\r\n"
+        b"Host: api.example.test\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"\r\n" + bad_footer_chunk
+    )
+    assert isinstance(conn.next_event(), h11.Request)
+    assert isinstance(conn.next_event(), h11.Data)
+    with pytest.raises(h11.RemoteProtocolError, match="malformed chunk footer"):
+        conn.next_event()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_asgi_streaming_response_vs_fixed_content_length() -> None:
+    async def fixed_endpoint(request: Request) -> JSONResponse:
+        return JSONResponse({"ok": True})
+
+    async def stream_endpoint(request: Request) -> StreamingResponse:
+        async def generate() -> AsyncIterator[bytes]:
+            yield b"alpha\n"
+            yield b"beta\n"
+
+        return StreamingResponse(generate(), media_type="text/plain")
+
+    app = Starlette(
+        routes=[
+            Route("/fixed", fixed_endpoint),
+            Route("/stream", stream_endpoint),
+        ]
+    )
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        fixed_resp = await client.get("/fixed")
+        assert fixed_resp.status_code == 200
+        assert fixed_resp.headers["content-length"] == "11"
+
+        stream_resp = await client.get("/stream")
+        assert stream_resp.status_code == 200
+        assert "content-length" not in stream_resp.headers
+        assert stream_resp.content == b"alpha\nbeta\n"
 
 
 @pytest.mark.unit
@@ -76,8 +249,12 @@ def test_h11_server_reassembles_chunked_request_body() -> None:
         (b"\r\n", "invalid chunk size hex digits"),
         (b"+4\r\nabcd\r\n0\r\n\r\n", "invalid chunk size hex digits"),
         (b"zz\r\nabcd\r\n0\r\n\r\n", "invalid chunk size hex digits"),
+        (b"1" * 21 + b"\r\nabcd\r\n0\r\n\r\n", "invalid chunk size hex digits"),
+        (b"4;ext=val\rbad\r\nabcd\r\n0\r\n\r\n", "bare CR in chunk extension"),
         (b"0\r\n", "missing or trailing bytes after terminating chunk"),
         (b"0\r\n\r\njunk", "missing or trailing bytes after terminating chunk"),
+        (b"0\r\nBadHeader\r\n\r\n", "malformed trailer field line"),
+        (b"0\r\nBad-Header : val\r\n\r\n", "malformed trailer field line"),
         (b"5\r\nhi\r\n", "truncated chunk data or missing chunk CRLF"),
         (b"2\r\nhiXX0\r\n\r\n", "truncated chunk data or missing chunk CRLF"),
     ],
