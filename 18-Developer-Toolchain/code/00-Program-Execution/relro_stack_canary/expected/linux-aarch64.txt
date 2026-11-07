@@ -1,0 +1,43 @@
+=== 1. Stack Canary Verification ===
+-fstack-protector-strong, safe input: returned normally
+-fstack-protector-strong, 64 bytes into 16: terminated with signal 6 (SIGABRT)
+-fno-stack-protector, safe input: returned normally
+-fno-stack-protector, 64 bytes into 16: exited with status 0 (no signal)
+=== 2. PT_GNU_STACK Segment Flags ===
+Default stack: RW
+-z execstack: RWE
+Default stack, run code on it: code on the stack: caught signal 11 (SIGSEGV)
+-z execstack, run code on it: code on the stack: executed
+=== 3. PT_GNU_RELRO Segment and Section Layout ===
+Full RELRO: PT_GNU_RELRO present, BIND_NOW present
+.got PROGBITS
+Partial RELRO: PT_GNU_RELRO present, lazy binding
+.got PROGBITS
+.got.plt PROGBITS
+No RELRO: no RELRO, lazy binding
+.got PROGBITS
+.got.plt PROGBITS
+=== 4. Dynamic GOT Overwrite Protection ===
+Full RELRO (target_func):
+Original target_func
+GOT write target_func: caught signal 11 (SIGSEGV)
+Partial RELRO (target_func):
+Original target_func
+Hijacked target_func execution!
+Original target_func
+GOT write target_func: succeeded (writable GOT)
+Partial RELRO (target_data_ptr):
+GOT write target_data_ptr: caught signal 11 (SIGSEGV)
+No RELRO (target_func):
+Original target_func
+Hijacked target_func execution!
+Original target_func
+GOT write target_func: succeeded (writable GOT)
+=== 5. Branch Protection (BTI and PAC) Properties ===
+Object, -mbranch-protection=none: no AArch64 feature note
+Object, -mbranch-protection=standard: AArch64 feature: BTI, PAC
+Prologue instruction: d503233f paciasp
+Epilogue instruction: d50323bf autiasp
+paciasp count, none: 0
+Executable, standard: no AArch64 feature note
+Executable, standard plus -z force-bti: AArch64 feature: BTI

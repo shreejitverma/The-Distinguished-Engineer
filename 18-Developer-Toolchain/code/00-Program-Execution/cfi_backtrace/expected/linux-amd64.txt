@@ -1,0 +1,53 @@
+=== 1. Frame Pointer vs DWARF CFI Unwinding ===
+[*] Compiling with -O2 -fomit-frame-pointer...
+  Trace results from leaf():
+  -- DWARF CFI unwinding:
+    [CFI] frame 0: leaf
+    [CFI] frame 1: middle
+    [CFI] frame 2: outer
+    [CFI] frame 3: main
+  -- Frame Pointer unwinding:
+    [FP ] frame 0: middle
+  Summary: CFI found 4 frames, FP found 1 frames
+
+[*] Compiling with -O2 -fno-omit-frame-pointer...
+  Trace results from leaf():
+  -- DWARF CFI unwinding:
+    [CFI] frame 0: leaf
+    [CFI] frame 1: middle
+    [CFI] frame 2: outer
+    [CFI] frame 3: main
+  -- Frame Pointer unwinding:
+    [FP ] frame 0: middle
+    [FP ] frame 1: outer
+    [FP ] frame 2: main
+  Summary: CFI found 4 frames, FP found 3 frames
+
+=== 2. Inspecting .eh_frame_hdr Binary Search Index ===
+  Header: version=1 eh_frame_ptr_enc=0x1b fde_count_enc=0x03 table_enc=0x3b
+  Header is version 1 with the GCC and Clang encodings: True
+  PT_GNU_EH_FRAME covers .eh_frame_hdr: True
+  eh_frame_ptr resolves to the start of .eh_frame: True
+  fde_count entries fit in the section: True
+  Binary search table is strictly sorted by function start: True
+  Every FDE pointer lands inside .eh_frame: True
+  Every table entry equals the pc_begin of the FDE it points to: True
+  leaf, middle, outer, and main are each indexed at their symbol address: True
+
+=== 3. Itanium Two-Phase Exception Handling Verification ===
+[*] Scenario A: Handled exception (Phase 1 finds catch block -> Phase 2 runs cleanups)
+  [RAII] acquire: caught_scope
+  [personality] SEARCH -> CONTINUE_UNWIND
+  [personality] SEARCH -> HANDLER_FOUND
+  [personality] CLEANUP -> INSTALL_CONTEXT
+  [RAII] destruct: caught_scope
+  [personality] CLEANUP -> CONTINUE_UNWIND
+  [personality] CLEANUP|HANDLER_FRAME -> INSTALL_CONTEXT
+  [catch] caught integer exception: 42
+  [catch] personality calls: search=2 cleanup=3
+
+[*] Scenario B: Unhandled exception (Phase 1 finds no catch block -> Phase 2 never starts)
+  [RAII] acquire: uncaught_scope
+  [personality] SEARCH -> CONTINUE_UNWIND
+  [personality] SEARCH -> CONTINUE_UNWIND
+  [terminate] personality calls: search=2 cleanup=0

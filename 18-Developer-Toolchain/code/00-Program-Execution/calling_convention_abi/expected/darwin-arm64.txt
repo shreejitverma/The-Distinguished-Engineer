@@ -1,0 +1,25 @@
+=== Native Calling Convention Verification (Host: Apple arm64) ===
+[PASS] Integer argument passing: probe saw args 1-8 in x0-x7 and arg 9 at [sp]
+[PASS] Floating-point argument passing: probe saw args 1-8 in d0-d7 and arg 9 at [sp]; integer and FP counters are independent
+[PASS] Homogeneous Floating-point Aggregate (HFA): probe saw the 4 floats in s0-s3
+[PASS] Small composite return (16B): a callee that only sets x0 and x1 returns the struct
+[PASS] Large composite return (24B): a callee that writes through x8 fills the buffer and still sees its 3 arguments in x0-x2
+[PASS] Stack alignment invariant: SP is 16-byte aligned at callee entry; a store through a misaligned SP raises SIGBUS with BUS_ADRALN, an aligned one does not
+[PASS] Variadic argument handling: the 3 variadic arguments sit at [sp], [sp+8], [sp+16] and va_list is a char *
+=== Cross-Target ABI Inspection (System V AMD64 vs AAPCS64) ===
+[PASS] GPR Argument Allocation:
+       x86-64 System V : 6 GPRs (%rdi, %rsi, %rdx, %rcx, %r8, %r9); args 7-9 read from stack
+       AAPCS64 AArch64 : 8 GPRs (x0-x7); arg 9 read from stack
+[PASS] Leaf Function Red Zone:
+       x86-64 System V : 128-byte Red Zone utilized; %rsp unchanged (no subq %rsp)
+       AAPCS64 AArch64 : No standard Red Zone; sp decremented (sub sp, sp, #imm)
+[PASS] Homogeneous Floating-point Aggregates (HFA):
+       x86-64 System V : Struct packed into two SSE eightbytes (%xmm0, %xmm1); requires shufps
+       AAPCS64 AArch64 : Direct binding to scalar registers s0-s3; zero unpack overhead
+[PASS] Composite Return Value Classification:
+       <=16B Struct    : x86-64 uses %rax:%rdx; AAPCS64 uses x0:x1
+       >16B Struct     : x86-64 passes buffer in %rdi; AAPCS64 passes buffer in dedicated x8
+[PASS] Variadic Vector Register Count (%al):
+       Integer varargs : %al set to 0 (xorl %eax, %eax) to skip vector register save
+       FP varargs      : %al set to 1 (movb $0x1, %al) signaling one active vector register
+       AAPCS64 Linux   : no count register; the count and the variadic int travel in w0-w1 and nothing like %al is set
