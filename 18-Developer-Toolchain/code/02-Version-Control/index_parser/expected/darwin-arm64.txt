@@ -1,0 +1,91 @@
+=== Step 1: Git Index Version 2 Serialization and Parsing ===
+Serialized v2 index size: 192 bytes
+Header: magic=DIRC version=2 entries=2
+Parsed entry 0: path='docs/readme.txt' mode=0o100644 stage=0
+Parsed entry 1: path='src/main.sh' mode=0o100755 stage=0
+Trailer checksum verified: cf05d17cf8365b1e... OK
+
+=== Step 2: Git Index Version 3 with Extended Flags ===
+Index v3 parsed entries: 2
+  huge_folder/sparse_file.dat: skip_worktree=True intent_to_add=False
+  new_feature/untracked_template.txt: skip_worktree=False intent_to_add=True
+Raw extended flag words: ['0x4000', '0x2000']
+Assume-valid entry raw flags: 0x8007 (CE_VALID 0x8000 | name length 7)
+
+=== Step 3: Git Index Version 4 Prefix Compression ===
+v2 index size (full paths + 8-byte padding): 560 bytes
+v4 index size (varint prefix compression):   479 bytes
+Prefix compression space savings: 14.5%
+Decoded 6 paths identically to input paths: OK
+Varint encoding/decoding verified across 7 boundaries: OK
+
+=== Step 4: Three-Way Merge Conflict Stages (Stages 1, 2, 3) ===
+Conflict index total entries: 5
+  path='alpha.c' stage=0 oid_prefix=6a1cec45
+  path='conflict.c' stage=1 oid_prefix=4af5ec18
+  path='conflict.c' stage=2 oid_prefix=10dc59a9
+  path='conflict.c' stage=3 oid_prefix=30830bda
+  path='omega.c' stage=0 oid_prefix=6021e44b
+Conflict stages sorting verified: OK
+Raw stage bits per entry: [0, 1, 2, 3, 0]
+
+=== Step 5: Stat Cache Matching Engine (ce_match_stat_basic) ===
+Clean stat match: 0x0000 clean
+Cached mtime off by one second: 0x0001 MTIME
+Cached ctime off by one second: 0x0002 CTIME; with core.trustctime=false: 0x0000 clean
+Cached uid changed: 0x0004 OWNER
+Cached inode changed: 0x0010 INODE
+Cached device changed: 0x0000 clean in a default build, 0x0010 INODE with USE_STDEV
+Appended bytes, mtime restored: 0x0020 DATA
+chmod +x: 0x0008 MODE
+Regular file replaced by a symlink: TYPE_CHANGED set = True
+Cached size 0 on a non-empty blob: 0x0020 DATA; on the empty blob: 0x0000 clean
+Dirty file via ie_match_stat: 0x0020 DATA; with CE_VALID set: 0x0000 clean
+ce_match_stat_basic ignores CE_VALID: 0x0020 DATA
+skip-worktree entry: 0x0000 clean; intent-to-add entry: 0x0068 MODE|DATA|TYPE
+Cached size for 5 B, 4 GiB + 5 B, 4 GiB, 0 B: [5, 5, 2147483648, 0]
+
+=== Step 6: Racy Git Detection and Size Smudging ===
+Staged 5 bytes with mtime == index mtime: racy = True
+Unedited racy entry, content re-hashed: 0x0000 clean
+Same-size in-place edit, stat only: 0x0000 clean (falsely clean)
+Same edit with the racy content check: 0x0020 DATA
+Smudge the edited racy entry: True, cached size 0 B (was 5 B)
+Index timestamp moved to T+10, unsmudged entry: 0x0000 clean (the hole)
+Index timestamp moved to T+10, smudged entry:   0x0020 DATA
+Smudge an unchanged racy entry: False, cached size 5 B
+Racy entry whose stat data already differs: smudged = False, cached size 5 B
+Edited entry older than the index (racy = False): smudged = False
+
+=== Step 7: Index Extensions (TREE and REUC) ===
+Parsed cache-tree nodes: 3
+  path='' entries=2 subtrees=1 oid=f487fbc6
+  path='src' entries=2 subtrees=0 oid=992e0a22
+  path='invalidated_dir' entries=-1 subtrees=0 oid=None
+Parsed resolve-undo records: 1
+  path='conflict_resolved.txt' stages=[1, 2, 3]
+
+=== Step 8: Corruption and Tamper Detection ===
+Checksum mismatch caught: Checksum mismatch: expected d9882eaf5c55daadbd4cbca23637b37d796ee18a, got cf05d17cf8365b1e32087fb9476cd0288cfd34a8
+Bad magic caught: Invalid index magic: b'DIRX'
+Out-of-order entries caught: Index entries out of order: zeta.c (stage 0) >= alpha.c (stage 0)
+Duplicate entries caught: Index entries out of order: same.c (stage 0) >= same.c (stage 0)
+Unknown optional extension ABCD skipped: 1 entry parsed
+Unknown mandatory extension caught: Unknown mandatory index extension: abcd
+Integrity verification completed: all corruption checks passed.
+
+=== Step 9: Indexes Written by Real Git 2.55.0 ===
+v2 fixture: 317 bytes, entries=3, trailer checksum OK
+  a mode=0o100644 size=2
+  src/main.c mode=0o100644 size=5
+  src/util.c mode=0o100644 size=12
+  cache-tree: [('', 3, 1), ('src', 2, 0)]
+  lab serializer reproduces Git's bytes exactly: True
+v4 fixture: 302 bytes, entries=3, trailer checksum OK
+  a mode=0o100644 size=2
+  src/main.c mode=0o100644 size=5
+  src/util.c mode=0o100644 size=12
+  cache-tree: [('', 3, 1), ('src', 2, 0)]
+  lab serializer reproduces Git's bytes exactly: True
+reuc fixture: 226 bytes, entries=1, resolve-undo path=conflict.c stages=[1, 2, 3]
+  lab serializer reproduces Git's bytes exactly: True

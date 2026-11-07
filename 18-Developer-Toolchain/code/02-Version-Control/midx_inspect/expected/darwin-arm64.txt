@@ -1,0 +1,53 @@
+MIDX Header: signature=MIDX version=1 oid_version=1 chunks=6 base_midx=0 packs=5
+MIDX Chunk Table of Contents:
+  Chunk PNAM       : byte_offset=   96
+  Chunk OIDF       : byte_offset=  348
+  Chunk OIDL       : byte_offset= 1372
+  Chunk OOFF       : byte_offset= 1672
+  Chunk RIDX       : byte_offset= 1792
+  Chunk BTMP       : byte_offset= 1852
+  Chunk TERMINATOR : byte_offset= 1892
+Indexed Packfiles (5):
+  pack [0]: pack-71ac46282ad4583b07e28327ae441a0ca816c65e.idx
+  pack [1]: pack-abb6a4a3ac22de1b81ef635c1fe889ead4dd9f2e.idx
+  pack [2]: pack-b47baa2a4feca07a84346d9d9c5554911b17148b.idx
+  pack [3]: pack-e3936a946fdd05cc5cc5e122afc1772f70a1a37d.idx
+  pack [4]: pack-f0f7023922588e022bf539cdb296c70f1100c666.idx
+Total Objects Indexed: 15
+MIDX Object Lookup Samples:
+  pos  0: oid=027d838b2a23348979cef5b53fe8e7f4d9109a11 pack_id=3 pack_offset=12
+  pos  7: oid=823891adf2272df1f5563a512609bc07fc409f3d pack_id=0 pack_offset=292
+  pos 14: oid=f7c8cac692ec3a30fbc986d654b4e4954f02b242 pack_id=2 pack_offset=212
+Bitmapped Packfile Pseudo-Pack Intervals (BTMP):
+  pack [0]: bitmap_pos= 0 bitmap_nr= 3 range=[ 0,  3)
+  pack [1]: bitmap_pos= 3 bitmap_nr= 3 range=[ 3,  6)
+  pack [2]: bitmap_pos= 6 bitmap_nr= 2 range=[ 6,  8)
+  pack [3]: bitmap_pos= 8 bitmap_nr= 3 range=[ 8, 11)
+  pack [4]: bitmap_pos=11 bitmap_nr= 4 range=[11, 15)
+Reverse Index (RIDX): 15 pseudo-pack mappings validated
+
+Commit-Graph Header: signature=CGPH version=1 hash_version=1 chunks=6 base_graphs=0
+Commit-Graph Chunk Table of Contents:
+  Chunk OIDF       : byte_offset=   92
+  Chunk OIDL       : byte_offset= 1116
+  Chunk CDAT       : byte_offset= 1216
+  Chunk GDA2       : byte_offset= 1396
+  Chunk BIDX       : byte_offset= 1416
+  Chunk BDAT       : byte_offset= 1436
+  Chunk TERMINATOR : byte_offset= 1459
+Total Commits Indexed: 5
+Commit Data and Generation Numbers (CDAT & GDA2):
+  commit [0] 027d838b2a23348979cef5b53fe8e7f4d9109a11: tree=38cbfaf6 parents=(none, none) gen_v1=1 gen_v2=1792929600
+  commit [1] 4ff4b68fc16b9969d70f086622b0e3656d2d1c0d: tree=81201985 parents=(pos=3, none) gen_v1=3 gen_v2=1792929780
+  commit [2] 8aede95e08e438eb53d394aa60696088698392d4: tree=f7c8cac6 parents=(pos=1, pos=4) gen_v1=4 gen_v2=1792929840
+  commit [3] 9c5ef92ba8914b3e5b846706cd0ea03f14359d0e: tree=786755ec parents=(pos=0, none) gen_v1=2 gen_v2=1792929660
+  commit [4] ec6ce82a9d0627e551938ad2473abd7647e4c0f1: tree=b55f2be7 parents=(pos=3, none) gen_v1=3 gen_v2=1792929720
+
+Bloom Filters (BDAT): version=1 hash_passes=7 bits_per_entry=10
+Bloom Filter Index Offsets: [2, 4, 6, 9, 11]
+
+Verification Status:
+  multi-pack-index trailer SHA-1: VALID
+  commit-graph trailer SHA-1: VALID
+  git multi-pack-index verify: PASS (0 errors)
+  git commit-graph verify: PASS (0 errors)

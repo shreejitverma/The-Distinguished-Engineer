@@ -1,0 +1,211 @@
+=== 1. Diff Algorithms: Myers vs Histogram (Frobnitz Test) ===
+--- Git Myers Diff ---
+diff --git a/file1.c b/file2.c
+index beed2e1..1968d45 100644
+--- a/file1.c
++++ b/file2.c
+@@ -1,26 +1,25 @@
+ #include <stdio.h>
+ 
+-// Frobs foo heartily.
+-int frobnitz(int foo)
++int fib(int n)
+ {
+-	int i;
+-	for(i = 0; i < 10; i++)
++	if(n > 2)
+ 	{
+-		printf("Your answer is: ");
+-		printf("%d\n", foo);
++		return fib(n-1) + fib(n-2);
+ 	}
++	return 1;
+ }
+ 
+-int fact(int n)
++// Frobs foo heartily.
++int frobnitz(int foo)
+ {
+-	if(n > 1)
++	int i;
++	for(i = 0; i < 10; i++)
+ 	{
+-		return fact(n-1) * n;
++		printf("%d\n", foo);
+ 	}
+-	return 1;
+ }
+ 
+ int main(int argc, char **argv)
+ {
+-	frobnitz(fact(10));
++	frobnitz(fib(10));
+ }
+--- Git Histogram Diff ---
+diff --git a/file1.c b/file2.c
+index beed2e1..1968d45 100644
+--- a/file1.c
++++ b/file2.c
+@@ -1,26 +1,25 @@
+ #include <stdio.h>
+ 
++int fib(int n)
++{
++	if(n > 2)
++	{
++		return fib(n-1) + fib(n-2);
++	}
++	return 1;
++}
++
+ // Frobs foo heartily.
+ int frobnitz(int foo)
+ {
+ 	int i;
+ 	for(i = 0; i < 10; i++)
+ 	{
+-		printf("Your answer is: ");
+ 		printf("%d\n", foo);
+ 	}
+ }
+ 
+-int fact(int n)
+-{
+-	if(n > 1)
+-	{
+-		return fact(n-1) * n;
+-	}
+-	return 1;
+-}
+-
+ int main(int argc, char **argv)
+ {
+-	frobnitz(fact(10));
++	frobnitz(fib(10));
+ }
+--- Git Diff Size per Algorithm (git diff --numstat: added deleted) ---
+myers     10 11
+patience  10 11
+histogram 10 11
+--- Reference Myers & Anchor Analysis ---
+Myers Edit Distance D=21 (Deletions=11, Insertions=10)
+Patience Unique Common Line Anchors Found: 8
+  Line A:1 == Line B:1 -> '#include <stdio.h>'
+  Line A:3 == Line B:12 -> '// Frobs foo heartily.'
+  Line A:4 == Line B:13 -> 'int frobnitz(int foo)'
+  Line A:6 == Line B:15 -> 'int i;'
+  Line A:7 == Line B:16 -> 'for(i = 0; i < 10; i++)'
+
+=== 2. Criss-Cross Merge & Multiple Merge Bases ===
+Merge bases between branch1 (F, child of D) and branch2 (G, child of E):
+65d83166e53442b70cc3e1bce1411063a58b9787
+ffdccdefee46edd2299ac628334f3bfcdc6a798a
+--- Virtual Merge Base Made Explicit ---
+Virtual ancestor = merge(B, C) over A, tree 36f7bdedf88933a7bfeedf90cfdd878a1ee6c083:
+  file1.txt: line 1|branch 1 edit|
+  file2.txt: line 2|branch 2 edit|
+Commit B alone: file2.txt = line 2|
+Commit C alone: file1.txt = line 1|
+
+=== 3. In-Core Worktree-Free Merge (git merge-tree) ===
+Clean merge-tree synthesized OID: aaf5893642142baf254b5556a26592c15c5bfa8c
+  file1.txt: line 1|branch 1 edit|branch 1 later|
+  file2.txt: line 2|branch 2 edit|branch 2 later|
+
+=== 4. Conflict Markers (zdiff3) and Binary Index Stage Extraction ===
+Triggering three-way merge conflict:
+Auto-merging service.conf
+CONFLICT (content): Merge conflict in service.conf
+Recorded preimage for 'service.conf'
+Automatic merge failed; fix conflicts and then commit the result.
+--- Conflicted File Markers (zdiff3) ---
+# Global Config
+service_name = payment_gateway
+<<<<<<< HEAD
+port = 7070
+||||||| 22d6e4c
+port = 8080
+=======
+port = 9090
+>>>>>>> feat_conflict_b
+max_workers = 16
+timeout_sec = 30
+--- Binary Index Stage Extraction (.git/index) ---
+Index Header: Signature=DIRC, Version=2, Entries=5
+  [0] stage=0 (normal) mode=0o100644 oid=89b24ece path=file1.txt
+  [1] stage=0 (normal) mode=0o100644 oid=b7e242c0 path=file2.txt
+  [2] stage=1 (base  ) mode=0o100644 oid=b1c65b3e path=service.conf
+  [3] stage=2 (ours  ) mode=0o100644 oid=b7f9af9b path=service.conf
+  [4] stage=3 (theirs) mode=0o100644 oid=1ff999a5 path=service.conf
+--- zdiff3 vs diff3: common lines at the edge of a conflict (git merge-file) ---
+[diff3]
+start
+<<<<<<< ours
+mine
+shared
+||||||| base
+base
+=======
+theirs
+shared
+>>>>>>> theirs
+end
+[zdiff3]
+start
+<<<<<<< ours
+mine
+||||||| base
+base
+=======
+theirs
+>>>>>>> theirs
+shared
+end
+--- Resolving Conflict via git add ---
+Binary Index Stage Inspection After Resolution:
+Index Header: Signature=DIRC, Version=2, Entries=3
+  [0] stage=0 (normal) mode=0o100644 oid=89b24ece path=file1.txt
+  [1] stage=0 (normal) mode=0o100644 oid=b7e242c0 path=file2.txt
+  [2] stage=0 (normal) mode=0o100644 oid=25649d1b path=service.conf
+
+=== 5. Directory Rename Detection (merge.directoryRenames) ===
+Merging with merge.directoryRenames=false (then aborting):
+Automatic merge went well; stopped before committing as requested
+Unmerged index entries (mode stage path):
+Telemetry path in worktree:
+src/legacy/telemetry.c
+Merging with merge.directoryRenames=conflict (then aborting):
+CONFLICT (file location): src/legacy/telemetry.c added in HEAD inside a directory that was renamed in dir_rename_branch, suggesting it should perhaps be moved to src/core/telemetry.c.
+Automatic merge failed; fix conflicts and then commit the result.
+Unmerged index entries (mode stage path):
+100644 2 src/core/telemetry.c
+Telemetry path in worktree:
+src/core/telemetry.c
+Merging with merge.directoryRenames=true:
+Path updated: src/legacy/telemetry.c added in HEAD inside a directory that was renamed in dir_rename_branch; moving it to src/core/telemetry.c.
+telemetry.c
+util.c
+worker.c
+
+=== 6. Reuse Recorded Resolution (git rerere) ===
+Triggering merge to create initial rerere record:
+Auto-merging rate_limit.conf
+CONFLICT (content): Merge conflict in rate_limit.conf
+Recorded preimage for 'rate_limit.conf'
+Automatic merge failed; fix conflicts and then commit the result.
+Resolving conflict and recording postimage:
+Recorded resolution for 'rate_limit.conf'.
+--- rr-cache Verification ---
+Found 2 recorded conflict signature(s) in rr-cache:
+  Conflict ID: 524d4db4978f66c8d1efdda2c10282244836d1cb
+    Artifacts: postimage (93 bytes), preimage (129 bytes)
+  Conflict ID: 66ba0734fc6f92002d139f3780bf0fba531d76d2
+    Artifacts: postimage (22 bytes), preimage (58 bytes)
+--- Resetting and Re-merging to Test Rerere Replay ---
+Auto-merging rate_limit.conf
+CONFLICT (content): Merge conflict in rate_limit.conf
+Resolved 'rate_limit.conf' using previous resolution.
+Automatic merge failed; fix conflicts and then commit the result.
+File content auto-resolved by rerere:
+burst = 500
+rate = 10

@@ -1,0 +1,54 @@
+=== Step 1: Wire Protocol v2 Capabilities and Negotiation ===
+Server capability advertisement:
+  version 2
+  agent=git/<VERSION>
+  ls-refs=unborn
+  fetch=shallow wait-for-done filter ref-in-want
+  server-option
+  object-format=sha1
+
+ls-refs response (filtered by ref-prefix refs/heads/main):
+  f407394a226ee5680bf3bb943b9e8abc67228902 refs/heads/main
+
+fetch response (ref-in-want + filter blob:none):
+  wanted-refs
+  f407394a226ee5680bf3bb943b9e8abc67228902 refs/heads/main
+  [delimiter-pkt 0001]
+  packfile
+  [packfile payload]: signature=PACK version=2 object_count=8
+
+=== Step 2: Blobless Partial Clone and Promisor Remotes ===
+Promisor packfile count (pre-checkout): 1
+  companion pack=True, idx=True
+Config: remote.origin.promisor=true, partialCloneFilter=blob:none
+Missing objects in local object store (pre-checkout): 5
+
+=== Step 3: Checkout and Working Tree Blob Faulting ===
+Fetch requests during checkout: 1 (blobs requested: 3)
+Working tree files after checkout: README.md docs/manual.txt src/main.c
+Promisor packfile count (post-checkout): 2
+Missing objects in local object store (post-checkout): 2
+
+=== Step 4: Batched Historical Backfill ===
+Fetch requests during backfill: 1 (blobs requested: 2)
+Missing objects after git backfill: 0
+
+=== Step 5: Sparse Checkout Cone Mode and Index Flags ===
+Cone patterns in .git/info/sparse-checkout:
+  /*
+  !/*/
+  /src/
+Index skip-worktree status flags (ls-files -t):
+  H README.md
+  H src/main.c
+  S docs/manual.txt
+Working tree files after sparse-checkout set: README.md src/main.c
+
+=== Step 6: Multi-Worktree Sparse Isolation ===
+extensions.worktreeConfig enabled: true
+Main worktree cone paths: /* !/*/ /src/
+Linked worktree cone paths: /* !/*/ /docs/
+core.sparseCheckout in shared .git/config: False
+core.sparseCheckout in main config.worktree: True
+core.sparseCheckout in linked config.worktree: True
+Linked worktree directory entries: README.md docs
