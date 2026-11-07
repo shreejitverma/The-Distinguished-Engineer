@@ -510,6 +510,7 @@ Stripe hashes API keys using SHA-256 before database storage to protect against 
 - [[API-Fundamentals|API Fundamentals]]: Rate limiting and API security contracts.
 - [[REST-APIs|REST APIs]]: Secure HTTP header semantics and CORS.
 - [[11-Security-And-Cryptography/README.md|Security and Cryptography MOC]]: Core cryptographic algorithms and vulnerability countermeasures.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/14-API-Authentication-and-Identity/README|API Authentication and Identity]], [[20-API-Engineering/02-TLS-Connections-and-Intermediaries/README|TLS Connections and Intermediaries]], [[20-API-Engineering/03-HTTP-Caching-and-Conditional-Requests/README|HTTP Caching and Conditional Requests]]; start with [[API-Authentication-Architecture-Edge-Verification-vs-Zero-Trust-Propagation]], [[API-Key-Engineering-Prefixed-Entropy-Hashed-Storage-and-Zero-Downtime-Rotation]], [[OAuth-2-0-to-OAuth-2-1-and-RFC-9700-Security-BCP]].
 
 ## Further Reading
 - Richer, Justin, and Antonio Sanso. *OAuth 2.0 in Action*. Manning Publications, 2017.

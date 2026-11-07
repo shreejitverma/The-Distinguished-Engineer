@@ -1089,3 +1089,7 @@ Official docs:
 - PostgreSQL: [transaction isolation](https://www.postgresql.org/docs/current/transaction-iso.html), [explicit locking](https://www.postgresql.org/docs/current/explicit-locking.html), [CREATE INDEX](https://www.postgresql.org/docs/current/sql-createindex.html), [using EXPLAIN](https://www.postgresql.org/docs/current/using-explain.html).
 - [MySQL InnoDB isolation levels](https://dev.mysql.com/doc/refman/8.4/en/innodb-transaction-isolation-levels.html), [SQL Server isolation levels](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql).
 - [PgBouncer features](https://www.pgbouncer.org/features.html), [DynamoDB partition key design](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html).
+
+## Related
+
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/13-Database-Access-and-Transactions-for-APIs/README|Database Access and Transactions for APIs]], [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]], [[20-API-Engineering/25-Interview-Drills-and-Design-Reviews/README|Interview Drills and Design Reviews]]; start with [[SQLAlchemy-2-x-Architecture-Core-vs-ORM-Engine-and-Unified-Select]], [[Session-Internals-Identity-Map-Unit-of-Work-Flush-and-Expire-On-Commit]], [[Async-SQLAlchemy-Under-the-Hood-Greenlet-Bridge-and-MissingGreenlet]].

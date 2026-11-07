@@ -43,5 +43,6 @@ Next: [[HTTP-1-1-Pipelining-and-Head-of-Line-Blocking]]
 See also: [[HTTP-Evolution-HTTP1-HTTP2-HTTP3]], [[curl-in-Depth]]
 
 Lab plan: Feeds raw byte streams into h11 0.16.0 to prove Content-Length versus Transfer-Encoding: chunked framing, chunk extensions, trailer parsing, and connection reuse state transitions.
+- Lab: `labs/tests/f01_http_semantics_and_wire_protocols/test_http_1_1_framing_keep_alive_and_chunked_encoding.py`
 
 ## Further reading

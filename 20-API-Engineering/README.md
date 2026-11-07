@@ -88,7 +88,7 @@ Each note is drafted from primary sources and then fact-checked by an independen
 
 One concept per note, hyphenated file names, unique across the vault, so a bare [[HTTP-Message-Abstraction-RFC-9110]] link resolves.
 Every note ends with Related links (`Prerequisites:`, `Next:`, and `See also:`) and primary-source further reading.
-Code, headers, and HTTP syntax in prose are always in backticks, and wikilink aliases inside tables are written as [[Note\|Alias]].
+Code, headers, and HTTP syntax in prose are always in backticks, and wikilink aliases inside tables are written as `[[Note\|Alias]]`.
 
 ## Related in this vault
 

@@ -590,6 +590,7 @@ def place_order_with_deadline(user_id: str, amount: float):
 - [[REST-APIs|REST APIs]]: Traditional resource-based architecture comparison.
 - [[HTTP-Evolution-HTTP1-HTTP2-HTTP3|HTTP Evolution]]: The HTTP/2 transport engine underlying gRPC.
 - [[Chapter_63_Microservices_and_gRPC_in_Python|Python gRPC Microservices]]: Concrete Python implementation patterns.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/19-gRPC-and-Protocol-Buffers/README|gRPC and Protocol Buffers]], [[20-API-Engineering/01-HTTP-Semantics-and-Wire-Protocols/README|HTTP Semantics and Wire Protocols]], [[20-API-Engineering/02-TLS-Connections-and-Intermediaries/README|TLS Connections and Intermediaries]]; start with [[Protobuf-Wire-Format-TLV-Tags-Varints-and-ZigZag-Encoding]], [[Protobuf-Editions-2023-2024-vs-Proto2-and-Proto3-Presence-Semantics]], [[Protobuf-Schema-Evolution-Invariants-Reserved-Tags-and-Unknown-Fields]].
 
 ## Further Reading
 - Indrasiri, Kasun, and Danesh Kuruppu. *gRPC: Up and Running: Building Cloud Native Applications with Go and Java for Docker and Kubernetes*. O'Reilly Media, 2020.

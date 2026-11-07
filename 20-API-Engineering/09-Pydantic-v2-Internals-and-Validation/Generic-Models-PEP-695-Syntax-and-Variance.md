@@ -7,7 +7,7 @@ last_reviewed:
 sources: []
 ---
 
-# Generic Pydantic Models: PEP 695 Type Parameter Syntax (class Page[T](BaseModel)) and Subclass Specialization
+# Generic Pydantic Models: PEP 695 Type Parameter Syntax and Subclass Specialization
 
 > [!summary] Claim
 > Seed note: the claim, mechanism, and proof are written when this note is drafted.

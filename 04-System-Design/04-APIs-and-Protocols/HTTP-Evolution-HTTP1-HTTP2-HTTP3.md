@@ -519,6 +519,7 @@ Google reported an 18% reduction in video buffering rebuffers and a 3.6% reducti
 - [[REST-APIs|REST APIs]]: High-level application semantics over HTTP.
 - [[gRPC-and-Protocol-Buffers|gRPC and Protocol Buffers]]: Binary RPC framework utilizing HTTP/2 transport.
 - [[01-CS-Foundations/Computer-Networks/notes/02-application-layer.md|Computer Networks Application Layer]]: Academic networking foundations.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/01-HTTP-Semantics-and-Wire-Protocols/README|HTTP Semantics and Wire Protocols]], [[20-API-Engineering/02-TLS-Connections-and-Intermediaries/README|TLS Connections and Intermediaries]], [[20-API-Engineering/24-API-Failure-Case-Studies/README|API Failure Case Studies]]; start with [[HTTP-Message-Abstraction-RFC-9110]], [[HTTP-1-1-Framing-Keep-Alive-and-Chunked-Encoding]], [[HTTP-1-1-Pipelining-and-Head-of-Line-Blocking]].
 
 ## Further Reading
 - Grigorik, Ilya. *High Performance Browser Networking*. O'Reilly Media, 2013.

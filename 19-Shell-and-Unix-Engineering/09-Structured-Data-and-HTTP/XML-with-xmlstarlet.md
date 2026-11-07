@@ -40,4 +40,6 @@ Prerequisites: [[yq-Variants-and-YAML-Hazards]]
 
 Next: [[CSV-Quoting-and-Edge-Cases]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/01-HTTP-Semantics-and-Wire-Protocols/README|HTTP Semantics and Wire Protocols]], [[20-API-Engineering/23-History-and-Primary-Sources/README|History and Primary Sources]]; start with [[Content-Negotiation-Media-Types-and-Charsets]].
+
 ## Further reading

@@ -460,6 +460,7 @@ Because active channels receive hundreds of messages per minute, offset paginati
 - [[REST-APIs|REST APIs]]: HATEOAS link headers for pagination (`rel="next"`).
 - [[PostgreSQL-Architecture|PostgreSQL Architecture]]: B+Tree indexing and execution plans.
 - [[MySQL-and-InnoDB|MySQL and InnoDB]]: Clustered index traversal mechanics.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]], [[20-API-Engineering/26-Capstone-Projects/README|Capstone Projects]]; start with [[Offset-Limit-Pagination-Mechanics-Cost-and-Window-Drift]], [[Keyset-Seek-Pagination-and-Composite-Tie-Breaker-Cursors]], [[Opaque-Cursor-Encoding-HMAC-Integrity-and-Filter-Binding]].
 
 ## Further Reading
 - Winand, Markus. "Use The Index, Luke!: Paging Through Results." *use-the-index-luke.com* (2012).

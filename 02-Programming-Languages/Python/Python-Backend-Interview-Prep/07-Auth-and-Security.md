@@ -1039,3 +1039,7 @@ Official references:
 - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html).
 - [OWASP API Security Top 10 2023](https://api-security.owasp.org/editions/2023/en/0x11-t10/), [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 - [PyJWT documentation](https://pyjwt.readthedocs.io/en/stable/), [FastAPI OAuth2 scopes](https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/), [Microsoft identity platform access tokens](https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens).
+
+## Related
+
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/15-API-Authorization-and-OWASP-Security/README|API Authorization and OWASP Security]], [[20-API-Engineering/14-API-Authentication-and-Identity/README|API Authentication and Identity]], [[20-API-Engineering/02-TLS-Connections-and-Intermediaries/README|TLS Connections and Intermediaries]]; start with [[Authorization-Models-Scopes-RBAC-ABAC-and-Zanzibar-ReBAC]], [[Where-Authorization-Lives-Gateway-Middleware-vs-Domain-and-Query-Layer]], [[OWASP-API-Security-Top-10-2023-Complete-Threat-Model]].

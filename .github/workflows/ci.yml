@@ -57,9 +57,15 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends zsh
           echo "$prefix/bin" >> "$GITHUB_PATH"
 
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          version: "0.11.26"
+          enable-cache: true
+          cache-dependency-glob: 20-API-Engineering/labs/uv.lock
+
       - name: Lint
         run: |
-          python3 tools/audit_vault.py --out - --check links && python3 tools/audit_vault.py --out - --check style && python3 tools/audit_pii.py --check && python3 tools/check_shell_labs.py && python3 tools/check_manifest.py
+          python3 tools/audit_vault.py --out - --check links && python3 tools/audit_vault.py --out - --check style && python3 tools/audit_pii.py --check && python3 tools/check_shell_labs.py && python3 tools/check_manifest.py && python3 tools/check_api_labs.py
 
       - name: Test
         run: |

@@ -26,7 +26,7 @@ One full sentence per physical line.
 No emojis anywhere, and no em dashes or en dashes; use a plain dash "-".
 ASCII only in notes and labs; write arrows as "->" and comparisons as ">=".
 Every piece of code, HTTP method, header name, status code, JSON field, and CLI syntax in prose goes in backticks, including `GET`, `Content-Type`, `200 OK`, `{"id": 1}`, and `uv run pytest`.
-Inside a Markdown table, write a wikilink alias as [[Note\|Alias]].
+Inside a Markdown table, write a wikilink alias as `[[Note\|Alias]]`.
 In Mermaid labels, write a line break as `<br/>`; Mermaid prints `\n` literally.
 Dense, factual prose; mechanism first; name the trade-off and the failure mode of every recommendation.
 

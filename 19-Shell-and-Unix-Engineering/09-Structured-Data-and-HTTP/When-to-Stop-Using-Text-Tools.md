@@ -38,4 +38,6 @@ Part of [Structured Data and HTTP](README.md) in [Shell and Unix Engineering](..
 
 Prerequisites: [[HTTP-Retries-and-Timeouts-with-curl]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/09-Pydantic-v2-Internals-and-Validation/README|Pydantic v2 Internals and Validation]], [[20-API-Engineering/23-History-and-Primary-Sources/README|History and Primary Sources]]; start with [[Pydantic-v2-Architecture-CoreSchema-and-Rust-Pydantic-Core]].
+
 ## Further reading

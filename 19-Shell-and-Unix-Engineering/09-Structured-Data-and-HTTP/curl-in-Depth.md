@@ -40,4 +40,6 @@ Prerequisites: [[DuckDB-from-the-Shell]]
 
 Next: [[HTTP-Retries-and-Timeouts-with-curl]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/01-HTTP-Semantics-and-Wire-Protocols/README|HTTP Semantics and Wire Protocols]], [[20-API-Engineering/02-TLS-Connections-and-Intermediaries/README|TLS Connections and Intermediaries]], [[20-API-Engineering/25-Interview-Drills-and-Design-Reviews/README|Interview Drills and Design Reviews]]; start with [[HTTP-Message-Abstraction-RFC-9110]], [[HTTP-1-1-Framing-Keep-Alive-and-Chunked-Encoding]], [[Alt-Svc-and-HTTP-Version-Negotiation]].
+
 ## Further reading

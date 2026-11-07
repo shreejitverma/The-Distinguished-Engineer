@@ -28,7 +28,7 @@ Read in this order; each note links its prerequisite and the next note.
 7. [Model-Level Validators (@model_validator mode='before'|'after'|'wrap') and Passing Runtime State via ValidationInfo.context](Model-Validators-ValidationInfo-Context-and-Cross-Field-Invariants.md)
 8. [Field Aliases in Depth: validation_alias, serialization_alias, AliasPath, AliasChoices, and AliasGenerator](Aliases-AliasPath-AliasChoices-and-Bidirectional-Field-Mapping.md)
 9. [High-Performance Polymorphism: Discriminated Unions with String Discriminators, Tag(), and Callable Discriminator()](Discriminated-Unions-Tag-and-Callable-Discriminator-Dispatch.md)
-10. [Generic Pydantic Models: PEP 695 Type Parameter Syntax (class Page[T](BaseModel)) and Subclass Specialization](Generic-Models-PEP-695-Syntax-and-Variance.md)
+10. [Generic Pydantic Models: PEP 695 Type Parameter Syntax and Subclass Specialization](Generic-Models-PEP-695-Syntax-and-Variance.md)
 11. [Recursive Schemas, Forward References, model_rebuild(), and Cyclic Reference Detection in pydantic-core](Recursive-Models-Forward-References-and-Cyclic-Reference-Guard.md)
 12. [Serialization Internals: model_dump vs model_dump_json, @field_serializer, @model_serializer, and when_used](Custom-Serialization-Field-Model-and-Wrap-Serializers.md)
 13. [Validating from ORM Objects (from_attributes=True) and Preventing Accidental SQLAlchemy Lazy-Load Queries During Serialization](ORM-Mode-From-Attributes-and-Preventing-Accidental-Lazy-Loads.md)

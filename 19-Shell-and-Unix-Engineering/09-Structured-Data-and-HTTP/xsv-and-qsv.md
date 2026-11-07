@@ -40,4 +40,6 @@ Prerequisites: [[Miller]]
 
 Next: [[sqlite3-from-the-Shell]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]]; start with [[Streaming-Exports-and-NDJSON-for-Unbounded-Collections]].
+
 ## Further reading

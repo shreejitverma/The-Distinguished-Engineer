@@ -42,4 +42,6 @@ Next: [[yq-Variants-and-YAML-Hazards]]
 
 See also: [[Structured-Data-Wrangling-Jq-Yq-and-Coreutils]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]], [[20-API-Engineering/21-AI-and-LLM-API-Engineering/README|AI and LLM API Engineering]]; start with [[Streaming-Exports-and-NDJSON-for-Unbounded-Collections]].
+
 ## Further reading

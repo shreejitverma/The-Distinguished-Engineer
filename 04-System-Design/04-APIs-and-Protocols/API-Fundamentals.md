@@ -498,6 +498,7 @@ Stripe guarantees that if a network failure occurs, retrying the API call will r
 - [[GraphQL|GraphQL]]: Query-based alternative to REST and its rate limiting cost models.
 - [[gRPC-and-Protocol-Buffers|gRPC and Protocol Buffers]]: Binary RPC protocol contracts and error handling.
 - [[API-Authentication-and-Authorization|API Authentication and Authorization]]: Securing API endpoints with OAuth 2.0 and JWTs.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/07-Versioning-Evolution-and-API-Guidelines/README|Versioning Evolution and API Guidelines]], [[20-API-Engineering/16-Resilience-Rate-Limiting-and-Idempotency/README|Resilience Rate Limiting and Idempotency]], [[20-API-Engineering/06-Bulk-Long-Running-and-Error-Contracts/README|Bulk Long Running and Error Contracts]]; start with [[Compatibility-Taxonomy-Wire-Source-and-Semantic-Compatibility-AIP-180]], [[Anatomy-of-Breaking-Changes-in-HTTP-and-JSON-APIs]], [[API-Versioning-Strategies-URI-Header-Media-Type-and-Channel-AIP-185]].
 
 ## Further Reading
 - Richardson, Leonard, and Mike Amundsen. *RESTful Web APIs: Services for a Changing World*. O'Reilly Media, 2013.

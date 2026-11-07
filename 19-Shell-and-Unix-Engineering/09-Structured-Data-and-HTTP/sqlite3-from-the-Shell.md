@@ -40,4 +40,6 @@ Prerequisites: [[xsv-and-qsv]]
 
 Next: [[DuckDB-from-the-Shell]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]], [[20-API-Engineering/13-Database-Access-and-Transactions-for-APIs/README|Database Access and Transactions for APIs]]; start with [[Offset-Limit-Pagination-Mechanics-Cost-and-Window-Drift]].
+
 ## Further reading
