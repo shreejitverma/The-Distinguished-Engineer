@@ -18,9 +18,77 @@ import zlib
 
 
 TYPE_NAMES = {1: "commit", 2: "tree", 3: "blob", 4: "tag"}
+MAX_CHAIN = 4095  # git's own --depth ceiling; a longer chain in a pack is treated as corrupt
 
 
-def parse_packfile(repo_dir: str) -> None:
+def apply_delta(base_data: bytes, delta: bytes) -> bytes:
+    p = 0
+
+    def read_varint() -> int:
+        nonlocal p
+        res = 0
+        s = 0
+        while True:
+            b = delta[p]
+            p += 1
+            res |= (b & 0x7F) << s
+            s += 7
+            if not (b & 0x80):
+                break
+        return res
+
+    base_sz = read_varint()
+    target_sz = read_varint()
+    if len(base_data) != base_sz:
+        raise ValueError(f"Base size mismatch: expected {base_sz}, got {len(base_data)}")
+
+    out = bytearray()
+    while p < len(delta):
+        cmd = delta[p]
+        p += 1
+        if cmd & 0x80:  # Copy instruction
+            cp_off = 0
+            cp_sz = 0
+            if cmd & 0x01:
+                cp_off |= delta[p]
+                p += 1
+            if cmd & 0x02:
+                cp_off |= delta[p] << 8
+                p += 1
+            if cmd & 0x04:
+                cp_off |= delta[p] << 16
+                p += 1
+            if cmd & 0x08:
+                cp_off |= delta[p] << 24
+                p += 1
+            if cmd & 0x10:
+                cp_sz |= delta[p]
+                p += 1
+            if cmd & 0x20:
+                cp_sz |= delta[p] << 8
+                p += 1
+            if cmd & 0x40:
+                cp_sz |= delta[p] << 16
+                p += 1
+            if cp_sz == 0:
+                cp_sz = 0x10000
+            if cp_off + cp_sz > len(base_data):
+                raise ValueError(f"delta copy out of range: offset={cp_off} size={cp_sz} base={len(base_data)}")
+            out.extend(base_data[cp_off : cp_off + cp_sz])
+        elif cmd > 0:  # Insert instruction
+            if p + cmd > len(delta):
+                raise ValueError("delta insert runs past the end of the delta")
+            out.extend(delta[p : p + cmd])
+            p += cmd
+        else:
+            raise ValueError("Reserved instruction opcode 0x00")
+
+    if len(out) != target_sz:
+        raise ValueError(f"Target size mismatch: expected {target_sz}, got {len(out)}")
+    return bytes(out)
+
+
+def parse_packfile(repo_dir: str) -> tuple[dict[str, tuple[str, int, int]], collections.Counter]:
     pack_dir = os.path.join(repo_dir, ".git", "objects", "pack")
     idx_files = sorted(f for f in os.listdir(pack_dir) if f.endswith(".idx"))
     if not idx_files:
@@ -130,74 +198,21 @@ def parse_packfile(repo_dir: str) -> None:
             base_info = ("ref", pack_data[curr : curr + 20].hex())
             curr += 20
 
+        # Feed zlib in bounded slices so each call copies a few KiB, not the whole pack tail.
         decompressor = zlib.decompressobj()
-        decomp_data = decompressor.decompress(pack_data[curr:])
-        comp_len = len(pack_data[curr:]) - len(decompressor.unused_data)
-        end = curr + comp_len
+        parts: list[bytes] = []
+        end = curr
+        while not decompressor.eof:
+            if end >= len(pack_data) - 20:
+                raise ValueError(f"truncated zlib stream for entry at offset {off}")
+            chunk = pack_data[end : min(end + 4096, len(pack_data) - 20)]
+            parts.append(decompressor.decompress(chunk))
+            end += len(chunk) - len(decompressor.unused_data)
+        decomp_data = b"".join(parts)
+        if len(decomp_data) != size:
+            raise ValueError(f"inflated size mismatch at offset {off}: header={size}, got={len(decomp_data)}")
         crc = zlib.crc32(pack_data[off:end]) & 0xFFFFFFFF
         return type_id, size, base_info, decomp_data, crc
-
-    def apply_delta(base_data: bytes, delta: bytes) -> bytes:
-        p = 0
-
-        def read_varint() -> int:
-            nonlocal p
-            res = 0
-            s = 0
-            while True:
-                b = delta[p]
-                p += 1
-                res |= (b & 0x7F) << s
-                s += 7
-                if not (b & 0x80):
-                    break
-            return res
-
-        base_sz = read_varint()
-        target_sz = read_varint()
-        if len(base_data) != base_sz:
-            raise ValueError(f"Base size mismatch: expected {base_sz}, got {len(base_data)}")
-
-        out = bytearray()
-        while p < len(delta):
-            cmd = delta[p]
-            p += 1
-            if cmd & 0x80:  # Copy instruction
-                cp_off = 0
-                cp_sz = 0
-                if cmd & 0x01:
-                    cp_off |= delta[p]
-                    p += 1
-                if cmd & 0x02:
-                    cp_off |= delta[p] << 8
-                    p += 1
-                if cmd & 0x04:
-                    cp_off |= delta[p] << 16
-                    p += 1
-                if cmd & 0x08:
-                    cp_off |= delta[p] << 24
-                    p += 1
-                if cmd & 0x10:
-                    cp_sz |= delta[p]
-                    p += 1
-                if cmd & 0x20:
-                    cp_sz |= delta[p] << 8
-                    p += 1
-                if cmd & 0x40:
-                    cp_sz |= delta[p] << 16
-                    p += 1
-                if cp_sz == 0:
-                    cp_sz = 0x10000
-                out.extend(base_data[cp_off : cp_off + cp_sz])
-            elif cmd > 0:  # Insert instruction
-                out.extend(delta[p : p + cmd])
-                p += cmd
-            else:
-                raise ValueError("Reserved instruction opcode 0x00")
-
-        if len(out) != target_sz:
-            raise ValueError(f"Target size mismatch: expected {target_sz}, got {len(out)}")
-        return bytes(out)
 
     resolved: dict[int, tuple[str, bytes, int]] = {}
 
@@ -205,8 +220,14 @@ def parse_packfile(repo_dir: str) -> None:
         # Walk the delta chain down to a full object, then apply deltas back up (no recursion,
         # so a deep chain cannot exhaust the Python stack).
         chain: list[tuple[int, bytes]] = []
+        seen: set[int] = set()
         cur = off
         while cur not in resolved:
+            if cur in seen:
+                raise ValueError(f"delta cycle detected at offset {cur}")
+            if len(chain) > MAX_CHAIN:
+                raise ValueError(f"delta chain longer than {MAX_CHAIN} at offset {off}")
+            seen.add(cur)
             type_id, _, base_info, decomp_data, _ = parse_raw_entry(cur)
             if type_id in TYPE_NAMES:
                 resolved[cur] = (TYPE_NAMES[type_id], decomp_data, 0)
@@ -223,11 +244,13 @@ def parse_packfile(repo_dir: str) -> None:
         return resolved[off]
 
     type_counts: dict[str, int] = collections.Counter()
+    raw_types: collections.Counter = collections.Counter()  # pack entry type ids as stored
     depth_histogram: dict[int, int] = collections.Counter()
     object_info: dict[str, tuple[str, int, int]] = {}
 
     for oid, off, exp_crc in zip(oids, offsets, crcs):
-        _, _, _, _, crc = parse_raw_entry(off)
+        raw_type, _, _, _, crc = parse_raw_entry(off)
+        raw_types[raw_type] += 1
         if crc != exp_crc:
             raise ValueError(f"CRC32 mismatch for {oid}: index={exp_crc:08x}, computed={crc:08x}")
         tname, data, depth = resolve(off)
@@ -265,6 +288,8 @@ def parse_packfile(repo_dir: str) -> None:
         tname, data, _ = resolve(find_offset(oid))
         matched += tname == gtype and data == body
     print(f"Byte-for-byte match with git cat-file --batch: {matched}/{total_objects} objects")
+    if matched != total_objects:
+        raise ValueError(f"reconstruction differs from git cat-file for {total_objects - matched} objects")
     print()
     print("Spot checks (fanout binary search, then git cat-file -s):")
 
@@ -290,6 +315,8 @@ def parse_packfile(repo_dir: str) -> None:
         git_size = int(proc.stdout.strip())
         status = "OK" if rec_size == git_size else "MISMATCH"
         print(f"  {target_oid} ({label}): size={rec_size} (git: {git_size}) {status}")
+
+    return object_info, raw_types
 
 
 if __name__ == "__main__":

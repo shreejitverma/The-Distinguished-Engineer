@@ -45,3 +45,5 @@ done
 git -c pack.threads=1 gc --prune=now -q
 
 python3 "${SCRIPT_DIR}/packfile.py" "${TMPDIR_REPO}"
+# Silent fault injection: prints nothing, fails the lab if any parser defence stops firing.
+python3 "${SCRIPT_DIR}/faults.py" "${TMPDIR_REPO}"

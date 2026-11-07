@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Michael Kerrisk et al., core(5): core dump file, Linux man-pages project, 2026, https://man7.org/linux/man-pages/man5/core.5.html"
@@ -23,6 +23,17 @@ sources:
   - "LLVM Project, LLDB: Symbolication, lldb.llvm.org, 2026, https://lldb.llvm.org/use/symbolication.html"
   - "Crashpad project, Crashpad Overview Design, Chromium source repository, 2026, https://chromium.googlesource.com/crashpad/crashpad/+/HEAD/doc/overview_design.md"
   - "Michael Kerrisk, The Linux Programming Interface, No Starch Press, 2010, https://man7.org/tlpi/"
+  - "elfutils project, debuginfod-client-config(7) (DEBUGINFOD_TIMEOUT, DEBUGINFOD_URLS), elfutils 0.190, 2023, https://sourceware.org/elfutils/Debuginfod.html"
+  - "elfutils project, src/unstrip.c (list_module), elfutils 0.190 release tarball, 2023, https://sourceware.org/elfutils/ftp/0.190/elfutils-0.190.tar.bz2"
+  - "systemd project, sysctl.d/50-coredump.conf.in, systemd v255, 2023, https://github.com/systemd/systemd/blob/v255/sysctl.d/50-coredump.conf.in"
+  - "Ubuntu, systemd 255.4-1ubuntu8.18 and systemd-coredump packages for Ubuntu 24.04 (50-coredump.conf, tmpfiles.d/systemd.conf), Launchpad, 2026, https://launchpad.net/ubuntu/+source/systemd"
+  - "Linux kernel developers, arch/x86/mm/fault.c (show_signal_msg), Linux kernel source tree, 2026, https://github.com/torvalds/linux/blob/master/arch/x86/mm/fault.c"
+  - "Linux kernel developers, arch/arm64/kernel/traps.c (arm64_show_signal), Linux kernel source tree, 2026, https://github.com/torvalds/linux/blob/master/arch/arm64/kernel/traps.c"
+  - "Linux kernel developers, Memory Tagging Extension (MTE) in AArch64 Linux, docs.kernel.org, 2026, https://www.kernel.org/doc/html/latest/arch/arm64/memory-tagging-extension.html"
+  - "GNU Binutils project, The GNU linker: Command-line Options (--package-metadata), sourceware.org, 2026, https://sourceware.org/binutils/docs/ld/Options.html"
+  - "LLVM Project, GWP-ASan, llvm.org, 2026, https://llvm.org/docs/GwpAsan.html"
+  - "LLVM Project, Scudo Hardened Allocator, llvm.org, 2026, https://llvm.org/docs/ScudoHardenedAllocator.html"
+  - "Aaron Merey, Add debuginfod support to GDB (commit 0d79cdc4, NEWS under Changes since GDB 9), binutils-gdb, 2020, https://gnu.googlesource.com/binutils-gdb/+/0d79cdc494d5eb9db26a602d62c92d49f83f407e"
 ---
 
 # Debug a Production Crash From a Core Dump
@@ -57,7 +68,9 @@ order_matcher[41829]: segfault at 0 ip 000055d1c2a0113d sp 00007ffd2b8e4a98 erro
 
 `segfault at 0` is the faulting data address, `ip` is the instruction pointer, and `error 6` is the x86 page-fault error code (bit 1 write, bit 2 user mode, bit 0 clear means the page was not present).
 The bracket names the mapping that contains `ip` with its start and size, so `ip` minus the start, plus that mapping's file offset from `/proc/PID/maps` or `info proc mappings`, is the address to look up in the binary.
-Suffixes vary by kernel version (recent x86 kernels append `likely on CPU N (core N, socket N)`), and arm64 kernels print a different line that includes the ESR (Exception Syndrome Register) value (as of 2026-10, Linux).
+x86 kernels end the line with ` in MAPPING[START+SIZE]` and then `likely on CPU N (core N, socket N)`, per `show_signal_msg` in `arch/x86/mm/fault.c`; the sample line above omits that suffix.
+arm64 kernels print a different line, `COMM[PID]: unhandled exception: CLASS, ESR 0x..., ...`, which includes the ESR (Exception Syndrome Register) value, per `arm64_show_signal` in `arch/arm64/kernel/traps.c` (as of 2026-11, Linux, kernel master).
+Both are printed only when `show_unhandled_signals` is on and the print is not rate-limited.
 On the OrbStack lab VM `debug.exception-trace` was 0, so no line was printed at all; absence of a kernel line is not evidence of absence of a crash.
 
 ## Decision Tree
@@ -127,7 +140,7 @@ export DEBUGINFOD_CACHE_PATH="${HOME}/.cache/debuginfod_client"
 
 `DEBUGINFOD_URLS` is a space-separated list; on Ubuntu, `/etc/profile.d/debuginfod.sh` sets it from `/etc/debuginfod/*.urls`, which contains `https://debuginfod.ubuntu.com` (as of 2026-10, Linux).
 `debuginfod.example.com` stands for your internal server.
-`DEBUGINFOD_TIMEOUT` defaults to 90 seconds and skips a server that sends less than 100 KiB in that window, per debuginfod-find(1).
+`DEBUGINFOD_TIMEOUT` defaults to 90 seconds and skips a server that sends less than 100 KiB in that window, per debuginfod-client-config(7) (elfutils 0.190).
 
 **Verification:**
 
@@ -155,7 +168,7 @@ You need the `.dSYM` bundle archived from the exact release build; one generated
 | Item | Platform | Value `(as of 2026-10)` | Why it matters |
 | :--- | :--- | :--- | :--- |
 | `kernel.core_pattern` default | Linux | `core` (relative file in the crashing process's cwd) | A leading `\|` pipes the core to a program that runs as root in the initial (host) namespaces. |
-| `kernel.core_pattern` length | Linux | 127 characters (kernel docs); core(5) says 128 bytes | Long collector command lines get cut. |
+| `kernel.core_pattern` length | Linux | 127 characters (kernel docs); core(5) caps the resulting core file name at 128 bytes | Long collector command lines get cut. |
 | `kernel.core_uses_pid` | Linux | `0` | When `1` and the pattern lacks `%p`, `.PID` is appended. |
 | `kernel.core_pipe_limit` | Linux | `0` kernel default; `16` set by systemd's `50-coredump.conf` (systemd 255) | `0` means unlimited parallel pipes but no guarantee `/proc/PID` survives for the collector; over the limit, dumps are skipped and logged. |
 | `fs.suid_dumpable` | Linux | `0` kernel default; `2` set by systemd's `50-coredump.conf` | Controls dumps after setuid, setgid, or capability changes. |
@@ -163,7 +176,7 @@ You need the `.dSYM` bundle archived from the exact release build; one generated
 | `RLIMIT_CORE` (`ulimit -c`) | Both | Distribution and service dependent; `0` in a default container of the lab image | Blocks file targets on Linux; ignored by the kernel for pipe targets; macOS core(5) says cores are disabled by default this way. |
 | `ProcessSizeMax=` / `ExternalSizeMax=` | Linux | `32G` each on 64-bit (`1G` on 32-bit) | Above `ProcessSizeMax` no backtrace is generated; above `ExternalSizeMax` the stored core is truncated. |
 | `JournalSizeMax=` | Linux | `767M` | Cap when `Storage=journal`. |
-| `MaxUse=` / `KeepFree=` | Linux | 10% / 15% of the filesystem | Old cores are deleted silently to stay under these. |
+| `MaxUse=` / `KeepFree=` | Linux | 10% / 15% of the filesystem, each capped at 4 GiB (`MaxUse` minimum 1 MiB) | Old cores are deleted silently to stay under these. |
 | Stored-core age | Linux | `2w` in `/usr/lib/tmpfiles.d/systemd.conf` on Ubuntu 24.04 | `coredumpctl list` then shows `missing`. |
 | `DEBUGINFOD_TIMEOUT` | Linux | 90 seconds | Per-server connect-and-first-100-KiB timeout. |
 | debuginfod server port | Linux | 8002 | Default for `debuginfod -p`. |
@@ -229,14 +242,18 @@ APP=/release-archive/order_matcher/1.42.0/order_matcher   # the artifact you shi
 eu-readelf -n "$APP" | grep 'Build ID'
 ```
 
-Each `eu-unstrip -n` line is `START+SIZE BUILDID@NOTEADDR FILE DEBUGFILE MODULE`, where `.` means "the file found on this host" and `-` means "not found".
+Each `eu-unstrip -n` line is `START+SIZE BUILDID@NOTEADDR FILE DEBUGFILE MODULE`, where `.` means "an ELF (or DWARF) image was found but has no file name to report", for example one read from the core's own memory, and `-` means "none found" (`list_module` in elfutils 0.190 `src/unstrip.c`).
 The lab core printed:
 
 ```text
-0xaaaabadb0000+0x21000 a73912f85f2bf7003f6d41b12c830c6c45e55c76@0xaaaabadb0264 . - /w/app
-0xffff8eb41000+0x1000 5f55d352604d2595e21441d32924574223f22ac6@0xffff8eb412f0 . - linux-vdso.so.1
-0xffff8e940000+0x1bdf90 27027b96e5b8c475fc327aa445bea1c71d37b4e2@0xffff8e940280 /lib/aarch64-linux-gnu/libc.so.6 /usr/lib/debug/.build-id/27/027b96e5b8c475fc327aa445bea1c71d37b4e2.debug libc.so.6
+0xaaaadf860000+0x21000 a73912f85f2bf7003f6d41b12c830c6c45e55c76@0xaaaadf860264 . - /w/app
+0xffffad2fc000+0x1000 10ade0e5e46d3dec0baac7e5bee5a356bc3f7f96@0xffffad2fc2f0 . - linux-vdso.so.1
+0xffffad100000+0x1bdf90 27027b96e5b8c475fc327aa445bea1c71d37b4e2@0xffffad100280 /lib/aarch64-linux-gnu/libc.so.6 - libc.so.6
 ```
+
+This block is real output from the pinned lab image (Ubuntu 24.04, linux-aarch64, elfutils 0.190, 2026-11-06), with the lab built in `/w`.
+Addresses, the vDSO build ID, and the executable path change from run to run and host to host.
+The libc DEBUGFILE column names a file only where libc's debug package (`libc6-dbg` on Ubuntu) is installed; the pinned lab image has none, so it prints `-`, and with the package installed it prints `/usr/lib/debug/.build-id/27/027b96e5b8c475fc327aa445bea1c71d37b4e2.debug`.
 
 The build ID is in the core only because `coredump_filter` bit 4 dumps the first page of each ELF mapping, and the linker places `.note.gnu.build-id` in that page.
 In the lab core's `eu-readelf -l` output, the text segments of `app` and of libc each have `FileSiz 0x1000`, one page, although libc's text has `MemSiz 0x19a000`.
@@ -291,19 +308,22 @@ Use `-iex`, not `-ex`, for these settings: `-iex` runs before GDB reads the exec
 `set sysroot` makes GDB load `/lib/.../libc.so.6` and the dynamic loader from the crashing image instead of the triage host; extract it with `docker create IMAGE` followed by `docker export CONTAINER | tar -x -C "$SYSROOT"`.
 On the crashing host itself, `coredumpctl debug -1 /usr/local/bin/order_matcher` does the same with that host's files.
 
-**Verification:** the lab session printed:
+**Verification:** the lab session, run interactively on the pinned lab image (gdb 15.1, linux-aarch64, 2026-11-06) with the lab built in `/w`, printed:
 
 ```text
 Reading symbols from ./app...
 Reading symbols from /w/dbg/.build-id/a7/3912f85f2bf7003f6d41b12c830c6c45e55c76.debug...
+[New LWP 19]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/aarch64-linux-gnu/libthread_db.so.1".
 Core was generated by `./app'.
 Program terminated with signal SIGSEGV, Segmentation fault.
-#0  0x0000aaaabadb0764 in trigger_crash (ptr=ptr@entry=0x0) at ./crash.c:6
+#0  0x0000aaaadf860764 in trigger_crash (ptr=ptr@entry=0x0) at ./crash.c:6
 6	    *ptr = 42;
 ```
 
 Then check three things:
-- No `warning: core file may not match specified executable file.`; GDB 15.1 printed exactly that when the lab core was opened with a rebuilt unstripped binary, but printed nothing for a rebuilt binary stripped with `--strip-all`, so this check never replaces the Step 3 build ID comparison.
+- No `warning: core file may not match specified executable file.`; GDB 15.1 printed exactly that when the lab core was opened with a binary rebuilt from changed source, both unstripped and stripped with `--strip-all`, because it compares build IDs; a rebuild that reproduces the same build ID passes silently, so this check never replaces the Step 3 build ID comparison against the archived artifact.
 - No `has a segment extending past end of file` warning; GDB 15.1 printed `warning: BFD: warning: /w/./core.trunc has a segment extending past end of file` for a core cut to 8 KiB.
 - `info sharedlibrary` marks libraries without debug info with `(*)`; fetch those you need before reading their frames.
 
@@ -326,13 +346,13 @@ On x86-64 use `info registers rip rdi rsp` instead of the arm64 register names.
 **Verification:** the lab core printed:
 
 ```text
-#0  0x0000aaaabadb0764 in trigger_crash (ptr=ptr@entry=0x0) at ./crash.c:6
-#1  0x0000aaaabadb077c in process_transaction (ptr=ptr@entry=0x0) at ./crash.c:11
-#2  0x0000aaaabadb061c in main (argc=<optimized out>, argv=<optimized out>) at ./crash.c:17
-pc             0xaaaabadb0764      0xaaaabadb0764 <trigger_crash+4>
+#0  0x0000aaaadf860764 in trigger_crash (ptr=ptr@entry=0x0) at ./crash.c:6
+#1  0x0000aaaadf86077c in process_transaction (ptr=ptr@entry=0x0) at ./crash.c:11
+#2  0x0000aaaadf86061c in main (argc=<optimized out>, argv=<optimized out>) at ./crash.c:17
+pc             0xaaaadf860764      0xaaaadf860764 <trigger_crash+4>
 x0             0x0                 0
-lr             0xaaaabadb077c      187650256078716
-=> 0xaaaabadb0764 <trigger_crash+4>:	str	w1, [x0]
+lr             0xaaaadf86077c      187650871265148
+=> 0xaaaadf860764 <trigger_crash+4>:	str	w1, [x0]
 $1 = 11
 $2 = 1
 $3 = (void *) 0x0
@@ -344,7 +364,7 @@ On x86-64 the same C line compiles to `movl $0x2a,(%rdi)` with `rdi == 0`.
 
 Read frame 1 critically.
 The lab compiles with `-fno-optimize-sibling-calls`, so `disassemble process_transaction` shows a real call: `stp x29, x30, [sp, #-16]!`, `mov x29, sp`, `bl trigger_crash`, `ldp x29, x30, [sp], #16`, `ret`.
-That is why `lr` points into `process_transaction` (`0xaaaabadb077c`, the instruction after the `bl`) rather than into `main`, and `frame 1` followed by `info frame` lists `x29` and `x30` saved on the stack, so all three frames are unwound from real stack state and none is synthesized.
+That is why `lr` points into `process_transaction` (`0xaaaadf86077c`, the instruction after the `bl`) rather than into `main`, and `frame 1` followed by `info frame` lists `x29` and `x30` saved on the stack, so all three frames are unwound from real stack state and none is synthesized.
 Without that flag GCC at `-O2` turns the call into a single `b trigger_crash`, a tail call that leaves no frame for `process_transaction`; GDB can then only infer frame 1 from DWARF call-site information, and `info frame` on it says `tail call frame`.
 Without any debug info the lab's stripped binary gives `?? ()` for all three of its frames, and because GDB cannot recognize `main` it keeps unwinding into libc startup code: six frames, of which only `#4 __libc_start_main` has a name, taken from libc's own symbols.
 
@@ -392,9 +412,9 @@ xcrun crashlog "$IPS"
 atos -arch arm64 -o order_matcher.dSYM/Contents/Resources/DWARF/order_matcher -l 0x102120000 0x10212032c
 ```
 
-`xcrun crashlog` loads the report into LLDB and resolves every frame for which it finds a matching dSYM; `atos -l LOAD_ADDRESS ADDRESS` resolves one address, where `LOAD_ADDRESS` is the image `base` and `ADDRESS` is `base + imageOffset`.
+`xcrun crashlog` loads the report into LLDB and resolves every frame for which it finds a matching dSYM; `atos -l LOAD_ADDRESS ADDRESS` resolves one address, where `LOAD_ADDRESS` is the image `base` and `ADDRESS` is `base + imageOffset`, both in hex (a decimal `base` from the JSON silently produces a wrong `0x... (in app)` answer).
 
-**Verification:** on the test host `atos` printed `trigger_crash (in app) (crash.c:6)`.
+**Verification:** on the test host (macOS 27.2, clang `-O2 -g`, separate compile and `dsymutil`, re-run 2026-11-06) `atos` printed `trigger_crash (in app) (crash.c:6)`.
 For a return address in a caller frame, `atos` reports the line after the call (`main ... (crash.c:18)` in the test, while the call is on line 17); subtract 1 from return addresses before looking them up.
 The macOS report also has no `process_transaction` frame: that test build did not pass `-fno-optimize-sibling-calls`, clang emitted a tail call, and crash reports do not synthesize tail-call frames.
 
@@ -421,24 +441,28 @@ The lab in `code/03-Debugging/core_dump_triage/` runs the Linux procedure end to
 4. It sets `ulimit -c unlimited` and reads `/proc/sys/kernel/core_pattern`.
    When the pattern is a file name without a `/`, it runs the program, fails unless the exit status is 139 (`SIGSEGV`), and takes the core the kernel wrote into the working directory.
    When the pattern pipes to a handler such as `systemd-coredump` or `apport`, or contains a `/` that sends the core to another directory, the core never lands there, so it falls back to GDB's `generate-core-file` after `run` stops on the `SIGSEGV`.
-   Either way it fails if no non-empty core exists, and it reports on the `Core source:` line which source it used and, for the fallback, which of the two reasons applied.
+   Either way it fails if no non-empty core exists or if `eu-readelf -h` does not report `Type: CORE`, and it writes a `Core source:` line to stderr naming the source it used and, for the fallback, which of the two reasons applied.
+   That line is not part of the compared stdout, so the recorded output does not depend on which source produced the core; the harness shows stderr only when the lab fails.
+   Before anything else it fails with a message if `gcc`, `gdb`, `eu-readelf`, `eu-unstrip`, `objcopy`, or `strip` is missing, and it fails if the linked binary has no build ID.
 5. It compares the executable's build ID with the one `eu-unstrip -n --core` reads from the core and exports the result.
 6. It opens the core in GDB batch mode twice and runs `triage.py` each time.
    Pass 1 sets `debug-file-directory` to a nonexistent path and prints only how many frames have a function name and a source line.
-   Pass 2 sets it to the `.build-id` tree and prints the core source, the build ID check, the backtrace, the faulting `pc` as `function+offset`, the faulting instruction, the signal from `$_siginfo`, and a frame count.
+   Pass 2 sets it to the `.build-id` tree and prints the build ID check, the backtrace, the faulting `pc` as `function+offset`, the faulting instruction, the signal from `$_siginfo`, a frame count, and the number of tail-call frames.
 
 What the output proves and what it does not:
-- The recorded run took a real kernel core, so it exercised `core_pattern` as a file path and `RLIMIT_CORE`, but not `systemd-coredump`; on a host whose pattern pipes to a handler or names another directory, the `Core source:` line names the GDB fallback instead.
+- The recorded run took a real kernel core, so it exercised `core_pattern` as a file path and `RLIMIT_CORE`, but not `systemd-coredump`; on a host whose pattern pipes to a handler or names another directory, the lab takes the GDB fallback core, and the stdout is still the same, because the stderr `Core source:` line is the only difference.
+  Forcing the fallback in the container (a `|/bin/true` pattern) produced byte-identical stdout on 2026-11-06.
 - Pass 1 shows `1 of 6` frames named and `0 of 6` with a source line: with `strip --strip-all` and no reachable debug file, none of the program's own frames has a name or a line, and GDB, unable to recognize `main`, unwinds on into libc startup code.
   The one named frame is `__libc_start_main`, which GDB names from libc's exported dynamic symbols, not from any debug info.
 - In pass 2 every function name and line (`trigger_crash` at `crash.c:6`, `process_transaction` at `crash.c:11`, `main` at `crash.c:17`) comes from the `.build-id` debug file, because the only change from pass 1 is `debug-file-directory` and the binary has no `.symtab` left.
-- `Frame count: 3` counts three real frames, as Step 6 shows; GDB stops at `main` because `backtrace past-main` is off by default.
+- `Frame count: 3` together with `Tail-call frames: 0` shows that all three frames are real: `triage.py` asks GDB for the type of each frame and counts `gdb.TAILCALL_FRAME`, which is the type GDB gives a frame it inferred from DWARF call-site data.
+  Without `-fno-optimize-sibling-calls` the lab prints `Frame count: 3` and `Tail-call frames: 1`, so the count alone could not tell the two builds apart; GDB stops at `main` because `backtrace past-main` is off by default.
 - `Signal name: SIGSEGV` was read from `$_siginfo`; if the core has no signal information, `triage.py` prints `unknown (no siginfo in core)` instead of guessing a signal.
 
 ### Verified output
 
-Recorded by `make record` on linux-aarch64 on 2026-10-25; the file is `code/03-Debugging/core_dump_triage/expected/linux-aarch64.txt`.
-On macOS, `make verify` re-runs the lab in the pinned image from `code/_harness/linux-labs.Dockerfile`; it matched byte for byte on OrbStack on 2026-11-01 with gdb 15.1, elfutils 0.190, and gcc 13.
+Recorded by `make record` on linux-aarch64 on 2026-11-06; the file is `code/03-Debugging/core_dump_triage/expected/linux-aarch64.txt`.
+On macOS, `make verify` re-runs the lab in the pinned image from `code/_harness/linux-labs.Dockerfile`; it matched byte for byte on OrbStack on 2026-11-06 with gdb 15.1, elfutils 0.190, and gcc 13.
 The container runs unprivileged with no capabilities, because OrbStack's `core_pattern` is `core` and the kernel core needs only `RLIMIT_CORE`.
 
 ```text
@@ -447,7 +471,6 @@ Frames with a function name: 1 of 6
 Frames with a source line: 0 of 6
 
 === Pass: with-build-id ===
-Core source: kernel (core_pattern is a file path)
 Build ID match: yes
 
 === Backtrace (Symbols Resolved via .build-id) ===
@@ -467,6 +490,7 @@ Crashing function: trigger_crash
 Crashing line: 6
 Signal name: SIGSEGV
 Frame count: 3
+Tail-call frames: 0
 ```
 
 ## Rollback Procedure
@@ -546,13 +570,13 @@ flowchart LR
 
 ### Fleet crash pipelines
 
-- `systemd-coredump` is a good per-host collector: it records rich metadata (cmdline, environment, `/proc/PID/maps`, limits, container hostname) and, when the executable carries a `.package` metadata ELF note (which `ld --package-metadata` writes), the package name and version.
+- `systemd-coredump` is a good per-host collector: it records rich metadata (cmdline, environment, `/proc/PID/maps`, limits, container hostname) and, when the executable carries a `.note.package` metadata ELF note (which `ld --package-metadata=JSON` writes), the package name and version (`COREDUMP_PACKAGE_NAME=`, `COREDUMP_PACKAGE_VERSION=`, and `COREDUMP_PACKAGE_JSON=`, since systemd 249).
 - Its metadata lives in the journal, so fleet collection usually means exporting journal entries and shipping cores off-host promptly, before `MaxUse=` and tmpfiles rotation delete them.
 - A custom pipe collector (`|/path/to/agent %P ...`) runs as root in the host's initial namespaces for every crash in every container, so it must be small, fast, and bounded by `core_pipe_limit`.
 
 ### Minidumps and Crashpad
 
-- Crashpad splits a client library linked into the application from a handler running in a separate process; the handler snapshots the crashed process, writes a minidump to a local database, and uploads it over HTTPS using the Breakpad wire protocol.
+- Crashpad splits a client library linked into the application from a handler running in a separate process; the handler snapshots the crashed process, writes a minidump to a local database, and uploads it as a multipart HTTP(S) POST using the Breakpad wire protocol (the design doc recommends HTTPS).
 - On macOS the client registers a Mach port as the `EXC_CRASH` exception port; on Linux a signal handler notifies the handler over a socket, and the handler reads the crashed process with `ptrace`, directly or through a broker forked from the crashing process.
 - A minidump holds the module list with identities, each thread's registers and stack memory, selected OS state, memory referenced from registers and stacks, and application annotations, but not the whole heap; that is why it is small enough to upload from every crash.
 - Servers symbolize minidumps with Breakpad-format symbol files produced at build time by `dump_syms` and walked by `minidump_stackwalk`, so symbol upload is a mandatory CI step, not an afterthought.
@@ -578,8 +602,9 @@ flowchart LR
 > 1. Delete the `.build-id` copy step: pass 2 now looks like pass 1, with every program frame `?? at ??:0` and only the libc frame named (`__libc_start_main at ??:0`), six frames instead of three, `Crashing function: None`, and the faulting `pc` as `<None+0>`, because `--strip-all` left no `.symtab` to fall back on.
 > 2. Replace `strip --strip-all` with `strip --strip-debug` and run pass 1's GDB command with `-ex bt`: `trigger_crash`, `process_transaction`, and `main` come back from `.symtab` without lines, and the backtrace stops at `main` with three frames; predict that `triage.py` now prints `3 of 3` frames with a function name but `0 of 3` with a source line, and explain why GDB can name a frame from `.symtab` but needs DWARF for its line.
 > 3. Truncate the core with `head -c 8192 core > core.trunc` and open it: GDB warns that the core `has a segment extending past end of file`, frame 1 still resolves from `lr`, and the backtrace stops with `Cannot access memory` because the stack pages are gone.
-> 4. Change `42` to `43` in `crash.c`, rebuild with the same flags, and open the old core with the new binary: compare the two build IDs, and note that GDB 15.1 warned that the core may not match only when the new binary was unstripped.
+> 4. Change `42` to `43` in `crash.c`, rebuild with the same flags, and open the old core with the new binary: compare the two build IDs, and note that GDB 15.1 warned that the core may not match whether the new binary was unstripped or stripped with `--strip-all`.
 > 5. Drop `-fno-optimize-sibling-calls`, rebuild, and run `disassemble process_transaction` and `info frame` on frame 1: the call becomes `b trigger_crash` and frame 1 is a synthesized tail-call frame.
+>    The lab output changes in exactly two places: pass 1 reports `1 of 5` and `0 of 5` (one real frame fewer on the stack) and the summary ends `Tail-call frames: 1`, while `Frame count` stays 3.
 > 6. Stretch: replace the null store with a call through a null function pointer and recover the caller from `lr` (arm64) or `*(void **)$sp` (x86-64) when `bt` shows `0x0000000000000000 in ?? ()`.
 > Target time: under 20 minutes for steps 1 to 5, then repeat the full Linux procedure on [[Drill-Debugging-Use-After-Free-Core-Dump]].
 
@@ -655,7 +680,7 @@ flowchart LR
 > > A pipe pattern sends the core to `systemd-coredump` or `apport`, outside the lab's directory (and, in a container, to the host), so the lab cannot pick it up and lets GDB write one instead.
 > > `gcore` writes a core from a process GDB has stopped under `ptrace`; nothing in `core_pattern`, `RLIMIT_CORE`, or `systemd-coredump` is involved, so a working fallback says nothing about whether production capture works.
 > > GDB also chooses which memory to write, so contents and size differ: for the lab program the GDB core was about 2.1 MB and the kernel core 272 KiB, the latter filtered by `coredump_filter`.
-> > Both carry `NT_PRSTATUS`, `NT_SIGINFO`, `NT_AUXV`, and `NT_FILE` notes, so `$_siginfo` and the build ID lookup work on both, and the lab prints `Core source:` so a reader knows which path produced the result.
+> > Both carry `NT_PRSTATUS`, `NT_SIGINFO`, `NT_AUXV`, and `NT_FILE` notes, so `$_siginfo` and the build ID lookup work on both, and the lab writes `Core source:` to stderr so a reader of a failing run knows which path produced the core.
 > > Use `gcore` for a hung process you must keep alive; for crashes, rely on the kernel path, and on a pipe host retrieve the core with `coredumpctl dump` rather than trusting a GDB-made substitute.
 
 > [!question] L7
@@ -684,8 +709,8 @@ flowchart LR
 >
 > > [!success]- Answer
 > > Make the corruption fault at the bad write instead of at a later read.
-> > Sampling allocators such as GWP-ASan put a tiny random fraction of allocations on their own pages with `PROT_NONE` guards and delay reuse, so an overflow or use-after-free on a sampled object faults immediately with the culprit on the stack; overhead is small because sampling is rare, and it works on any architecture.
-> > On arm64 hardware with MTE, allocator support (for example glibc's `glibc.mem.tagging` tunable or Scudo) tags 16-byte granules and pointers with 4-bit tags, and a mismatched access raises `SIGSEGV` with `SEGV_MTESERR` (synchronous) or `SEGV_MTEAERR` (asynchronous); measure the overhead on your workload before claiming it is free.
+> > Sampling allocators such as GWP-ASan place a small random fraction of allocations (1 in 5000 by default) in slots surrounded by inaccessible guard pages and make a freed slot inaccessible, so an overflow or use-after-free on a sampled object faults immediately with the culprit on the stack; the LLVM documentation reports no significant performance overhead, and detection is probabilistic, so it finds only a subset of what AddressSanitizer finds.
+> > On arm64 hardware with MTE, allocator support (for example glibc's `glibc.mem.tagging` tunable, which `ld.so --list-tunables` lists in glibc 2.39 on Ubuntu 24.04, or Scudo) tags 16-byte granules with 4-bit tags, and a mismatched access raises `SIGSEGV` with `SEGV_MTESERR` (synchronous, `si_addr` is the fault address) or `SEGV_MTEAERR` (asynchronous, `si_addr` is 0); measure the overhead on your workload before claiming it is free.
 > > If the victim address is predictable, a hardware watchpoint through `perf_event_open` with `PERF_TYPE_BREAKPOINT`, optionally with a BPF program attached, catches the writer; there are only a few debug registers, so this is narrow.
 > > Combine with record and replay in staging when the trigger can be reproduced; see [[Record-and-Replay-rr-UDB-and-Pernosco]].
 
@@ -720,7 +745,7 @@ flowchart LR
 - Apple, Adding identifiable symbol names to a crash report, https://developer.apple.com/documentation/xcode/adding-identifiable-symbol-names-to-a-crash-report.
   `xcrun crashlog`, `atos`, and dSYM matching from the vendor.
 - Apple, Interpreting the JSON format of a crash report, https://developer.apple.com/documentation/xcode/interpreting-the-json-format-of-a-crash-report.
-  The `.ips` layout, including `bug_type` 309.
+  The `.ips` layout: a metadata JSON object on the first line, then the crash report object, and `bug_type` 309 for crash reports.
 - Apple Developer Forums thread 694233, https://developer.apple.com/forums/thread/694233.
   Apple DTS on enabling macOS core dumps, including the `get-task-allow` requirement.
 - LLDB Symbolication, https://lldb.llvm.org/use/symbolication.html.

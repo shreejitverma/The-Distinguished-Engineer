@@ -10,6 +10,7 @@ f = frame
 frames_info = []
 named_frames = 0
 line_frames = 0
+tail_call_frames = 0
 while f:
     f_sal = f.find_sal()
     f_name = f.name() or "??"
@@ -18,6 +19,7 @@ while f:
     frames_info.append(f"#{count} {f_name} at {f_file}:{f_line}")
     named_frames += f.name() is not None
     line_frames += bool(f_sal.symtab and f_sal.line)
+    tail_call_frames += f.type() == gdb.TAILCALL_FRAME
     count += 1
     f = f.older()
 
@@ -44,7 +46,6 @@ if mode == "without-debug-info":
     print(f"Frames with a source line: {line_frames} of {count}")
 else:
     print(f"=== Pass: {mode} ===")
-    print("Core source: " + os.environ.get("CORE_SOURCE", "unknown"))
     print("Build ID match: " + os.environ.get("BUILD_ID_EQUAL", "unknown"))
 
     print("\n=== Backtrace (Symbols Resolved via .build-id) ===")
@@ -63,3 +64,4 @@ else:
     print(f"Crashing line: {line}")
     print(f"Signal name: {signame}")
     print(f"Frame count: {count}")
+    print(f"Tail-call frames: {tail_call_frames}")
