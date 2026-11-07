@@ -1,0 +1,67 @@
+=== Step 1: Certificate Authority Setup ===
+User CA key generated: ED25519
+Host CA key generated: ED25519
+
+=== Step 2: User and Host Certificate Issuance ===
+Profile Alice (Admin):
+  Type: user certificate (ssh-ed25519-cert-v01@openssh.com)
+  Key ID: "alice@corp.internal"
+  Serial: 1001
+  Principals: alice, admin
+  Critical Options: force-command=/usr/bin/true
+  Extensions: permit-pty, permit-user-rc
+Profile Bob (Engineer):
+  Type: user certificate (ssh-ed25519-cert-v01@openssh.com)
+  Key ID: "bob@corp.internal"
+  Serial: 1002
+  Principals: bob, developer
+  Critical Options: none
+  Extensions: permit-X11-forwarding, permit-pty, permit-user-rc
+Profile Charlie (Expired):
+  Type: user certificate (ssh-ed25519-cert-v01@openssh.com)
+  Key ID: "charlie@corp.internal"
+  Serial: 1003
+  Principals: charlie, admin
+  Critical Options: none
+  Extensions: permit-X11-forwarding, permit-agent-forwarding, permit-port-forwarding, permit-pty, permit-user-rc
+Target Host Certificate:
+  Type: host certificate (ssh-ed25519-cert-v01@openssh.com)
+  Key ID: "host-target.corp.internal"
+  Serial: 2001
+  Principals: target.corp.internal, 127.0.0.1
+  Critical Options: none
+  Extensions: none
+
+=== Step 3: FIDO2 Hardware Key Integration ===
+Compiled FIDO2 Middleware: sk_dummy
+Enrolled FIDO2 hardware-backed key: ed25519-sk
+Signed FIDO2 User Certificate:
+  Type: user certificate (sk-ssh-ed25519-cert-v01@openssh.com)
+  Key ID: "fido2-alice@corp.internal"
+  Serial: 501
+  Principals: alice, admin
+  Critical Options: none
+  Extensions: permit-X11-forwarding, permit-agent-forwarding, permit-port-forwarding, permit-pty, permit-user-rc
+
+=== Step 4: Key Revocation List (KRL) Lifecycle ===
+KRL Magic Header: SSHKRL
+KRL Format Version: 1
+KRL Section Types: KRL_SECTION_CERTIFICATES, KRL_SECTION_FINGERPRINT_SHA256
+Revoked Serials: 1001
+Query Cert 1001 (Revoked Serial): REVOKED (exit 1)
+Query Cert 1004 (Active Serial): VALID (exit 0)
+Query Cert 501 (Revoked FIDO2 Fingerprint): REVOKED (exit 1)
+
+=== Step 5: Live OpenSSH Server (sshd) Access Enforcement ===
+Connect with Valid Active Cert (Dave, Admin Principal): SUCCESS (exit 0)
+Connect with Unauthorized Principal (Bob, Developer): DENIED (exit 255)
+Connect with Expired Cert (Charlie, Admin Principal): DENIED (exit 255)
+Connect with Revoked Cert (Alice, Serial 1001): DENIED (exit 255)
+Connect to Target Trusting a Rogue Host CA (Dave): REFUSED (exit 255)
+
+=== Step 6: Bastion Architecture via ProxyJump (Zero Agent Forwarding) ===
+ProxyJump End-to-End Tunnel: SUCCESS (exit 0)
+Client Encapsulation: ssh -W
+Bastion Authenticated the Certificate: yes
+Target Agent Forwarding State (AllowAgentForwarding yes, control): AGENT_SOCKET_PRESENT
+Bastion Agent Forwarding State (AllowAgentForwarding no): AGENT_SOCKET_ABSENT

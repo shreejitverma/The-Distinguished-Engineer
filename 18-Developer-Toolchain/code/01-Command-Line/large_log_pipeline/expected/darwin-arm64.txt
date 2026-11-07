@@ -1,0 +1,33 @@
+=== STAGE 1: Zstandard Frame Verification ===
+frames=4 skips=0 check=XXH64
+pzstd_written: skips>0
+serial_fallback: plain=1 pzstd_written=0
+decoded_streams_identical: yes
+=== STAGE 2: Streaming Decompression (LC_ALL=C) ===
+byte_order_sort: .d A B _c a b 
+total_records_decompressed: 25000
+=== STAGE 3: Fast SIMD Pre-Filtering (Ripgrep) ===
+filtered_5xx_records: 209
+=== STAGE 4: Streaming Reservoir Sampling (k=5, LCG PRNG) ===
+sample_1: id=23528 path=/api/v1/checkout status=502 latency=518.56ms error=database_timeout
+sample_2: id=9649 path=/healthz status=500 latency=111.69ms error=oom_worker_killed
+sample_3: id=11683 path=/api/v1/cart status=500 latency=210.14ms error=connection_refused
+sample_4: id=18157 path=/healthz status=500 latency=277.36ms error=database_timeout
+sample_5: id=7768 path=/api/v1/cart status=500 latency=1018.13ms error=database_timeout
+=== STAGE 4b: Reservoir Inclusion Uniformity (k=5, n=100, 4000 trials) ===
+expected_per_item=200 min=169 max=231
+first_half_share=0.496 (ideal 0.500)
+uniform: yes
+=== STAGE 5: Streaming Latency Histogram & Percentiles ===
+metrics: count=25000 min=1.00 mean=20.48 max=2928.67
+   0 -  25 ms | 19760 ( 79.0%) | ###############################
+  25 -  50 ms |  3992 ( 16.0%) | ######
+  50 - 100 ms |   996 (  4.0%) | #
+ 100 - 250 ms |   104 (  0.4%) | 
+ 250 - 500 ms |    64 (  0.3%) | 
+      >=500 ms |    84 (  0.3%) | 
+percentile_est: p50_bucket="   0 -  25 ms" p90_bucket="  25 -  50 ms" p99_bucket=" 100 - 250 ms"
+=== STAGE 6: Incident Root Cause Frequency Aggregation ===
+rank_1: count=12 status=504 path=/api/v1/auth error=database_timeout
+rank_2: count=6 status=504 path=/api/v1/checkout error=oom_worker_killed
+rank_3: count=6 status=504 path=/api/v1/checkout error=connection_refused
