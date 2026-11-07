@@ -1,0 +1,57 @@
+=== 1. Lazy Binding Mechanics ===
+GOT slot address located: valid
+Before first call: GOT points into the executable
+First call result: 30
+After first call: GOT points into libmath.so, symbol compute
+Second call result: 40
+
+=== 2. Immediate Binding (LD_BIND_NOW=1) ===
+GOT slot address located: valid
+Before first call: GOT points into libmath.so, symbol compute
+First call result: 30
+After first call: GOT points into libmath.so, symbol compute
+Second call result: 40
+
+=== 3. Dynamic Library Interposition (LD_PRELOAD) ===
+GOT slot address located: valid
+Before first call: GOT points into the executable
+[interposer] intercepted compute(10, 20) -> real result 30, returning 60
+First call result: 60
+After first call: GOT points into libinterpose.so, symbol compute
+[interposer] intercepted compute(15, 25) -> real result 40, returning 80
+Second call result: 80
+
+=== 4. Search Path Precedence (RPATH vs RUNPATH) ===
+app_rpath without LD_LIBRARY_PATH:
+Greeting: Hello from RPATH directory
+app_rpath with LD_LIBRARY_PATH=lib_env (RPATH overrides LD_LIBRARY_PATH):
+Greeting: Hello from RPATH directory
+app_runpath without LD_LIBRARY_PATH:
+Greeting: Hello from RPATH directory
+app_runpath with LD_LIBRARY_PATH=lib_env (LD_LIBRARY_PATH overrides RUNPATH):
+Greeting: Hello from ENV directory
+
+=== 5. Dynamic Section Tags (readelf -d) ===
+app_rpath dynamic tags:
+0xADDR (NEEDED)             Shared library: [libgreeting.so]
+0xADDR (NEEDED)             Shared library: [libc.so.6]
+0xADDR (RPATH)              Library rpath: [$ORIGIN/lib_rpath]
+app_runpath dynamic tags:
+0xADDR (NEEDED)             Shared library: [libgreeting.so]
+0xADDR (NEEDED)             Shared library: [libc.so.6]
+0xADDR (RUNPATH)            Library runpath: [$ORIGIN/lib_rpath]
+
+=== 6. Linker Defaults (readelf) ===
+plain gcc -pie link, binding tags:
+0xADDR (FLAGS)              BIND_NOW
+0xADDR (FLAGS_1)            Flags: NOW PIE
+plain gcc -pie link, PT_GNU_RELRO headers: 1
+-Wl,-z,lazy link, binding tags:
+0xADDR (FLAGS_1)            Flags: PIE
+-Wl,-rpath with no dtags flag:
+0xADDR (RUNPATH)            Library runpath: [$ORIGIN/lib_rpath]
+-Bsymbolic tags:
+0xADDR (SYMBOLIC)           0x0
+0xADDR (FLAGS)              SYMBOLIC
+-Bsymbolic-functions tags:
+no -Bsymbolic tags:
