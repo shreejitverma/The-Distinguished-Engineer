@@ -1,0 +1,32 @@
+=== 1. Kernel Copy-on-Write (COW) Page Semantics ===
+parent before fork:             Shared_Dirty=   0 kB, Private_Dirty=1024 kB
+child after fork, before write: Shared_Dirty=1024 kB, Private_Dirty=   0 kB
+child after writing 512 KiB:    Shared_Dirty= 512 kB, Private_Dirty= 512 kB
+parent after child exit:        Shared_Dirty=   0 kB, Private_Dirty=1024 kB
+
+=== 2. File Descriptor Table vs Open File Description Sharing ===
+child read 4 bytes: "0123"
+parent f_pos after child read: 4 (shared open file description)
+
+=== 3. Descriptor Inheritance Across execve() and FD_CLOEXEC ===
+[execve helper] fd 3 (O_CLOEXEC): CLOSED (EBADF) (errno=9)
+[execve helper] fd 4 (inherited): OPEN, read 4 bytes: "4567"
+
+=== 4. Multithreaded Fork Lock Contention / Deadlock Hazard ===
+parent threads before fork: 2
+parent pthread_mutex_timedlock on mutex held by sibling thread: ETIMEDOUT (blocks)
+child threads after fork: 1
+child pthread_mutex_trylock on mutex held by other thread: EBUSY (locked forever)
+child pthread_mutex_timedlock on mutex held by other thread: ETIMEDOUT (blocks)
+
+=== 5. Shebang (#! ) Argument Rewriting in Kernel ===
+  argv[0] = fork_exec_fd
+  argv[1] = KERNEL_OPT
+  argv[2] = lab_shebang_script
+  argv[3] = USER_ARG1
+  argv[4] = USER_ARG2
+
+=== 6. Safe Spawning with posix_spawn() and File Actions ===
+posix_spawn status: 0, captured child stdout:
+  [execve helper] fd 3 (O_CLOEXEC): CLOSED (EBADF) (errno=9)
+[execve helper] fd 4 (inherited): OPEN, read 4 bytes: "89AB"
