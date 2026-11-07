@@ -68,6 +68,15 @@ Curriculum coverage matrix mapping authoritative command-line and shell specific
 | Devcontainers Spec: devcontainer.json Reference (Images, Features, Lifecycle Hooks Execution Order) | [[Dotfiles-Nix-Direnv-Mise-and-Devcontainers]] | Use | none |
 | ShellCheck Wiki: Static Analysis Warnings (SC1xxx Parser, SC2xxx Semantic Bugs, SC3xxx Portability) | [[Robust-Shell-Scripting-and-ShellCheck]] | Use | [[19-Shell-and-Unix-Engineering/14-Testing-and-Static-Analysis/ShellCheck-Warning-Families.md\|19 ShellCheck Families]] |
 | clig.dev & AXI: Dual-Mode CLI Architecture, Standard Streams, Exit Codes, 10 AXI Principles for AI Agents | [[CLI-Design-and-Agent-Friendly-Interfaces-AXI]] | Use | [[13-Agentic-AI/Agentic-Harness/components/axi.md\|AXI Principles]] |
+| Concept: File Discovery and Batch Execution: Find, Fd, Xargs, Parallel | [[File-Discovery-and-Batch-Execution-Find-Fd-Xargs-Parallel]] | Explain | none |
+| Concept: Locale, Collation, and Unicode in CLI Tools | [[Locale-Collation-and-Unicode-in-CLI-Tools]] | Explain | none |
+| Playbook: Analyze Gigabyte Terminal Logs | [[Analyze-Gigabyte-Terminal-Logs]] | Debug | none |
+| Concept: System Inspection and Syscall Tracing From the Shell | [[System-Inspection-and-Syscall-Tracing-From-the-Shell]] | Explain | none |
+| Concept: Containers and VMs for macOS Development | [[Containers-and-VMs-for-macOS-Development]] | Explain | none |
+| Playbook: Command Line Decision Records | [[Command-Line-Decision-Records]] | Decide at Scale | none |
+| Drill: Drill: Quoting and Signal Trap Race | [[Drill-Command-Line-Quoting-and-Signal-Trap-Race]] | Debug | none |
+| Drill: Drill: Catastrophic Backtracking and Stream Bottleneck | [[Drill-Command-Line-Catastrophic-Backtracking-and-Stream-Bottleneck]] | Debug | none |
+| Drill: Drill: SSH Multiplexing and Broken PTY | [[Drill-Command-Line-SSH-Multiplexing-and-Broken-PTY]] | Debug | none |
 
 ## Out of scope
 
