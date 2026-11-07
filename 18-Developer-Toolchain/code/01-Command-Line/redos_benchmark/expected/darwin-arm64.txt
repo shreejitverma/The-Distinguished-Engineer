@@ -1,0 +1,49 @@
+=== C Thompson NFA vs Recursive Backtracking Benchmark ===
+Grammar: (a+)+ (nested repetitions) against non-matching payload a^N + '!'
+
+N    | Thompson Steps | Backtrack Steps | BitState Steps
+-----+----------------+-----------------+---------------
+4    | 17             | 76              | 21            
+6    | 25             | 316             | 31            
+8    | 33             | 1276            | 41            
+10   | 41             | 5116            | 51            
+12   | 49             | 20476           | 61            
+
+Resource limit enforcement check:
+Backtracker on N=20 with match_limit=1000: steps=1001, status=-47 (PCRE2_ERROR_MATCHLIMIT)
+Backtracker on N=4 with match_limit=1000: steps=76, status=0
+=== Polynomial Backtracking Benchmark (Quadratic O(N^2)) ===
+Grammar: a*a*x (overlapping repetitions) against non-matching payload a^N + '!'
+
+N    | Thompson Steps | Backtrack Steps | Ratio
+-----+----------------+-----------------+-------
+10   | 55             | 220             | -
+20   | 105            | 735             | 3.34x
+40   | 205            | 2665            | 3.63x
+80   | 405            | 10125           | 3.80x
+Observation: Doubling N quadruples backtracking steps (approaching 4.00x), proving O(N^2).
+
+=== Cloudflare Outage (July 2, 2019) Wildcard Cascade ===
+Grammar: .*.*= (adjacent unanchored wildcards) against payload a^N (no '=')
+Partitions = times the engine reaches '=' (measured), one per way to split a^N across the wildcards
+
+N    | Thompson Steps | Backtrack Steps | Partitions .*.*= | Partitions .*.*.*=
+-----+----------------+-----------------+------------------+-------------------
+10   | 55             | 220             | 66               | 286               
+20   | 105            | 735             | 231              | 1771              
+30   | 155            | 1550            | 496              | 5456              
+40   | 205            | 2665            | 861              | 12341             
+Root Cause: Under PCRE backtracking, each added adjacent '.*' raises the partition count by one polynomial degree (O(N^2), O(N^3), ...).
+
+=== Python 3 re Engine Modern Mitigation Suite ===
+0. Controls on 'aaa': (a+)a matches; (?>a+)a and a++a do not
+1. Atomic grouping ^(?>a+)+$ on 1000 chars: match = None (ReDoS prevented)
+2. Possessive quantifier ^(a+)++$ on 1000 chars: match = None (ReDoS prevented)
+
+=== Substring Literal Prefilter Acceleration ===
+Pattern: POST /api/v1/checkout.*
+Extracted mandatory literal prefix: 'POST /api/v1/checkout'
+Haystack 'GET /index.html HTTP/1.1': prefilter found = False -> Bypassed (0 automaton steps)
+Haystack 'POST /api/v1/checkout HTTP/1.1': prefilter found = True -> Dispatched to regex engine
+
+ALL CHECKS PASSED: Regex engine automata guarantees verified.

@@ -1,0 +1,16 @@
+--- Top error rates by service and region (gawk coprocess sort) ---
+checkout|us-east: count=2 errors=1 avg_latency=277.5ms
+auth|us-east: count=2 errors=1 avg_latency=67.0ms
+auth|eu-west: count=1 errors=0 avg_latency=700.0ms
+checkout|eu-west: count=1 errors=0 avg_latency=62.0ms
+search api|eu-west: count=1 errors=0 avg_latency=30.0ms
+search api|us-east: count=1 errors=0 avg_latency=25.0ms
+Verification stages:
+  Stage 1 (sed hold-space block filter): PASS (2 failed transactions isolated)
+  Stage 2 (sed N;D;P sliding-window pair): PASS (3 pairs merged, 2 orphans kept)
+  Stage 3 (sed :loop t branching unwrap): PASS (3 lines fully normalized)
+  Stage 4 (awk RS/FS composite aggregation): PASS (6 composite keys aggregated)
+  Stage 5 (awk SUBSEP byte layout): PASS (file separator 0x1C measured)
+  Stage 6 (gawk |& coprocess two-way pipe): PASS (half-duplex close and sorted)
+  Stage 6b (gawk without close(cmd, "to")): PASS (blocked until the 3 s deadline)
+Stream processing pipeline verification: ALL CHECKS PASSED
