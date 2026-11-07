@@ -1,0 +1,23 @@
+1. Kernel pipe and libc buffer geometry:
+   pipe st_blksize:                    4096 B
+   libc stdio buffer (__fbufsize):     4096 B
+   POSIX atomic write limit (PIPE_BUF): 4096 B
+   kernel pipe default capacity:       65536 B (16 pages)
+   kernel pipe expanded capacity:      1048576 B (256 pages)
+
+2. Stdio flush threshold on pipes (30 lines = 1770 B, total 70 lines = 4130 B):
+   default block buffering: phase 1 received    0 B / total 4130 B (held in stdio)
+   stdbuf -oL line mode:   phase 1 received 1770 B / total 4130 B (immediate flush)
+
+   Buffer-size boundary (all 70 lines = 4130 B written before the pause):
+   default (4096 B buffer): phase 1 received 4096 B / total 4130 B (full buffer flushed)
+   stdbuf -o8192 buffer:    phase 1 received    0 B / total 4130 B (4130 B fits, nothing flushed)
+
+3. Inter-process bidirectional deadlock resolution:
+   unassisted client:      status=DEADLOCK (blocked waiting for mutual stdio flush)
+   stdbuf -oL client:      status=SUCCESS (CLIENT_GOT: PONG: ack_1)
+
+4. Interposition boundaries (LD_PRELOAD vs runtime runtimes):
+   static ELF under stdbuf:      status=DEADLOCK (kernel bypasses dynamic linker)
+   Python under stdbuf -oL:      status=DEADLOCK (Python runtime bypasses libc FILE*)
+   Python with PYTHONUNBUFFERED: status=SUCCESS (CLIENT_GOT: PONG: ack_1)

@@ -1,0 +1,9 @@
+{
+    global:
+        trigger_error;
+        get_plugin_typeinfo;
+        _ZTI11PluginError;
+        _ZTS11PluginError;
+    local:
+        *;
+};

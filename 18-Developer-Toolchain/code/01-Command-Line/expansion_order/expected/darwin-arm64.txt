@@ -1,0 +1,324 @@
+=== PHASE 1: STANDALONE EXPANSION ENGINE TRACE ===
+POSIX/BASH 5-STAGE WORD EXPANSION ENGINE
+Deterministic Reference Trace (Standard C99)
+============================================================
+TRACE: Brace expansion with quoted parameter
+Raw Input: pkg_{core,net}_"$TAG"
+  Stage 0: Lexed Words         [1 word(s)]:
+    [0] "pkg_{core,net}_"$TAG""
+  Stage 1: Brace Expansion     [2 word(s)]:
+    [0] "pkg_core_"$TAG""
+    [1] "pkg_net_"$TAG""
+  Stage 2: Parameter & Tilde   [2 word(s)]:
+    [0] "pkg_core_"v1.0 release""
+    [1] "pkg_net_"v1.0 release""
+  Stage 3: Field Splitting (IFS) [2 word(s)]:
+    [0] "pkg_core_"v1.0 release""
+    [1] "pkg_net_"v1.0 release""
+  Stage 4: Pathname Expansion  [2 word(s)]:
+    [0] "pkg_core_"v1.0 release""
+    [1] "pkg_net_"v1.0 release""
+  Stage 5: Quote Removal (Final) [2 word(s)]:
+    [0] "pkg_core_v1.0 release"
+    [1] "pkg_net_v1.0 release"
+============================================================
+TRACE: Unquoted parameter with whitespace splitting
+Raw Input: cmd $ARGS
+  Stage 0: Lexed Words         [2 word(s)]:
+    [0] "cmd"
+    [1] "$ARGS"
+  Stage 1: Brace Expansion     [2 word(s)]:
+    [0] "cmd"
+    [1] "$ARGS"
+  Stage 2: Parameter & Tilde   [2 word(s)]:
+    [0] "cmd"
+    [1] "--mode=fast -v"
+  Stage 3: Field Splitting (IFS) [3 word(s)]:
+    [0] "cmd"
+    [1] "--mode=fast"
+    [2] "-v"
+  Stage 4: Pathname Expansion  [3 word(s)]:
+    [0] "cmd"
+    [1] "--mode=fast"
+    [2] "-v"
+  Stage 5: Quote Removal (Final) [3 word(s)]:
+    [0] "cmd"
+    [1] "--mode=fast"
+    [2] "-v"
+============================================================
+TRACE: Range brace containing variable {1..$N}
+Raw Input: {1..$N}
+  Stage 0: Lexed Words         [1 word(s)]:
+    [0] "{1..$N}"
+  Stage 1: Brace Expansion     [1 word(s)]:
+    [0] "{1..$N}"
+  Stage 2: Parameter & Tilde   [1 word(s)]:
+    [0] "{1..3}"
+  Stage 3: Field Splitting (IFS) [1 word(s)]:
+    [0] "{1..3}"
+  Stage 4: Pathname Expansion  [1 word(s)]:
+    [0] "{1..3}"
+  Stage 5: Quote Removal (Final) [1 word(s)]:
+    [0] "{1..3}"
+============================================================
+TRACE: Variable value containing quotes ($QUOTED)
+Raw Input: call $QUOTED
+  Stage 0: Lexed Words         [2 word(s)]:
+    [0] "call"
+    [1] "$QUOTED"
+  Stage 1: Brace Expansion     [2 word(s)]:
+    [0] "call"
+    [1] "$QUOTED"
+  Stage 2: Parameter & Tilde   [2 word(s)]:
+    [0] "call"
+    [1] ""nested quote""
+  Stage 3: Field Splitting (IFS) [3 word(s)]:
+    [0] "call"
+    [1] ""nested"
+    [2] "quote""
+  Stage 4: Pathname Expansion  [3 word(s)]:
+    [0] "call"
+    [1] ""nested"
+    [2] "quote""
+  Stage 5: Quote Removal (Final) [3 word(s)]:
+    [0] "call"
+    [1] ""nested"
+    [2] "quote""
+============================================================
+TRACE: Glob on an expanded pattern, quoted and unquoted
+Raw Input: ls data_$PATTERN "data_$PATTERN"
+  Stage 0: Lexed Words         [3 word(s)]:
+    [0] "ls"
+    [1] "data_$PATTERN"
+    [2] ""data_$PATTERN""
+  Stage 1: Brace Expansion     [3 word(s)]:
+    [0] "ls"
+    [1] "data_$PATTERN"
+    [2] ""data_$PATTERN""
+  Stage 2: Parameter & Tilde   [3 word(s)]:
+    [0] "ls"
+    [1] "data_*.tmp"
+    [2] ""data_*.tmp""
+  Stage 3: Field Splitting (IFS) [3 word(s)]:
+    [0] "ls"
+    [1] "data_*.tmp"
+    [2] ""data_*.tmp""
+  Stage 4: Pathname Expansion  [4 word(s)]:
+    [0] "ls"
+    [1] "data_a.tmp"
+    [2] "data_b.tmp"
+    [3] ""data_*.tmp""
+  Stage 5: Quote Removal (Final) [4 word(s)]:
+    [0] "ls"
+    [1] "data_a.tmp"
+    [2] "data_b.tmp"
+    [3] "data_*.tmp"
+============================================================
+TRACE: Non-whitespace IFS (IFS=:)
+Raw Input: list $PATHLIST
+  Stage 0: Lexed Words         [2 word(s)]:
+    [0] "list"
+    [1] "$PATHLIST"
+  Stage 1: Brace Expansion     [2 word(s)]:
+    [0] "list"
+    [1] "$PATHLIST"
+  Stage 2: Parameter & Tilde   [2 word(s)]:
+    [0] "list"
+    [1] ":a::b:"
+  Stage 3: Field Splitting (IFS) [5 word(s)]:
+    [0] "list"
+    [1] ""
+    [2] "a"
+    [3] ""
+    [4] "b"
+  Stage 4: Pathname Expansion  [5 word(s)]:
+    [0] "list"
+    [1] ""
+    [2] "a"
+    [3] ""
+    [4] "b"
+  Stage 5: Quote Removal (Final) [5 word(s)]:
+    [0] "list"
+    [1] ""
+    [2] "a"
+    [3] ""
+    [4] "b"
+============================================================
+TRACE: Backslash and single quotes protect characters
+Raw Input: echo a\ b \*.tmp \$TAG '$TAG'
+  Stage 0: Lexed Words         [5 word(s)]:
+    [0] "echo"
+    [1] "a\ b"
+    [2] "\*.tmp"
+    [3] "\$TAG"
+    [4] "'$TAG'"
+  Stage 1: Brace Expansion     [5 word(s)]:
+    [0] "echo"
+    [1] "a\ b"
+    [2] "\*.tmp"
+    [3] "\$TAG"
+    [4] "'$TAG'"
+  Stage 2: Parameter & Tilde   [5 word(s)]:
+    [0] "echo"
+    [1] "a\ b"
+    [2] "\*.tmp"
+    [3] "\$TAG"
+    [4] "'$TAG'"
+  Stage 3: Field Splitting (IFS) [5 word(s)]:
+    [0] "echo"
+    [1] "a\ b"
+    [2] "\*.tmp"
+    [3] "\$TAG"
+    [4] "'$TAG'"
+  Stage 4: Pathname Expansion  [5 word(s)]:
+    [0] "echo"
+    [1] "a\ b"
+    [2] "\*.tmp"
+    [3] "\$TAG"
+    [4] "'$TAG'"
+  Stage 5: Quote Removal (Final) [5 word(s)]:
+    [0] "echo"
+    [1] "a b"
+    [2] "*.tmp"
+    [3] "$TAG"
+    [4] "$TAG"
+============================================================
+TRACE: Numeric range and an empty brace alternative
+Raw Input: echo n{1..3} {x,}y
+  Stage 0: Lexed Words         [3 word(s)]:
+    [0] "echo"
+    [1] "n{1..3}"
+    [2] "{x,}y"
+  Stage 1: Brace Expansion     [6 word(s)]:
+    [0] "echo"
+    [1] "n1"
+    [2] "n2"
+    [3] "n3"
+    [4] "xy"
+    [5] "y"
+  Stage 2: Parameter & Tilde   [6 word(s)]:
+    [0] "echo"
+    [1] "n1"
+    [2] "n2"
+    [3] "n3"
+    [4] "xy"
+    [5] "y"
+  Stage 3: Field Splitting (IFS) [6 word(s)]:
+    [0] "echo"
+    [1] "n1"
+    [2] "n2"
+    [3] "n3"
+    [4] "xy"
+    [5] "y"
+  Stage 4: Pathname Expansion  [6 word(s)]:
+    [0] "echo"
+    [1] "n1"
+    [2] "n2"
+    [3] "n3"
+    [4] "xy"
+    [5] "y"
+  Stage 5: Quote Removal (Final) [6 word(s)]:
+    [0] "echo"
+    [1] "n1"
+    [2] "n2"
+    [3] "n3"
+    [4] "xy"
+    [5] "y"
+
+=== PHASE 2: LIVE SHELL PARSING & EXPANSION SUITE ===
+--- 1. Brace Expansion Precedence Over Parameter Expansion ---
+Direct {1..$N}: ArgCount=1
+  arg[1]=<{1..4}>
+Eval-expanded {1..$N}: ArgCount=4
+  arg[1]=<1>
+  arg[2]=<2>
+  arg[3]=<3>
+  arg[4]=<4>
+Brace multiplication a{b,c}{d,e}: ArgCount=4
+  arg[1]=<abd>
+  arg[2]=<abe>
+  arg[3]=<acd>
+  arg[4]=<ace>
+Quoted braces "{a,b}": ArgCount=1
+  arg[1]=<{a,b}>
+
+--- 2. Left-to-Right Single Pass Evaluation ---
+Compound expansion result: 25
+Arithmetic order: 1 2
+Arithmetic then command substitution then arithmetic: 1 1 2
+
+--- 3. Parameter Expansion Precedence Over Field Splitting ---
+Unquoted $SPACED:
+ArgCount=3
+  arg[1]=<alpha>
+  arg[2]=<bravo>
+  arg[3]=<charlie>
+Quoted "$SPACED":
+ArgCount=1
+  arg[1]=<alpha bravo charlie>
+
+--- 4. Field Splitting Precedence Over Pathname Expansion ---
+Unquoted pattern variable $PATTERN:
+ArgCount=2
+  arg[1]=<test_file_1.tmp>
+  arg[2]=<test_file_2.tmp>
+Quoted pattern variable "$PATTERN":
+ArgCount=1
+  arg[1]=<test_file_*.tmp>
+Pathname expansion on file with spaces (*space*.tmp):
+ArgCount=1
+  arg[1]=<test file with space.tmp>
+
+--- 5. IFS Boundary Hazards: Whitespace vs Non-Whitespace ---
+Default IFS whitespace splitting ('  a   b   c  '):
+ArgCount=3
+  arg[1]=<a>
+  arg[2]=<b>
+  arg[3]=<c>
+Colon non-whitespace IFS ('a::b:::c'):
+ArgCount=6
+  arg[1]=<a>
+  arg[2]=<>
+  arg[3]=<b>
+  arg[4]=<>
+  arg[5]=<>
+  arg[6]=<c>
+Mixed IFS ' :' ('  a : : b : c  '):
+ArgCount=4
+  arg[1]=<a>
+  arg[2]=<>
+  arg[3]=<b>
+  arg[4]=<c>
+Trailing non-whitespace IFS ('x:y:'):
+ArgCount=2
+  arg[1]=<x>
+  arg[2]=<y>
+Repeated trailing non-whitespace IFS ('x:y::'):
+ArgCount=3
+  arg[1]=<x>
+  arg[2]=<y>
+  arg[3]=<>
+Leading non-whitespace IFS (':x'):
+ArgCount=2
+  arg[1]=<>
+  arg[2]=<x>
+Null IFS (IFS='') with spaces ('a b c'):
+ArgCount=1
+  arg[1]=<a b c>
+
+--- 6. Command Substitution Trailing Newline Stripping ---
+Default command substitution length: 11
+Guarded command substitution length: 14
+
+--- 7. Quoting Modes & Expanded Quote Invariant ---
+Single quote literal: $VAR\n\t
+Double quote evaluation: hello world
+Dollar single quote escapes: tab:	 hex:A octal:B unicode:C
+Passing unquoted variable with embedded quotes ($INJECTED_QUOTES):
+ArgCount=2
+  arg[1]=<"token1>
+  arg[2]=<token2">
+
+--- 8. Tokenization & Alias Chaining Semantics ---
+Alias without trailing space: WRAPPER target
+Alias with trailing space: WRAPPER PAYLOAD
