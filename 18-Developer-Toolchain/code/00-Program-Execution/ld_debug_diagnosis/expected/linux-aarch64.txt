@@ -1,0 +1,80 @@
+=== Stage 1: DSO Search Paths and RPATH vs RUNPATH ===
+--- Step 1.1: Missing DSO failure without RPATH/RUNPATH ---
+./app_norpath: error while loading shared libraries: libcalc.so: cannot open shared object file: No such file or directory
+exit=127
+--- Step 1.2: Diagnostic search trace via LD_DEBUG=libs ---
+[PID] find library=libcalc.so [0]; searching
+[PID] search cache=/etc/ld.so.cache
+[PID] search path=/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:/lib:/usr/lib (system search path)
+[PID] trying file=/lib/aarch64-linux-gnu/libcalc.so
+[PID] trying file=/usr/lib/aarch64-linux-gnu/libcalc.so
+[PID] trying file=/lib/libcalc.so
+[PID] trying file=/usr/lib/libcalc.so
+--- Step 1.3: Successful load via DT_RUNPATH ($ORIGIN/lib) ---
+Result: 30
+exit=0
+--- Step 1.3b: The same trace for app_runpath shows the RUNPATH entry searched first ---
+[PID] find library=libcalc.so [0]; searching
+[PID] search path=[DIR]/lib (RUNPATH from file ./app_runpath)
+[PID] trying file=[DIR]/lib/libcalc.so
+--- Step 1.4: LD_LIBRARY_PATH override on DT_RUNPATH ---
+Result: 999
+exit=0
+--- Step 1.5: DT_RPATH precedence over LD_LIBRARY_PATH ---
+Result: 30
+exit=0
+--- Step 1.6: Dynamic tags inspection (readelf -d) ---
+ 0xTAG (NEEDED)             Shared library: [libcalc.so]
+ 0xTAG (NEEDED)             Shared library: [libc.so.6]
+ 0xTAG (RUNPATH)            Library runpath: [$ORIGIN/lib]
+ 0xTAG (NEEDED)             Shared library: [libcalc.so]
+ 0xTAG (NEEDED)             Shared library: [libc.so.6]
+ 0xTAG (RPATH)              Library rpath: [$ORIGIN/lib]
+=== Stage 2: Undefined Symbols and Immediate Binding ===
+--- Step 2.1: Default lazy binding deferred abort ---
+Main started
+Engine initialized (core=42)
+Dispatching task...
+./app_lazy: symbol lookup error: [DIR]/lib/libengine.so: undefined symbol: unresolved_kernel
+exit=127
+--- Step 2.2: Immediate binding via LD_BIND_NOW=1 ---
+./app_lazy: symbol lookup error: [DIR]/lib/libengine.so: undefined symbol: unresolved_kernel
+exit=127
+--- Step 2.3: Dynamic symbol table inspection (nm -D) ---
+T init_engine
+U unresolved_kernel
+=== Stage 3: Symbol Versioning and ABI Compatibility ===
+--- Step 3.1: Execution with matching version definition ---
+Score: 100
+exit=0
+--- Step 3.2: Version mismatch failure against v1 DSO ---
+./app_v2: lib_v1/libscore.so: version 'VER_2.0' not found (required by ./app_v2)
+exit=1
+--- Step 3.3: Version requirement trace via LD_DEBUG=versions ---
+[PID] checking for version 'VER_2.0' in file lib_v1/libscore.so [0] required by file ./app_v2 [0]
+[PID] lib_v1/libscore.so: error: version lookup error: version 'VER_2.0' not found (required by ./app_v2) (continued)
+--- Step 3.4: Binary version requirements (.gnu.version_r) ---
+000000: Version: 1  File: libscore.so  Cnt: 1
+0x0010:   Name: VER_2.0  Flags: none  Version: 4
+0x0020: Version: 1  File: libc.so.6  Cnt: 2
+--- Step 3.5: DSO version definitions (.gnu.version_d) ---
+0x001c: Rev: 1  Flags: none  Index: 2  Cnt: 1  Name: VER_1.0
+=== Stage 4: C++ ABI Mismatch and Symbol Visibility ===
+--- Step 4.1: Exported names differ between the old and new std::string ABI ---
+old: _Z10vendor_lenRKSs
+new: _Z10vendor_lenRKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE
+--- Step 4.2: Matching ABI runs ---
+len=5
+exit=0
+--- Step 4.3: A new-ABI caller cannot link against the old-ABI library ---
+abi_main.cpp:(.text+0xOFF): undefined reference to 'vendor_len(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const&)'
+exit=1
+--- Step 4.4: Missing key function leaves the vtable undefined ---
+exit=1
+vt_main.cpp:(.text...): undefined reference to 'vtable for MyClass'
+U _ZTV7MyClass
+vtable for MyClass
+--- Step 4.5: Hidden symbols never reach the dynamic symbol table ---
+nm -D: T visible_fn
+nm   : t hidden_fn
+nm   : T visible_fn
