@@ -1,0 +1,7 @@
+[1] maps_and_smaps_rollup: found_anon_vma=1 has_rss=1 has_pss=1 has_anon=1
+[2] pagemap: touched_present=1 touched_exclusive=1 unpriv_pfn_zeroed=1 untouched_present=0
+[3] fd_and_fdinfo: is_pipe_symlink=1 has_pos_zero=1 has_flags=1 cloexec_in_fdinfo=1
+[4] auxv: found_pagesz=1 pagesz_match=1 found_secure=1 at_secure_val=0
+[5] status_and_credentials: setresuid_ok=1 fsuid_matches_euid=1 fsuid_denied_detected=1 parsed_uid=1 parsed_caps=1 parsed_nnp=1
+[6] oom_score_adj: initial=0 write_up_ok=1 new_score=150 downward_errno=13 (EACCES=13)
+[7] dumpable: orig=1 set_zero_ok=1 queried_zero=0 set_orig_ok=1 restored=1

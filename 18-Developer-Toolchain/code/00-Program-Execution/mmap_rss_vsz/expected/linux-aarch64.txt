@@ -1,0 +1,54 @@
+Page size: 4096 bytes
+
+--- Step 1: Anonymous Private Allocation (16 MiB) ---
+VMA Size:          16384 kB
+VMA RSS:           0 kB
+VMA PSS:           0 kB
+VMA Private_Dirty: 0 kB
+Demand paging verified: virtual range mapped with zero physical resident pages.
+
+--- Step 2: Write to 2048 Pages (8 MiB) ---
+Minor page faults incurred: 2048
+VMA RSS:                    8192 kB
+VMA PSS:                    8192 kB
+VMA Private_Dirty:          8192 kB
+Page fault allocation verified: exactly touched pages became resident and dirty.
+
+--- Step 3: MAP_POPULATE Eager Allocation (4 MiB) ---
+Minor faults during mmap: 1024
+VMA Size:                 20480 kB
+VMA RSS:                  12288 kB
+VMA Private_Dirty:        12288 kB
+Eager population verified: physical pages populated synchronously without user touch.
+
+--- Step 4: Fork and Copy-on-Write (COW) Mechanics ---
+[Child post-fork before write]
+VMA RSS:           8192 kB
+VMA PSS:           4096 kB
+VMA Shared_Dirty:  8192 kB
+VMA Private_Dirty: 0 kB
+[Child after writing 256 pages (1 MiB)]
+Minor faults on write: 256
+VMA RSS:               8192 kB
+VMA PSS:               4608 kB
+VMA Shared_Dirty:      7168 kB
+VMA Private_Dirty:     1024 kB
+[Parent after child exit]
+VMA RSS:           8192 kB
+VMA PSS:           8192 kB
+VMA Shared_Dirty:  0 kB
+VMA Private_Dirty: 8192 kB
+COW verified: child unshares only modified pages; PSS reflects proportional ownership.
+
+--- Step 5: MADV_DONTNEED Page Reclamation ---
+Byte before MADV_DONTNEED:             0x5A
+VMA RSS after MADV_DONTNEED:           0 kB
+VMA Private_Dirty after MADV_DONTNEED: 0 kB
+Re-read byte value:                    0x00
+MADV_DONTNEED verified: resident frames released; re-read returns zeroed page.
+
+--- Step 6: File-backed MAP_SHARED vs MAP_PRIVATE ---
+File byte after MAP_SHARED write:  'B'
+Private mapping byte after its write: 'C'
+File byte after MAP_PRIVATE write: 'B'
+File-backed semantics verified: MAP_SHARED mutates the file; MAP_PRIVATE isolates changes.

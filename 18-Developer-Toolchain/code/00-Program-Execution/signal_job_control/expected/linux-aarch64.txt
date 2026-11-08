@@ -1,0 +1,21 @@
+[CHECK 1: SIGNAL QUEUE]
+Standard signal SIGUSR1 instances received: 1 (coalesced)
+Real-time signal SIGRTMIN instances received: 3 (queued)
+Real-time payloads: 100 101 102
+
+[CHECK 2: SIGALTSTACK]
+Alternate stack active in handler: true
+Handler frame within sigaltstack memory window: true
+
+[CHECK 3: JOB CONTROL SIGTTIN]
+Background process reading from controlling terminal stopped: true
+Stop signal: SIGTTIN (21)
+
+[CHECK 4: JOB CONTROL SIGTTOU]
+Background process writing to TOSTOP terminal stopped: true
+Stop signal: SIGTTOU (22)
+
+[CHECK 5: ORPHANED PROCESS GROUP]
+Orphaned background read errno: EIO (5)
+Orphaned stopped process received SIGHUP: true
+Orphaned stopped process received SIGCONT: true

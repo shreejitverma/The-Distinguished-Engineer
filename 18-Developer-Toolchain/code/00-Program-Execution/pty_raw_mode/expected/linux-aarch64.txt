@@ -1,0 +1,9 @@
+[1] PTY allocation: master fd allocated, slave unlocked and connected
+[2] Baseline attributes: ICANON=1 ECHO=1 ISIG=1 OPOST=1 ONLCR=1 ICRNL=1
+[3] Canonical editing: sent 22 raw bytes, line discipline delivered 13 bytes: "hello planet"
+[4] Canonical EOF: mid-line VEOF delivered 19 bytes ("interrupted_payload"); empty-line VEOF returned 0 bytes
+[5] Output translation: OPOST|ONLCR yielded 6 bytes (\r\n translation); bare OPOST=0 yielded 5 bytes (raw \n)
+[6] Raw mode transition: ICANON=0 ECHO=0 ISIG=0 OPOST=0 VMIN=1 VTIME=0; control bytes delivered literally (0x03 0x7f 0x17)
+[7] Signal generation: master wrote VINTR (0x03), child foreground process group caught SIGINT
+[8] Window size propagation: TIOCSWINSZ set 42x132, child caught SIGWINCH and confirmed dimensions
+[9] Non-canonical timing: VMIN=0/VTIME=2 timed out correctly (PASS); VMIN=3/VTIME=0 blocked until 3rd byte arrived (PASS)
