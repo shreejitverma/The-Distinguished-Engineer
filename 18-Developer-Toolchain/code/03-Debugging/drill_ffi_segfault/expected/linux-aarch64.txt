@@ -1,0 +1,68 @@
+=== Stage 1: the symptom depends on payload size and allocator history ===
+small: replacement object reuses the freed block: yes
+small: tape_sum returned (no crash)
+small: sum equals the freed payload's sum: no
+small: sum equals the replacement's sum: yes
+small: process exit status 0
+warm: reading 1048576 bytes through the stale pointer
+warm: tape_sum returned (no crash)
+warm: sum equals the freed payload's sum: yes
+warm: process exit status 0
+large: reading 1048576 bytes through the stale pointer
+large: process killed by signal 11
+fixed-small: sum equals the original payload's sum: yes
+fixed-large: sum equals the original payload's sum: yes
+fixed: process exit status 0
+
+=== Stage 2: faulthandler names the Python caller, not the Rust callee ===
+exit status: 139 (128 + signal 11)
+faulthandler banner: Fatal Python error: Segmentation fault
+innermost Python frame: driver.py:78 in stale_read
+Python call chain: stale_read <- run_large <- main <- <module>
+C stack section present (Python 3.14+): no
+--- forced fault: a read at the unmapped address 16, on any platform ---
+exit status: 139 (128 + signal 11)
+faulthandler banner: Fatal Python error: Segmentation fault
+innermost Python frame: driver.py:78 in stale_read
+Python call chain: stale_read <- run_fault <- main <- <module>
+C stack section present (Python 3.14+): no
+
+=== Stage 3: gdb stops at the faulting load and checks the address ===
+signal: SIGSEGV (SEGV_MAPERR)
+fault address inside the buffer Python freed: yes
+fault address offset into that buffer: 0
+fault address inside any current mapping: no
+frame 0 is in libticktape: yes
+innermost ticktape source frame: ticktape::tape_sum at lib.rs:75
+libffi frame directly below the Rust frames: yes
+interpreter frames below libffi: yes
+py-bt: unavailable (no python-gdb.py auto-loaded for this interpreter)
+
+=== Stage 4: AddressSanitizer, preloaded into an uninstrumented python3 ===
+--- PYTHONMALLOC=pymalloc, small ---
+ASan report: none (exit status 0)
+small: replacement object reuses the freed block: yes
+small: sum equals the freed payload's sum: no
+small: sum equals the replacement's sum: yes
+--- PYTHONMALLOC=pymalloc, large ---
+ASan report: heap-use-after-free
+address: 32 bytes inside a 1048609-byte heap block
+--- PYTHONMALLOC=pymalloc, fixed ---
+ASan report: none (exit status 0)
+fixed-small: sum equals the original payload's sum: yes
+fixed-large: sum equals the original payload's sum: yes
+--- PYTHONMALLOC=malloc, small ---
+ASan report: heap-use-after-free
+access: READ of size 1
+address: 32 bytes inside a 289-byte heap block
+use stack reaches tape_sum: yes (lib.rs:75)
+use stack crosses libffi: yes
+freed by: free(), Rust frames in that stack: 0
+allocated by: malloc(), Rust frames in that stack: 0
+--- PYTHONMALLOC=malloc, large ---
+ASan report: heap-use-after-free
+address: 32 bytes inside a 1048609-byte heap block
+--- PYTHONMALLOC=malloc, fixed ---
+ASan report: none (exit status 0)
+fixed-small: sum equals the original payload's sum: yes
+fixed-large: sum equals the original payload's sum: yes

@@ -1,0 +1,15 @@
+[package]
+name = "ticktape"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# No dependencies, so `cargo build --offline` needs no registry access.
+[dependencies]
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+# Ship-style optimized code that still carries DWARF line tables for gdb and ASan.
+debug = true

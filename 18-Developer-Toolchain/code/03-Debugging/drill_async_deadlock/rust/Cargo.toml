@@ -1,0 +1,9 @@
+[package]
+name = "waker_audit"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# No dependencies: the lab must build offline. The executor below re-implements the one
+# piece of tokio-console instrumentation the drill needs, the per-task waker count.
+[dependencies]

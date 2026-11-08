@@ -1,0 +1,27 @@
+=== Crash site (the victim) ===
+Crashed on a memory-access fault (SIGSEGV or SIGBUS): yes
+Faulting pc has no symbol (wild jump target): yes
+Victim frame: execute(Order*) at uaf.cpp:43
+Jumped to the object's first 8 bytes (pc == *obj): yes
+
+=== Backtrace (the free site is absent) ===
+execute(Order*) at uaf.cpp:43
+dispatch(Order*) at uaf.cpp:45
+main() at uaf.cpp:50
+retire present in backtrace: no
+
+=== Heap forensics (the core proves the free) ===
+obj.on_fill no longer holds &settle (it was overwritten): yes
+Safe-linked next reveals to NULL (glibc tcache list tail): yes
+Word at offset 8 is non-zero and no longer the original id 0x2222 (tcache key): yes
+Payload qty 100 survives at offset 16 (tcache touched only 16 bytes): yes
+
+=== Verdict ===
+Use-after-free: dispatch used `o` after retire() freed it to the tcache;
+the free site retire() is not in the backtrace and was recovered from the heap.
+
+=== Contrast: AddressSanitizer on the same source ===
+ASan bug class reported: heap-use-after-free
+ASan names the use site (execute): yes
+ASan names the free site (retire): yes
+ASan names the allocation site (make_order): yes

@@ -1,0 +1,46 @@
+##### Part 1: Python asyncio #####
+python >= 3.14: yes
+=== Scenario 1: lock-order deadlock (asyncio.Lock) ===
+hung after 0.5 s: yes
+SIGUSR1 dump answered: yes
+task Task-1: awaited by -; stack: TaskGroup._aexit -> TaskGroup.__aexit__ -> lockorder -> main.<locals>.entry
+task transfer-ab: awaited by Task-1; stack: Lock.acquire -> OwnedLock.acquire -> _ContextManagerMixin.__aenter__ -> transfer
+  waits on lock B, held by transfer-ba
+task transfer-ba: awaited by Task-1; stack: Lock.acquire -> OwnedLock.acquire -> _ContextManagerMixin.__aenter__ -> transfer
+  waits on lock A, held by transfer-ab
+wait-for cycle: transfer-ab -> transfer-ba -> transfer-ab
+terminated with SIGTERM: yes
+fix (one global lock order): exit 0, transfers completed: 2
+
+=== Scenario 2: unawaited coroutine ===
+[default] exit 0; waiter: TimeoutError after the 0.3 s guard; the event was never set
+[default] warning: service.py:124: RuntimeWarning: coroutine 'notify' was never awaited
+[default] creation traceback: no
+[-X dev] exit 0; waiter: TimeoutError after the 0.3 s guard; the event was never set
+[-X dev] warning: service.py:124: RuntimeWarning: coroutine 'notify' was never awaited
+[-X dev] creation traceback: yes, innermost frame unawaited
+
+=== Scenario 3: lost wakeup (Future resolved from another thread) ===
+producer: result delivered
+consumer still hung 0.5 s after the result was set: yes
+consumer still hung 0.3 s after SIGUSR2: yes
+SIGUSR2 faulthandler, main thread innermost frames: select (selectors.py) <- _run_once (base_events.py)
+after SIGUSR1: woke with 42, exit 0
+order after SIGUSR1: consumer: woke with 42 | === SIGUSR1 task dump (ran as an event loop callback) === | === end dump ===
+[-X dev] producer: RuntimeError: Non-thread-safe operation invoked on an event loop other than the current one
+fix (call_soon_threadsafe): exit 0, woke with 42
+
+=== Scenario 4: loop thread blocked (threading.Lock held across await) ===
+SIGUSR1 dump answered within 1 s: no
+SIGUSR2 faulthandler, main thread innermost frames: contender (service.py) <- _run (events.py)
+terminated with SIGTERM: yes
+
+##### Part 2: Rust waker audit #####
+=== Executor stalled: 3 of 4 tasks pending, run queue empty ===
+task         polls wakes clones  drops  live  verdict
+lost-waker       1     0      0      0     0  LOST WAKER: no waker exists, nothing can wake this task
+fixed-waker      2     1      2      2     0  completed
+cycle-a          1     0      1      0     1  idle, waker held by b-ready (set by cycle-b)
+cycle-b          1     0      1      0     1  idle, waker held by a-ready (set by cycle-a)
+lost-waker I/O finished anyway: true
+await cycle: cycle-a -> cycle-b -> cycle-a

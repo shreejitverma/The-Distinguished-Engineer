@@ -1,0 +1,87 @@
+=== Target sections and raw CFI (readelf) ===
+[16] .eh_frame_hdr PROGBITS 0000000000000920 000920 00005c 00 A 0 0 4
+[17] .eh_frame PROGBITS 0000000000000980 000980 000124 00 A 0 0 8
+[25] .symtab SYMTAB 0000000000000000 010048 000948 18 26 68 8
+000000a4 000000000000001c 000000a8 FDE cie=00000000 pc=0000000000000870..0000000000000890
+  DW_CFA_advance_loc: 4 to 0000000000000874
+  DW_CFA_def_cfa_offset: 16
+  DW_CFA_offset: r29 (x29) at cfa-16
+  DW_CFA_offset: r30 (x30) at cfa-8
+  DW_CFA_advance_loc: 24 to 000000000000088c
+  DW_CFA_restore: r30 (x30)
+  DW_CFA_restore: r29 (x29)
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+0000000000000870 <middle_layer>:
+ 870:   stp     x29, x30, [sp, #-16]!
+ 874:   add     w1, w0, #0x2
+ 878:   add     w0, w0, w0, lsl #1
+ 87c:   mov     x29, sp
+ 880:   bl      860 <leaf_compute>
+ 884:   add     w0, w0, #0x1
+ 888:   ldp     x29, x30, [sp], #16
+ 88c:   ret
+
+=== Launch (fork, PTRACE_TRACEME, execv) ===
+Architecture: aarch64
+Stop after execve: SIGTRAP, waitpid status 0x57f
+ELF type: ET_DYN (position-independent)
+Debug info in target: none (.eh_frame and .symtab only)
+Load bias (AT_ENTRY - e_entry) equals start of first target mapping: yes
+CIEs: 1, FDEs: 10
+First CIE: version 1, augmentation "zR", code_align 4, data_align -8, return address column x30
+
+=== Breakpoint ===
+Breakpoint on leaf_compute: bias + st_value, in a r-xp mapping of target
+Wrote brk #0 (encoding d4200000) with PTRACE_POKEDATA; read back: trap present
+Hit 1: SIGTRAP, si_code TRAP_BRKPT (1)
+pc - breakpoint address after the trap: 0
+Arguments: a = x0 = 6, b = x1 = 4
+
+=== Backtrace: DWARF CFI from .eh_frame ===
+#0 leaf_compute  CFA=sp+0    RA=x30 (unset: same value)
+#1 middle_layer  CFA=sp+16   RA=[CFA-8]
+#2 outer_layer   CFA=sp+32   RA=[CFA-24]
+#3 main          CFA=sp+32   RA=[CFA-24]
+Stop: return address is in libc.so.6, which has no CFI loaded here
+CFI frames: leaf_compute middle_layer outer_layer main
+
+=== Backtrace: frame-pointer walk at the same stop ===
+FP frames: leaf_compute outer_layer main
+Frame-pointer walk equals CFI walk: no
+
+=== Step over the breakpoint ===
+PTRACE_SINGLESTEP: SIGTRAP, si_code TRAP_TRACE (2)
+pc advanced by 4 bytes, still in leaf_compute
+Breakpoint re-inserted: yes
+Hit 2: a = 9, b = 5
+PTRACE_SETREGSET: x1 5 -> 0
+
+=== Exit ===
+Breakpoint hits: 2
+Native run exit status: 73
+Debugged run exit status: 28
+
+=== Cross-check: GDB at the same instruction ===
+GDB frames: leaf_compute middle_layer outer_layer main
+minidbg CFI walk equals GDB backtrace: yes
+
+readelf on the stripped copy: .symtab removed, .eh_frame kept
+=== Stripped target: CFI backtrace without symbols ===
+Target has .symtab: no
+Target has .eh_frame: yes (10 FDEs)
+Frames unwound inside the target: 4
+Frames with a name: 0
+Stop: return address is in libc.so.6, which has no CFI loaded here
+
+=== Attach (PTRACE_SEIZE, PTRACE_INTERRUPT) ===
+TracerPid before attach: 0 (untraced)
+PTRACE_SEIZE: ok, TracerPid is minidbg: yes
+PTRACE_INTERRUPT stop: SIGTRAP with PTRACE_EVENT_STOP in status >> 16: yes, waitpid status 0x80057f
+Interrupted inside: spin_forever
+spin_counter unchanged while stopped: yes
+spin_counter advanced while running: yes
+PTRACE_DETACH: TracerPid after detach: 0 (untraced, still running)
+Killed with SIGKILL: yes
