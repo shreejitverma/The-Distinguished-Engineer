@@ -1,0 +1,21 @@
+=== Part 1: Filename Hazard Handling and Delimiter Safety ===
+Raw xargs without -0: FAILED (aborted on unescaped quote in filename)
+find -print0 | xargs -0: PROCESSED 7/7 hazardous files successfully
+fd -0 | xargs -0: PROCESSED 7/7 hazardous files successfully
+fd -X batch dispatch: received 7 files in 1 execution
+fd -X from the current directory: arguments are ./-rf.txt ./ok.txt
+fd -X --strip-cwd-prefix=always: arguments are ./-rf.txt ok.txt
+
+=== Part 2: Argument Batching and Kernel Limits ===
+System ARG_MAX: 1048576 bytes
+find -exec ... ; invocations: 1000 (files per process: 1)
+find -exec ... + invocations: 1 (batched 1000 files into 1 execve)
+xargs -n 250 invocations: 4 (chunks: 250 250 250 250)
+xargs -s 4096 invocations: 7 (chunks: 163 163 163 163 163 163 22)
+fd -X --batch-size 250 invocations: 4 (chunks: 250 250 250 250)
+
+=== Part 3: Concurrency and Exit Code Discipline ===
+xargs -P 4 concurrent pool: completed 8/8 tasks
+xargs -P 4 peak concurrent workers: 4
+xargs exit 255 abort: exit_code=1, executed=[task1], aborted_remaining=3
+xargs error propagation: exit_code=1 (non-zero error detected and propagated)

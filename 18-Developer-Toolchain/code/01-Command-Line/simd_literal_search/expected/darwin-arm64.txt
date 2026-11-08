@@ -1,0 +1,32 @@
+=== Ripgrep Text Search Mechanics Test Suite ===
+
+--- Phase 1: Vectorized memchr Prefilter ---
+memchr SIMD path: NEON (vceqq_u8, vmaxvq_u8)
+memchr total bytes: 512
+memchr 16B vector chunks: 32
+memchr scalar tail bytes: 0
+memchr match count: 8
+
+--- Phase 2: Slim Teddy 8-Pattern Vector Filter ---
+Teddy SIMD path: NEON (vqtbl1q_u8)
+Teddy pattern count: 8
+Teddy mask_lo non-zero buckets: [1]=0x01 [2]=0x02 [3]=0x04 [4]=0x08 [5]=0x10 [6]=0x20 [7]=0x40 [8]=0x80
+Teddy mask_hi non-zero buckets: [6]=0xff
+Teddy total bytes: 1024
+Teddy total chunks (16B): 64
+Teddy chunks rejected early: 60
+Teddy early rejection rate: 93%
+Teddy candidates checked: 10
+Teddy matches confirmed: 4
+
+--- Phase 3: Rolling Buffer Stream Refill ---
+Naive fixed-chunk matches: 0
+Rolling buffer chunk capacity: 64 bytes
+Rolling buffer total matches found: 1
+Match 1: line 2, byte offset 60: "Line 02: needle_target straddles the 64-byte chunk boundary."
+
+--- Phase 4: Byte-Oriented bstr Scanning ---
+UTF-8 strict validation result: INVALID
+Byte-oriented raw match found: YES at offset 20
+
+Verification: ALL MECHANICS VERIFIED
