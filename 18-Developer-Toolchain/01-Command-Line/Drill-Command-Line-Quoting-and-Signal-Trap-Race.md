@@ -493,7 +493,10 @@ Standardizing the cleanup trap skeleton ensures that temporary directories creat
 > 3. Observe using `echo "Stage: $DEPLOY_STAGE"` why the environment variable fails to persist in the main execution thread.
 > 4. Modify the background daemon test in `run.sh` to simulate a rapid double-signal condition (`kill -TERM "$pid"; kill -HUP "$pid"`).
 >    A background job started with `&` by a non-interactive shell that has job control off gets SIGINT ignored (POSIX.1-2024 Section 2.12), and Bash refuses to trap a signal ignored on entry (bash(1) `trap`).
->    `run.sh` therefore starts the script under `set -m`, which is why its SIGINT test reaches the trap and exits 130; delete the `set -m` and that test hangs, because the ignored SIGINT never reaches the script (the harness timeout then fails the lab).
+>    `run.sh` therefore launches the script through `reset_signals`, which `exec`s `python3` to set SIGINT, SIGTERM, and SIGHUP back to `SIG_DFL` and then `exec`s the script, which is why its SIGINT test reaches the trap and exits 130.
+>    `set -m` alone is not enough: when `run.sh` itself starts as a background job, SIGINT is already ignored on entry to `run.sh`, Bash cannot reset it, and every child inherits the ignored disposition.
+>    Measured on this lab (darwin-arm64, `/bin/bash` 3.2.57): eight parallel background runs all hung under `set -m`, and all eight pass under `reset_signals` with output identical to the recording.
+>    Delete the `reset_signals` call and run the lab from a background job: the SIGINT test now fails after 30 s with `deploy_fixed.sh did not exit within 30 s of signal(s) INT` instead of hanging.
 > 5. Confirm that `deploy_fixed.sh` handles the re-entrant signals idempotently without crashing or deadlocking.
 
 ## Interview Questions

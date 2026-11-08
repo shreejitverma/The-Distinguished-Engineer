@@ -8,6 +8,10 @@ set -euo pipefail
 LAB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$LAB_DIR"
 
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "run.sh: python3 is required (it resets inherited signal dispositions) but not on PATH" >&2
+    exit 2
+fi
 if ! command -v shellcheck >/dev/null 2>&1; then
     echo "run.sh: shellcheck is required but not on PATH" >&2
     exit 2
@@ -93,12 +97,20 @@ echo "Brittle subshell count:"
 echo "Fixed subshell count:"
 ./deploy_fixed.sh test-subshell "$REL_F"
 
+# Run a command with SIGINT, SIGTERM, and SIGHUP reset to their default dispositions.
+reset_signals() {
+    exec python3 -c 'import os, signal, sys
+for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+    signal.signal(s, signal.SIG_DFL)
+os.execvp(sys.argv[1], sys.argv[1:])' "$@"
+}
+
 # Poll until FILE contains PATTERN; fail loudly instead of sleeping a guessed duration.
 wait_for() {
     local what="$1" file="$2" pattern="$3" tries=0
     while ! grep -q -- "$pattern" "$file" 2>/dev/null; do
         tries=$((tries + 1))
-        if [ "$tries" -gt 250 ]; then
+        if [ "$tries" -gt 1500 ]; then
             echo "run.sh: timed out waiting for $what" >&2
             return 1
         fi
@@ -115,17 +127,18 @@ daemon_state() {
 }
 
 # signal_run SCRIPT WORKDIR LOG [SIGNAL...]
-# Starts SCRIPT test-trap-leak in the background (job control on, so SIGINT is not
+# Starts SCRIPT test-trap-leak in the background (through reset_signals, so SIGINT is not
 # ignored on entry), waits until it reports its daemon, checks the daemon is alive,
 # delivers each SIGNAL, and sets SCRIPT_EXIT and DAEMON_PID.
 # A second signal is held back until the script has started its cleanup.
 signal_run() {
     local script="$1" work="$2" log="$3" job sig first=1
     shift 3
-    set -m
-    "./$script" test-trap-leak "$work" >"$log" 2>&1 &
+    # A non-interactive shell cannot trap a signal that was ignored when it started (POSIX XCU trap),
+    # and a parent that runs this lab as a background job hands every child SIGINT ignored.
+    # Launch through reset_signals so the script under test starts with default dispositions.
+    reset_signals "./$script" test-trap-leak "$work" >"$log" 2>&1 &
     job=$!
-    set +m
     wait_for "$script to start its daemon" "$log" "Deploy script running with background daemon"
     DAEMON_PID=$(cat "$work/daemon.pid")
     case "$DAEMON_PID" in
@@ -145,6 +158,17 @@ signal_run() {
         fi
         first=0
         kill -s "$sig" "$job" 2>/dev/null || true
+    done
+    # Bound the wait: a script that ignores the signal must fail the lab, not hang it.
+    local tries=0
+    while kill -0 "$job" 2>/dev/null; do
+        tries=$((tries + 1))
+        if [ "$tries" -gt 1500 ]; then
+            echo "run.sh: $script did not exit within 30 s of signal(s) $*" >&2
+            kill -9 "$job" "$DAEMON_PID" 2>/dev/null || true
+            return 1
+        fi
+        sleep 0.02
     done
     set +e
     wait "$job" 2>/dev/null
