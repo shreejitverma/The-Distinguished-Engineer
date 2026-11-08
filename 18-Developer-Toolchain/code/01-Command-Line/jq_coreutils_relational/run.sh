@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Tool preconditions the harness has no tag for: jq >= 1.7 (literal-preserving numbers) and
 # Mike Farah's yq v4 (the -o=json -I=0 flags). Fail loudly rather than record a different output.
-jq_ver="$(jq --version 2>/dev/null | sed 's/^jq-//')"
+jq_ver="$(jq --version 2>/dev/null | sed 's/^jq-//' || true)"
 case "${jq_ver}" in
   1.[7-9]*|1.[1-9][0-9]*|[2-9].*) ;;
   *) echo "precondition failed: jq >= 1.7 required, found '${jq_ver:-none}'" >&2; exit 2 ;;
