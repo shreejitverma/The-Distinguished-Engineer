@@ -1,0 +1,86 @@
+=== 1. Automated Bisect Run ===
+Bisect steps: 2
+  Bisecting: 1 revision left to test after this (roughly 1 step)
+  Bisecting: 0 revisions left to test after this (roughly 0 steps)
+First bad commit: 23e0320 c5: optimize calculation path
+Culprit matches c5: True
+
+=== 2. Bisect Skip Handling (Exit Code 125) ===
+Bisect skip status: bounded uncertainty set detected
+  The first 'bad' commit could be any of:
+  We cannot bisect more!
+Candidate set size: 2
+  candidate: s1: broken syntax commit
+  candidate: s2: regression commit
+Candidates equal {s1, s2}: True
+
+=== 3. Pickaxe Search (-S vs -G) ===
+Pickaxe -S (occurrence count changes):
+  f5fab2d c0: initial codebase
+Pickaxe -G (diff hunk regex matches):
+  1468492 c6: annotate factor scale
+  f5fab2d c0: initial codebase
+
+=== 4. Blame with Ignore-Revs and Copy Detection ===
+Blame normal (calc.py L4-7, line 6 attributed to bot):
+  ^f5fab2d (<author@example.com> 2026-10-01 10:00:00 +0000 4) def compute_metrics(base, multiplier, offset):
+  ^f5fab2d (<author@example.com> 2026-10-01 10:00:00 +0000 5)     val = (base * multiplier) + offset
+  332f36a1 (<bot@example.com>    2026-10-01 10:35:00 +0000 6)     if val > 1000: return val // 2
+  ^f5fab2d (<author@example.com> 2026-10-01 10:00:00 +0000 7)     return val * 2
+Blame with --ignore-rev (calc.py L4-7, line 6 restored with marker):
+  ^f5fab2d (<author@example.com> 2026-10-01 10:00:00 +0000 4) def compute_metrics(base, multiplier, offset):
+  ^f5fab2d (<author@example.com> 2026-10-01 10:00:00 +0000 5)     val = (base * multiplier) + offset
+  ^?f5fab2 (<author@example.com> 2026-10-01 10:00:00 +0000 6)     if val > 1000: return val // 2
+  ^f5fab2d (<author@example.com> 2026-10-01 10:00:00 +0000 7)     return val * 2
+Blame with a single -C (fast_calc.py L2-6, copy from calc.py is missed):
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 2) def compute_metrics(base, multiplier, offset):
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 3)     val = (base * multiplier) + offset
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 4)     if val > 1000:
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 5)         return val // 2
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 6)     return val * 2
+Blame with -C -C cross-file copy detection (fast_calc.py L2-6):
+  ^f5fab2d calc.py      (Toolchain Author 2026-10-01 10:00:00 +0000 2) def compute_metrics(base, multiplier, offset):
+  ^f5fab2d calc.py      (Toolchain Author 2026-10-01 10:00:00 +0000 3)     val = (base * multiplier) + offset
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 4)     if val > 1000:
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 5)         return val // 2
+  7ba4ff40 fast_calc.py (Toolchain Author 2026-10-01 10:50:00 +0000 6)     return val * 2
+
+=== 5. Range-Diff (Patch Series Evolution) ===
+Range-diff output:
+  1:  b252065 ! 1:  07ffdb8 c1: add extra module
+      @@ Metadata
+       Author: Toolchain Author <author@example.com>
+       
+        ## Commit message ##
+      -    c1: add extra module
+      +    c1-v2: add extra module with optimization
+       
+        ## extra.py (new) ##
+       @@
+       +# Extra module
+       +def extra_fn():
+      ++    # optimized implementation
+       +    return 100
+
+=== 6. Non-Destructive Git Notes ===
+Commit with attached note:
+  commit 23e0320265a5e57af04e0d3c0da7acba766125f5
+  Author: Toolchain Author <author@example.com>
+  Date:   Thu Oct 1 10:25:00 2026 +0000
+  
+      c5: optimize calculation path
+  
+  Notes:
+      Audit: verified regression via automated bisect harness
+Commit object bytes unchanged: True
+Branch tip unchanged: True
+Plain log without notes shows no note: True
+Notes ref holds one note for the culprit: True
+
+=== 7. Tree Archaeology with git last-modified ===
+Last-modified directory listing:
+  703371f README.md
+  332f36a calc.py
+  b252065 extra.py
+  7ba4ff4 fast_calc.py
+  9a7d252 util.py

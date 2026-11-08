@@ -1,0 +1,46 @@
+=== Git Trace2 Telemetry Collector Verification ===
+
+[Test 1: Unix Domain Socket Ingestion & Event Schema]
+Socket type: af_unix (SOCK_STREAM)
+Events received: OK (all lines valid JSON)
+Base event types verified: ['atexit', 'cmd_ancestry', 'cmd_name', 'data', 'def_repo', 'exit', 'region_enter', 'region_leave', 'start', 'version']
+Session ID format verified: ISO8601-UTC-H<hash>-P<pid>
+Trace2 Event format version: 4
+
+[Test 2: Process Hierarchy & SID Chaining]
+Parent command: commit (hierarchy: commit)
+Child execution logged: child_class=hook, hook_name=pre-commit
+Child Git command: status (hierarchy: commit/status)
+Parent-child SID inheritance verified: <parent_sid>/<child_sid>
+
+[Test 3: Telemetry Parameter Capture]
+Config telemetry captured: core.bare = false (scope: local)
+Environment telemetry captured: TRACE_TEST_ENV = active_fleet_telemetry (scope: command)
+
+[Test 4: Credential Redaction]
+Redaction enabled (GIT_TRACE2_REDACT=1): https://telemetry_user:<REDACTED>@example.com/repo.git
+Redaction disabled (GIT_TRACE2_REDACT=0): credential preserved in raw trace
+Security assertion: secret token absent when redaction active
+Token-only URL (no colon): not masked even with redaction active
+
+[Test 5: Socket Resilience & Destination Debugging]
+Non-existent socket without debug: silent fallback, exit code 0, empty stderr, no stall
+Non-existent socket with GIT_TRACE2_DST_DEBUG=1: diagnostic warning captured
+
+[Test 6: Directory Target & Sentinel File Discard]
+Trace directory file limit enforced: maxFiles = 2
+Sentinel file created: git-trace2-discard
+Sentinel event verified: too_many_files
+Subsequent trace generation halted: directory files bounded
+
+[Test 7: Config Isolation]
+Repository-local trace2.eventTarget: ignored
+Command-line -c trace2.eventTarget: ignored
+System-config trace2.eventTarget: honored
+
+[Test 8: Git Diagnostics Archive Generation]
+Archive generated: git-diagnostics-telemetry.zip
+Archive entries verified: ['diagnostics.log', 'objects-local.txt', 'packs-local.txt']
+System diagnostics extracted: Git version, CPU arch, disk space telemetry present
+
+All 8 telemetry and diagnostic mechanisms verified successfully.

@@ -1,0 +1,42 @@
+=== Git Hooks and Cryptographic Signing Verification ===
+
+[1] Config-Defined Hook Architecture (git hook)
+  Registered hook: check-whitespace (event: pre-commit)
+  git hook list pre-commit: check-whitespace
+  git hook run pre-commit: exit 0
+  hook body ran: yes
+  second hook that exits 1: git hook run pre-commit: exit 1
+
+[2] Raw Commit Object & SSHSIG Armor Decoding
+  Commit OID: 7fe43e4b629ef7b458bc2f471ecf16036bf14915
+  Commit header fields: tree, author, committer, gpgsig
+  SSHSIG binary structure:
+    magic: SSHSIG
+    version: 1
+    namespace: git
+    hash_algorithm: sha512
+    key_type: ssh-ed25519
+  Canonical payload size: 202 bytes
+
+[3] Low-Level Cryptographic Verification Engine (ssh-keygen -Y)
+  Case 3.1: Valid Alice signature against allowed_signers: PASS
+    matched principal: alice@example.com
+    key fingerprint: SHA256:M/1gnJn/fd1fZLzCt7ES7qm4kIP8Zr4IesR2R8uWO5Y
+  Case 3.2: Tampered payload verification: FAIL
+    ssh-keygen: Signature verification failed: incorrect signature
+  Case 3.3: Untrusted Eve signature verified as eve@example.com: FAIL
+    find-principals for Alice's signature: alice@example.com
+    find-principals for Eve's signature: (none) (exit 255)
+  Case 3.4: Trusted Eve key, committer claims alice, verified as alice@example.com: FAIL
+    verified as eve@example.com: PASS
+    git log %G? %GS %ce: G eve@example.com alice@example.com
+    signer == committer: no
+
+[4] Server-Side Hook Policy Enforcement (pre-receive)
+  Push 1 (Alice valid signed commit): ACCEPTED (exit 0)
+  Push 2 (Unsigned commit): REJECTED (status 'N' is not valid (G))
+  Push 3 (Eve commit, key not in server allowed_signers): REJECTED (status 'U' is not valid (G))
+  Push 4 (Eve key now trusted, committer claims Alice): REJECTED (signer 'eve@example.com' != committer 'alice@example.com')
+  Push 5 (Eve key trusted, honest committer): ACCEPTED (exit 0)
+
+Result: PASS (32 checks)

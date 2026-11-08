@@ -1,0 +1,64 @@
+=== Git LFS Long-Running Filter and Batch API Verification ===
+Original working tree asset size: 65536 bytes
+Original asset SHA-256: cb32d042cafabe5b84ce4d037dff6a9e2fd345ef39dc97ecd5299e1c27920f9e
+
+--- Git Object Database Inspection ---
+Git object type and mode: 100644 blob
+Git stored blob size: 130 bytes (raw binary was 65536 bytes)
+Stored pointer content:
+  version https://git-lfs.github.com/spec/v1
+  oid sha256:cb32d042cafabe5b84ce4d037dff6a9e2fd345ef39dc97ecd5299e1c27920f9e
+  size 65536
+Pointer schema validation: PASS (version, sorted oid/size, <1024 B)
+Largest object after repack: 223 bytes (limit 1024, raw binary was 65536 bytes)
+
+--- Content-Addressable Storage (CAS) Inspection ---
+CAS location: .git/lfs/objects/cb/32/cb32d042cafabe5b84ce4d037dff6a9e2fd345ef39dc97ecd5299e1c27920f9e
+CAS file size: 65536 bytes
+CAS SHA-256 match: True
+
+--- Smudge Filter Restoration ---
+Restored working tree size: 65536 bytes
+Restored SHA-256 match: True
+Smudge with a missing CAS object: checkout fails and writes no file
+
+--- Git LFS Batch API Wire Schema Verification ---
+Batch API Request payload:
+  {
+    "hash_algo": "sha256",
+    "objects": [
+      {
+        "oid": "cb32d042cafabe5b84ce4d037dff6a9e2fd345ef39dc97ecd5299e1c27920f9e",
+        "size": 65536
+      }
+    ],
+    "operation": "download",
+    "ref": {
+      "name": "refs/heads/main"
+    },
+    "transfers": [
+      "basic"
+    ]
+  }
+Batch API Response payload:
+  {
+    "objects": [
+      {
+        "actions": {
+          "download": {
+            "expires_in": 86400,
+            "header": {
+              "Accept": "application/octet-stream",
+              "Authorization": "Bearer signed-token-7f9a2"
+            },
+            "href": "https://storage.blob.core.windows.net/lfs-store/cb32d042cafabe5b84ce4d037dff6a9e2fd345ef39dc97ecd5299e1c27920f9e"
+          }
+        },
+        "authenticated": true,
+        "oid": "cb32d042cafabe5b84ce4d037dff6a9e2fd345ef39dc97ecd5299e1c27920f9e",
+        "size": 65536
+      }
+    ],
+    "transfer": "basic"
+  }
+Batch API schema handshake: PASS (valid pair accepted, 3 broken cases rejected)

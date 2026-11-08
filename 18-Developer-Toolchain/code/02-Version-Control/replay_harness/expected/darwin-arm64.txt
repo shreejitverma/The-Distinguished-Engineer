@@ -1,0 +1,68 @@
+=== Worktree-Free & Index-Free Verification ===
+Repository mode: bare (core.bare = true)
+git rev-parse --is-inside-work-tree: false, --show-toplevel exit code is nonzero: True
+Index artifacts in server.git: 0
+Positive control (git read-tree in a copy): index artifacts seen: 1
+
+=== 1. Plumbing Three-Way Tree Merging (git merge-tree) ===
+Clean merge exit code: 0
+Clean merged tree OID: 9920f6b9a1c4967ab9fc0c1063bec0972b4e3761
+Clean tree entries:
+  100644 blob README.md (b4ad6e9e8d70e861d8c502dac5cd70aa9b7cc7ab)
+  040000 tree src (9f0f73df79e77317e10ae1e4452008432e7cd32e)
+Conflicted merge exit code: 1
+Conflicted merged tree OID: 507fa54f95c13fcf62cfaf5b89699f43b303107c
+Conflicted stage entries:
+  stage 1 (base): 2040365ba27962736829b22f662ad64233bc4981 README.md
+  stage 2 (ours): b4ad6e9e8d70e861d8c502dac5cd70aa9b7cc7ab README.md
+  stage 3 (theirs): 25403bb164c1afe15ed217ab1e3c22944815b806 README.md
+Conflicted blob conflict markers:
+  <<<<<<< main
+  =======
+  >>>>>>> feat-conflict
+Stdin batch merge stream (2 requests):
+  request 1 status: 1 (clean), tree: 9920f6b9a1c4967ab9fc0c1063bec0972b4e3761
+  request 2 status: 0 (conflict), tree: 507fa54f95c13fcf62cfaf5b89699f43b303107c
+
+=== 2. Server-Side History Rewriting (git replay) ===
+Single branch replay preview (--ref-action=print):
+  update refs/heads/feat-A 8ef3d9217507fb207e74da77f7525d211757d9f3 0297f6f089b0f18ccbb31ac6762719c00781e475
+  refs modified by the preview: 0
+Atomicity probe (--contained with refs/heads/feat-B.lock held):
+  replay failed: True, refs modified: 0
+Stacked branches atomic replay (--contained --onto=main):
+  exit code: 0
+  refs/heads/feat-A: 8ef3d9217507fb207e74da77f7525d211757d9f3 (parent: 9ea3c58432e5ddecfae77ea3f76162f45b14a4be)
+  refs/heads/feat-B: f604433e536d2e07aee1e8805d745e5ff3ca34c2 (parent: 8ef3d9217507fb207e74da77f7525d211757d9f3)
+Branch advance replay (--advance=advance-branch):
+  git replay exit code: 0
+  refs/heads/advance-branch: de82756df8c10214ebb16584e0cabddb57c0220b (parent: 9ea3c58432e5ddecfae77ea3f76162f45b14a4be)
+  new commit synthesized: True
+  tree equals merge-tree result: True
+Server-side revert replay (--revert=revert-branch):
+  git replay exit code: 0
+  revert commit: d63ffe2f2fc77673beca27a10f997be3871490d7
+  commit message: Revert "Add extra_hook"
+  tree equals main's tree: True
+Conflict abort behavior:
+  exit code: 1 (stdout len: 0, stderr len: 0, refs modified: 0)
+
+=== 3. High-Throughput Speculative Merge Queue Simulation ===
+Speculative Build Train:
+  Car 1 (main + PR-1): tip=971832a tree=5b9f61b
+  Car 2 (Car-1 + PR-2): tip=2acc861 tree=f7cba6c
+  Car 3 (Car-2 + PR-3): tip=cd175df tree=bf821f4
+Simulating CI test failure on PR-1:
+Evacuation and rapid re-speculation:
+  New Car 2 (main + PR-2): tip=978c439 tree=ff1ce68
+  New Car 3 (New Car-2 + PR-3): tip=c7124d8 tree=811efe3
+Ancestry of New Car 3:
+  * c7124d8 PR 3: telemetry metrics
+  * 978c439 PR 2: payment billing engine
+  * 9ea3c58 Update README on main
+  * bd02d59 Base commit
+
+=== Integrity and Lock Invariants ===
+Git commands run, each followed by an index scan: 136
+Index artifacts in server.git at the end: 0
+Entries outside the bare layout (a checkout would add some): 0
