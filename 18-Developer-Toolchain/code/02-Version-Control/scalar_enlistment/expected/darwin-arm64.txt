@@ -1,0 +1,49 @@
+=== 1. Enlistment Layout ===
+Enlistment root entries: ['src']
+Worktree populated root files: ['Makefile', 'README.md']
+Subtrees materialized on disk initially: []
+Blobs absent after clone (blobless): 7 [MATCH]
+
+=== 2. Config Audit ===
+  core.fsmonitor = true [MATCH]
+  core.untrackedCache = true [MATCH]
+  index.version = 4 [MATCH]
+  index.skipHash = true [MATCH]
+  maintenance.strategy = incremental [MATCH]
+  gc.auto = 0 [MATCH]
+  status.aheadBehind = false [MATCH]
+  fetch.unpackLimit = 1 [MATCH]
+  fetch.showForcedUpdates = false [MATCH]
+  pack.useBitmaps = false [MATCH]
+  pack.usePathWalk = true [MATCH]
+  remote.origin.promisor = true [MATCH]
+  remote.origin.partialclonefilter = blob:none [MATCH]
+  core.sparseCheckoutCone (worktree) = true [MATCH]
+
+=== 3. Sparse-Checkout Cone Expansion ===
+Populated files after cone expansion:
+  packages/engine/engine.c
+  packages/engine/engine.h
+
+=== 4. Sparse Index Representation ===
+index.sparse after scalar clone: unset [MATCH]
+Entries before enabling the sparse index: 9
+Sparse index entries:
+  Makefile
+  README.md
+  packages/docs/
+  packages/engine/engine.c
+  packages/engine/engine.h
+  packages/ui/
+  tools/
+Directory boundary entries with mode 040000: 3 of 3 [MATCH]
+
+=== 5. Background Maintenance Task ===
+Commit-graph before the task: False
+Commit-graph written: True [MATCH]
+Changed-path Bloom chunks present (BDAT, BIDX): True [MATCH]
+
+=== 6. Enlistment Lifecycle ===
+Registered in scalar.repo: True [MATCH]
+Unregister executed cleanly: True
+Registered after unregister: False [MATCH]

@@ -1,0 +1,61 @@
+=== Step 1: Initial Divergent Commit Graph ===
+@  feature-b feature B: workers=16
+| o  feature-a feature A: workers=8
+|-/
+o  base config
+*  (empty)
+
+=== Step 2: Non-Blocking Rebase (feature-b onto feature-a) ===
+jj rebase exit code: 0 (conflict recorded in the commit, rebase completed)
+git rebase exit code: 1 (rebase left in progress: True)
+
+=== Step 3: First-Class Conflict Data Structure in Commit Tree ===
+service.cfg: conflict=true, sides=2, removed=1, added=2
+
+=== Step 4: Commit Graph with Inlined Conflict State ===
+@  (conflict) feature-b feature B: workers=16
+o  feature-a feature A: workers=8
+o  base config
+*  (empty)
+
+=== Step 5: Working Copy Conflict Markers ===
+port = 8080
+<<<<<<< conflict 1 of 1
+%%%%%%% diff from: <change> <commit> "base config" (parents of rebased revision)
+\\\\\\\        to: <change> <commit> "feature A: workers=8" (rebase destination)
+-workers = 4
++workers = 8
++++++++ <change> <commit> "feature B: workers=16" (rebased revision)
+workers = 16
+>>>>>>> conflict 1 of 1 ends
+timeout = 30
+
+=== Step 6: Non-Blocking Child Commit on Conflicted Parent ===
+@  (conflict) dependent work on top of conflict
+x  (conflict) feature-b feature B: workers=16
+o  feature-a feature A: workers=8
+o  base config
+*  (empty)
+
+=== Step 7: Resolve Parent Conflict ===
+feature-b tree status:
+service.cfg: conflict=false, sides=1, removed=0, added=1
+
+=== Step 8: Auto-Rebased Child Commit Post-Resolution ===
+o  dependent work on top of conflict
+@  feature-b feature B: workers=24 (resolved)
+o  feature-a feature A: workers=8
+o  base config
+*  (empty)
+
+=== Step 9: Operation Log (Append-Only Transaction History) ===
+@  describe commit <oid>
+o  snapshot working copy
+o  edit commit <oid>
+o  snapshot working copy
+o  new empty commit
+o  rebase commit <oid> and descendants
+
+=== Step 10: Undo Resolution via Operation Log ===
+feature-b restored to conflicted tree status:
+service.cfg: conflict=true, sides=2, removed=1, added=2
