@@ -74,7 +74,7 @@ flowchart TD
 
 The complete reproduction environment is implemented in `code/00-Program-Execution/drill_split_dwarf/`.
 The workload simulates an optimized order execution worker where high-frequency risk validation layers are inlined into a top-level processing loop.
-The code is compiled under GCC with `-O2 -g -gdwarf-4 -gsplit-dwarf -fdebug-prefix-map=<lab dir>=/lab` and linked with a deterministic GNU Build ID (`-Wl,--build-id=0x11223344556677889900aabbccddeeff11223344`).
+The code is compiled under GCC with `-O2 -g -gdwarf-4 -gsplit-dwarf -fdebug-prefix-map=<build dir>=/lab` and linked with a deterministic GNU Build ID (`-Wl,--build-id=0x11223344556677889900aabbccddeeff11223344`).
 The prefix map pins `DW_AT_comp_dir`, so the `dwo_id`, the CU index slot, and the DIE offsets do not change with the directory the lab is built in (checked by running the lab from two different directories and diffing the output).
 The recorded output comes from the pinned Ubuntu 24.04 lab image on linux-aarch64 with GCC 13.3.0, binutils 2.42 (`readelf`, `dwp`), and GDB 15.1 (as of 2026-11).
 The debug sections are segregated into `crash_prog.debug`, the `.dwo` file is bundled into `crash_prog.dwp` via `dwp` and then deleted so that only the package can satisfy GDB, and the production executable `crash_prog` is stripped with `strip --strip-all`.

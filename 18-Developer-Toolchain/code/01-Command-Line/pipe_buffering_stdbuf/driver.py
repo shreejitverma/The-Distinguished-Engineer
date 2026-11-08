@@ -6,14 +6,17 @@ import sys
 import time
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if len(sys.argv) != 2:
+    sys.exit("usage: driver.py <binary dir>")
+BIN_DIR = os.path.abspath(sys.argv[1])
 
 def run_probe_buffers():
-    probe_bin = os.path.join(SCRIPT_DIR, "probe_buffers")
+    probe_bin = os.path.join(BIN_DIR, "probe_buffers")
     res = subprocess.run([probe_bin], capture_output=True, text=True, check=True)
     print(res.stdout.strip())
 
 def run_flush_threshold_test(stdbuf_args=(), phase1_lines=30):
-    writer_bin = os.path.join(SCRIPT_DIR, "writer")
+    writer_bin = os.path.join(BIN_DIR, "writer")
     cmd = list(("stdbuf",) + tuple(stdbuf_args) + (writer_bin, str(phase1_lines))) if stdbuf_args else [writer_bin, str(phase1_lines)]
 
     p_in_r, p_in_w = os.pipe()
@@ -82,7 +85,7 @@ def run_deadlock_test(client_cmd, env=None, expect_success=False):
     observed asleep (state S) in the kernel, so the verdict rests on observed blocking, not on a timeout alone.
     Anything else is INDETERMINATE.
     """
-    server_bin = os.path.join(SCRIPT_DIR, "peer_server")
+    server_bin = os.path.join(BIN_DIR, "peer_server")
     c2s_r, c2s_w = os.pipe()
     s2c_r, s2c_w = os.pipe()
 
@@ -125,14 +128,14 @@ def main():
     print(f"   stdbuf -o8192 buffer:    phase 1 received {p1_8k:4d} B / total {tot_8k} B (4130 B fits, nothing flushed)")
 
     print("\n3. Inter-process bidirectional deadlock resolution:")
-    client_dyn = os.path.join(SCRIPT_DIR, "peer_client")
+    client_dyn = os.path.join(BIN_DIR, "peer_client")
     s_def, m_def = run_deadlock_test([client_dyn])
     print(f"   unassisted client:      status={s_def} ({m_def})")
     s_std, m_std = run_deadlock_test(["stdbuf", "-oL", client_dyn], expect_success=True)
     print(f"   stdbuf -oL client:      status={s_std} ({m_std})")
 
-    print("\n4. Interposition boundaries (LD_PRELOAD vs runtime runtimes):")
-    client_static = os.path.join(SCRIPT_DIR, "peer_client_static")
+    print("\n4. Interposition boundaries (LD_PRELOAD vs static binaries and language runtimes):")
+    client_static = os.path.join(BIN_DIR, "peer_client_static")
     s_stat, m_stat = run_deadlock_test(["stdbuf", "-oL", client_static])
     print(f"   static ELF under stdbuf:      status={s_stat} (kernel bypasses dynamic linker)")
 

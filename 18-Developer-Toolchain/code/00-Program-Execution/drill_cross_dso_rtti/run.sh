@@ -2,7 +2,10 @@
 # requires: linux
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+cd "${WORK_DIR}"
 
 LIBCXX="clang++ -stdlib=libc++"
 LIBSTDCXX="g++"
@@ -53,16 +56,16 @@ dynsym_count() { readelf --wide --dyn-syms "$1" | grep -cE "$2" || true; }
 echo "=== Drill: Cross-DSO Exception and RTTI Failure ==="
 
 echo "--- 1. Reproduction: real libc++ with -fvisibility=hidden ---"
-build libplugin_broken.so "${LIBCXX}" -fPIC -shared ${HIDDEN} plugin.cpp
-build host_broken "${LIBCXX}" ${HIDDEN} host.cpp -ldl
-build host_broken_global "${LIBCXX}" ${HIDDEN} -DDLMODE=RTLD_GLOBAL host.cpp -ldl
+build libplugin_broken.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${SCRIPT_DIR}/plugin.cpp"
+build host_broken "${LIBCXX}" ${HIDDEN} "${SCRIPT_DIR}/host.cpp" -ldl
+build host_broken_global "${LIBCXX}" ${HIDDEN} -DDLMODE=RTLD_GLOBAL "${SCRIPT_DIR}/host.cpp" -ldl
 check "libc++ fallback handler present" fallback host_broken libplugin_broken.so
 check "libc++ strict, RTLD_LOCAL" abort host_broken libplugin_broken.so --strict
 check "libc++ strict, RTLD_GLOBAL" abort host_broken_global libplugin_broken.so --strict
 
 echo "--- 2. Diagnosis: libstdc++ masks the same bug ---"
-build libplugin_gnu.so "${LIBSTDCXX}" -fPIC -shared ${HIDDEN} plugin.cpp
-build host_gnu "${LIBSTDCXX}" ${HIDDEN} host.cpp -ldl
+build libplugin_gnu.so "${LIBSTDCXX}" -fPIC -shared ${HIDDEN} "${SCRIPT_DIR}/plugin.cpp"
+build host_gnu "${LIBSTDCXX}" ${HIDDEN} "${SCRIPT_DIR}/host.cpp" -ldl
 check "libstdc++ fallback handler present" caught host_gnu libplugin_gnu.so
 check "libstdc++ strict" caught host_gnu libplugin_gnu.so --strict
 
@@ -70,25 +73,25 @@ echo "--- 3. Diagnosis: ELF symbol inspection ---"
 echo "dynamic RTTI symbols in libplugin_broken.so: $(dynsym_count libplugin_broken.so '_ZT[IS]11PluginError')"
 echo "libplugin_broken.so .symtab (bind visibility name):"
 readelf --wide --syms libplugin_broken.so | grep -E '_ZT[IS]11PluginError' | awk '{print "  " $5, $6, $8}' | sort
-build plugin_hidden.o "${LIBCXX}" -c -fPIC ${HIDDEN} plugin.cpp
-build plugin_default.o "${LIBCXX}" -c -fPIC plugin.cpp
+build plugin_hidden.o "${LIBCXX}" -c -fPIC ${HIDDEN} "${SCRIPT_DIR}/plugin.cpp"
+build plugin_default.o "${LIBCXX}" -c -fPIC "${SCRIPT_DIR}/plugin.cpp"
 echo "plugin.o _ZTI11PluginError, -fvisibility=hidden: $(readelf --wide --syms plugin_hidden.o | awk '$8=="_ZTI11PluginError" {print $5, $6}')"
 echo "plugin.o _ZTI11PluginError, default flags:       $(readelf --wide --syms plugin_default.o | awk '$8=="_ZTI11PluginError" {print $5, $6}')"
 
 echo "--- 4. Remediation A: visibility annotation plus --export-dynamic ---"
-build libplugin_annotated.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${EXPORT}" plugin.cpp
-build host_annotated_static "${LIBCXX}" ${HIDDEN} "${EXPORT}" host.cpp -ldl
-build host_annotated_static_global "${LIBCXX}" ${HIDDEN} "${EXPORT}" -DDLMODE=RTLD_GLOBAL host.cpp -ldl
-build host_annotated "${LIBCXX}" ${HIDDEN} "${EXPORT}" -Wl,--export-dynamic host.cpp -ldl
+build libplugin_annotated.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${EXPORT}" "${SCRIPT_DIR}/plugin.cpp"
+build host_annotated_static "${LIBCXX}" ${HIDDEN} "${EXPORT}" "${SCRIPT_DIR}/host.cpp" -ldl
+build host_annotated_static_global "${LIBCXX}" ${HIDDEN} "${EXPORT}" -DDLMODE=RTLD_GLOBAL "${SCRIPT_DIR}/host.cpp" -ldl
+build host_annotated "${LIBCXX}" ${HIDDEN} "${EXPORT}" -Wl,--export-dynamic "${SCRIPT_DIR}/host.cpp" -ldl
 check "A without --export-dynamic, RTLD_LOCAL (control)" abort host_annotated_static libplugin_annotated.so --strict
 check "A without --export-dynamic, RTLD_GLOBAL (control)" abort host_annotated_static_global libplugin_annotated.so --strict
 check "A with --export-dynamic" caught host_annotated libplugin_annotated.so --strict
 
 echo "--- 5. Remediation B: version script that lists the RTTI symbols ---"
-build libplugin_map.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${EXPORT}" -Wl,--version-script=plugin_export.map plugin.cpp
+build libplugin_map.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${EXPORT}" -Wl,--version-script="${SCRIPT_DIR}/plugin_export.map" "${SCRIPT_DIR}/plugin.cpp"
 printf '{ global: trigger_error; get_plugin_typeinfo; local: *; };\n' > plugin_nortti.map
-build libplugin_nortti.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${EXPORT}" -Wl,--version-script=plugin_nortti.map plugin.cpp
-build libplugin_maphidden.so "${LIBCXX}" -fPIC -shared ${HIDDEN} -Wl,--version-script=plugin_export.map plugin.cpp
+build libplugin_nortti.so "${LIBCXX}" -fPIC -shared ${HIDDEN} "${EXPORT}" -Wl,--version-script=plugin_nortti.map "${SCRIPT_DIR}/plugin.cpp"
+build libplugin_maphidden.so "${LIBCXX}" -fPIC -shared ${HIDDEN} -Wl,--version-script="${SCRIPT_DIR}/plugin_export.map" "${SCRIPT_DIR}/plugin.cpp"
 check "B map lists _ZTI/_ZTS" caught host_annotated libplugin_map.so --strict
 check "B map omits _ZTI/_ZTS (control)" abort host_annotated libplugin_nortti.so --strict
 echo "dynamic RTTI symbols, annotated plugin, map lists them: $(dynsym_count libplugin_map.so '_ZT[IS]11PluginError')"
@@ -96,9 +99,9 @@ echo "dynamic RTTI symbols, annotated plugin, map omits them: $(dynsym_count lib
 echo "dynamic RTTI symbols, hidden plugin, map lists them:    $(dynsym_count libplugin_maphidden.so '_ZT[IS]11PluginError')"
 
 echo "--- 6. Remediation C: key function in a common shared library ---"
-build libcommon.so "${LIBCXX}" -fPIC -shared common.cpp
-build libplugin_common.so "${LIBCXX}" -fPIC -shared ${HIDDEN} ${KEYFN} "${EXPORT}" plugin.cpp -L. -lcommon "-Wl,-rpath,\$ORIGIN"
-build host_common "${LIBCXX}" ${HIDDEN} ${KEYFN} "${EXPORT}" host.cpp -L. -lcommon -ldl "-Wl,-rpath,\$ORIGIN"
+build libcommon.so "${LIBCXX}" -fPIC -shared "${SCRIPT_DIR}/common.cpp"
+build libplugin_common.so "${LIBCXX}" -fPIC -shared ${HIDDEN} ${KEYFN} "${EXPORT}" "${SCRIPT_DIR}/plugin.cpp" -L. -lcommon "-Wl,-rpath,\$ORIGIN"
+build host_common "${LIBCXX}" ${HIDDEN} ${KEYFN} "${EXPORT}" "${SCRIPT_DIR}/host.cpp" -L. -lcommon -ldl "-Wl,-rpath,\$ORIGIN"
 check "C key function in libcommon.so, host not exporting" caught host_common libplugin_common.so --strict
 echo "libcommon.so defines _ZTI11PluginError: $(readelf --wide --dyn-syms libcommon.so | awk '$8=="_ZTI11PluginError" && $7!="UND" {n++} END {print n+0}')"
 for f in host_common libplugin_common.so; do

@@ -338,7 +338,7 @@ Recorded directly inside the pinned Linux container on `linux-aarch64` (as of 20
    unassisted client:      status=DEADLOCK (blocked waiting for mutual stdio flush)
    stdbuf -oL client:      status=SUCCESS (CLIENT_GOT: PONG: ack_1)
 
-4. Interposition boundaries (LD_PRELOAD vs runtime runtimes):
+4. Interposition boundaries (LD_PRELOAD vs static binaries and language runtimes):
    static ELF under stdbuf:      status=DEADLOCK (kernel bypasses dynamic linker)
    Python under stdbuf -oL:      status=DEADLOCK (Python runtime bypasses libc FILE*)
    Python with PYTHONUNBUFFERED: status=SUCCESS (CLIENT_GOT: PONG: ack_1)

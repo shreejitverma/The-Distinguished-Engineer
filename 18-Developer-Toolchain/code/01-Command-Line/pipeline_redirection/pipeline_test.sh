@@ -130,7 +130,7 @@ touch "${TMPDIR}/g1"
 wait
 echo "procsub_sync_with_wait: before_gate=${before_gate} after_wait=$(state_of "${TMPDIR}/s1")"
 
-# 7b. Two substitutions in one command: a bare wait waits only for the last one.
+# 7b. Two substitutions in one command: in Bash 5.3 a bare wait waits only for the last one; Bash 5.2 also waits for the first.
 # The last consumer's gate is already open, so it finishes about 0.2 s after the command returns.
 touch "${TMPDIR}/g2b"
 tee >(gated_consumer "${TMPDIR}/s2a" "${TMPDIR}/g2a") \

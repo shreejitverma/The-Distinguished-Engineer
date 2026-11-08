@@ -3,20 +3,30 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
+WORK_DIR="$(mktemp -d)"
+SERVER_PID=""
+cleanup() {
+    if [ -n "${SERVER_PID}" ]; then
+        kill "${SERVER_PID}" 2>/dev/null || true
+        wait "${SERVER_PID}" 2>/dev/null || true
+    fi
+    rm -rf "${WORK_DIR}"
+}
+trap cleanup EXIT
+cd "${WORK_DIR}"
 
 CXX="${CXX:-g++}"
 PORT=8765
 
-# Start from a clean tree so a stale artifact can never satisfy a check.
-rm -rf crash.o crash.dwo crash_prog crash_prog.debug crash_prog.dwp symbols cache server.log readelf.err
-mkdir -p symbols cache
+# Build from a copy of the source in a fresh work directory, so the recorded DW_AT_name stays "crash.cpp".
+cp "${SCRIPT_DIR}/crash.cpp" .
+mkdir symbols cache
 
 echo "=== 1. BUILD STRIPPED BINARY AND SPLIT DWARF PACKAGE ==="
 # -fdebug-prefix-map pins DW_AT_comp_dir, so the dwo_id (a hash that covers it) does not depend on the build directory.
 # -gdwarf-4 selects the GNU Split DWARF extension (DW_AT_GNU_dwo_*, package index version 2).
 "${CXX}" -O2 -g -gdwarf-4 -gsplit-dwarf \
-    -fdebug-prefix-map="${SCRIPT_DIR}=/lab" \
+    -fdebug-prefix-map="${WORK_DIR}=/lab" \
     -c crash.cpp -o crash.o
 
 # Deterministic Build ID, set at link time only (the -c step does not link).
@@ -96,9 +106,8 @@ echo "=== 6. DEBUGINFOD SYMBOL RETRIEVAL AND FULL STACK UNWINDING ==="
 cp crash_prog.debug "symbols/${BUILD_ID}.debug"
 
 # Start the stand-in debuginfod server and wait until it accepts connections.
-python3 debuginfod_server.py > server.log 2>&1 &
+python3 "${SCRIPT_DIR}/debuginfod_server.py" > server.log 2>&1 &
 SERVER_PID=$!
-trap 'kill "${SERVER_PID}" 2>/dev/null || true' EXIT
 python3 - "${PORT}" <<'PY'
 import socket, sys, time
 port = int(sys.argv[1])
@@ -112,7 +121,7 @@ sys.exit("debuginfod stand-in never started")
 PY
 
 # A private client cache keeps the run hermetic: GDB must fetch, not reuse an earlier download.
-export DEBUGINFOD_CACHE_PATH="${SCRIPT_DIR}/cache"
+export DEBUGINFOD_CACHE_PATH="${WORK_DIR}/cache"
 export DEBUGINFOD_URLS="http://127.0.0.1:${PORT}"
 
 # Normalize everything that depends on the work directory or on ASLR before printing.
