@@ -338,9 +338,10 @@ The C benchmark (`nfa_engine.c`) compiles with:
 
 ```bash
 cd code/01-Command-Line/redos_benchmark
-"${CC:-cc}" -O2 -Wall -Wextra -std=c99 nfa_engine.c -o nfa_engine
-./nfa_engine
-rm -f nfa_engine
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+"${CC:-cc}" -O2 -Wall -Wextra -std=c99 nfa_engine.c -o "${WORK_DIR}/nfa_engine"
+"${WORK_DIR}/nfa_engine"
 python3 benchmark.py
 ```
 

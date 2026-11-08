@@ -415,7 +415,7 @@ File discovery, argument batching, and concurrent process execution require dist
 ## Worked Lab Example
 
 The companion lab in `code/01-Command-Line/batch_find_xargs/` proves three foundational batch mechanisms:
-1. Hazardous filename handling (spaces, tabs, newlines, single quotes, double quotes, backslashes, and leading hyphens) comparing raw `xargs` against NUL-delimited `find -print0 | xargs -0`, `fd -0 | xargs -0`, and `fd -X`, plus the `./` prefix that `fd` gives to leading-dash names.
+1. Hazardous filename handling (spaces, tabs, newlines, single quotes, double quotes, and leading hyphens) comparing raw `xargs` against NUL-delimited `find -print0 | xargs -0`, `fd -0 | xargs -0`, and `fd -X`, plus the `./` prefix that `fd` gives to leading-dash names.
 2. Process invocation batching efficiency across 1,000 files comparing `find -exec ... \;`, `find -exec ... +`, `xargs -n 250`, `xargs -s 4096`, and `fd -X --batch-size 250`.
 3. Parallel execution pools (`xargs -P 4`, with a measured peak of concurrent workers), exit status 255 fast abort behavior, and non-zero exit code propagation.
 
@@ -616,7 +616,8 @@ How does `xargs` determine the maximum argument size to pass to `execve(2)`, and
 
 > [!success]- Answer
 > `xargs` calculates its command-line size limit by querying `sysconf(_SC_ARG_MAX)`.
-> In GNU findutils (`lib/buildcmd.c`), it computes the total byte length of all current environment variables (`environ`), adds pointer table overhead (`sizeof(char*) * (argc + 1)`), subtracts a safety margin (`XARGS_POSIX_HEADROOM`, 2,048 bytes), and clamps the default buffer to 128 KiB (`131072` bytes) unless overridden by `-s`.
+> In GNU findutils (`lib/buildcmd.c`), `bc_init_controlinfo()` subtracts the byte length of all inherited environment strings (each plus its NUL) and a safety margin (`XARGS_POSIX_HEADROOM`, 2,048 bytes) from that limit, and `bc_use_sensible_arg_max()` clamps the default buffer to 128 KiB (`131072` bytes) unless overridden by `-s`.
+> Pointer arrays are not charged against the byte budget; instead the argument count is capped at `posix_arg_size_max / sizeof(char *) - 2`.
 > In the Linux kernel (`fs/exec.c`), two distinct limits are enforced:
 > 1. `MAX_ARG_STRLEN`: Defined in `include/uapi/linux/binfmts.h` as `(32 * PAGE_SIZE)`, which hard-caps any single argument or environment string to 128 KiB on 4 KiB page systems.
 > 2. `bprm_stack_limits()`: Enforces that the aggregate size of all arguments and environment strings cannot exceed 1/4 of the current stack size limit (`RLIMIT_STACK`), capping total size at typically 2 MiB under default 8 MiB stacks.

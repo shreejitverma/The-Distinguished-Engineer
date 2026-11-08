@@ -335,6 +335,7 @@ Verification: ALL MECHANICS VERIFIED
    A strict UTF-8 parser returns `INVALID` and aborts.
    The byte-oriented searcher ignores character validity and pinpoints `TARGET_TOKEN` at offset 20 without error.
    As a negative control, the same buffer with the three bad bytes replaced by `x` validates, and each bad byte alone, plus the overlong pair `0xC0 0x80`, is rejected.
+   The validator also follows the RFC 3629 well-formed sequence table: 3- and 4-byte overlongs, surrogates (`0xED 0xA0..0xBF`), code points above U+10FFFF, and lead bytes `0xF5..0xF7` are rejected, while U+0800, U+D7FF, U+E000, U+FFFF, U+10000, and U+10FFFF are accepted.
 
 ### How the Lab Checks Itself
 

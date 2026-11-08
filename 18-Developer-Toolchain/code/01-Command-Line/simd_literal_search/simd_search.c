@@ -377,10 +377,14 @@ bool is_valid_utf8(const uint8_t *bytes, size_t len) {
             if (i + 2 >= len) return false;
             if ((bytes[i + 1] & 0xC0) != 0x80) return false;
             if ((bytes[i + 2] & 0xC0) != 0x80) return false;
+            if (c == 0xE0 && bytes[i + 1] < 0xA0) return false; /* Overlong */
+            if (c == 0xED && bytes[i + 1] > 0x9F) return false; /* Surrogate U+D800..U+DFFF */
             i += 3;
-        } else if ((c & 0xF8) == 0xF0) {
+        } else if (c >= 0xF0 && c <= 0xF4) {
             if (i + 3 >= len) return false;
             if ((bytes[i + 1] & 0xC0) != 0x80) return false;
+            if (c == 0xF0 && bytes[i + 1] < 0x90) return false; /* Overlong */
+            if (c == 0xF4 && bytes[i + 1] > 0x8F) return false; /* Above U+10FFFF */
             if ((bytes[i + 2] & 0xC0) != 0x80) return false;
             if ((bytes[i + 3] & 0xC0) != 0x80) return false;
             i += 4;
@@ -678,6 +682,32 @@ int main(void) {
     overlong[10] = 0xC0;
     overlong[11] = 0x80;
     CHECK(!is_valid_utf8(overlong, sizeof(overlong)), "utf8: overlong 0xC0 0x80 is rejected");
+    /* RFC 3629 section 4 well-formed byte sequence table: each ill-formed sequence below is rejected,
+     * and the code points at both ends of every lead-byte range are accepted. */
+    static const struct { uint8_t seq[4]; size_t n; bool valid; } rfc3629[] = {
+        {{0xE0, 0x80, 0x80}, 3, false},       /* 3-byte overlong of U+0000 */
+        {{0xE0, 0x9F, 0xBF}, 3, false},       /* 3-byte overlong of U+07FF */
+        {{0xED, 0xA0, 0x80}, 3, false},       /* surrogate U+D800 */
+        {{0xED, 0xBF, 0xBF}, 3, false},       /* surrogate U+DFFF */
+        {{0xF0, 0x80, 0x80, 0x80}, 4, false}, /* 4-byte overlong of U+0000 */
+        {{0xF0, 0x8F, 0xBF, 0xBF}, 4, false}, /* 4-byte overlong of U+FFFF */
+        {{0xF4, 0x90, 0x80, 0x80}, 4, false}, /* U+110000, above the Unicode range */
+        {{0xF5, 0x80, 0x80, 0x80}, 4, false}, /* lead byte 0xF5 never appears */
+        {{0xF7, 0xBF, 0xBF, 0xBF}, 4, false}, /* lead byte 0xF7 never appears */
+        {{0xC2, 0x80}, 2, true},              /* U+0080 */
+        {{0xE0, 0xA0, 0x80}, 3, true},        /* U+0800 */
+        {{0xED, 0x9F, 0xBF}, 3, true},        /* U+D7FF */
+        {{0xEE, 0x80, 0x80}, 3, true},        /* U+E000 */
+        {{0xEF, 0xBF, 0xBF}, 3, true},        /* U+FFFF */
+        {{0xF0, 0x90, 0x80, 0x80}, 4, true},  /* U+10000 */
+        {{0xF4, 0x8F, 0xBF, 0xBF}, 4, true},  /* U+10FFFF */
+    };
+    for (size_t k = 0; k < sizeof(rfc3629) / sizeof(rfc3629[0]); k++) {
+        uint8_t buf[64];
+        memset(buf, 'x', sizeof(buf));
+        memcpy(buf + 10, rfc3629[k].seq, rfc3629[k].n);
+        CHECK(is_valid_utf8(buf, sizeof(buf)) == rfc3629[k].valid, "utf8: RFC 3629 boundary sequence");
+    }
 
     if (check_failures != 0) {
         fprintf(stderr, "%d of %d checks failed\n", check_failures, check_count);

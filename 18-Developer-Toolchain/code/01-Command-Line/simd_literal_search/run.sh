@@ -9,9 +9,9 @@ set -euo pipefail
 # 4. Byte-oriented bstr scanning avoiding UTF-8 validation overhead
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN="${SCRIPT_DIR}/simd_search"
-
-trap 'rm -f "${BIN}"' EXIT
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+BIN="${WORK_DIR}/simd_search"
 
 # Baseline x86-64 has no PSHUFB; the Teddy path needs SSSE3. AArch64 needs no extra flag.
 SIMD_FLAGS=()

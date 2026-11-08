@@ -142,7 +142,7 @@ else
     die "neither mv -h nor mv -T replaced the symlink"
 fi
 echo "Symlink atomically updated to: $(readlink "${SCRATCH_DIR}/current")"
-if [ -e "${SCRATCH_DIR}/release_a/current.tmp" ]; then
+if [ -L "${SCRATCH_DIR}/release_a/current.tmp" ]; then
     deposited=yes
 else
     deposited=no
