@@ -3,25 +3,28 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-int main(void) {
-    const char *path = "/usr/lib/libSystem.B.dylib";
+/* usage: check_cache LABEL PATH - prints LABEL_STAT and LABEL_DLOPEN lines. */
+int main(int argc, char **argv) {
+    if (argc < 3) {
+        return 1;
+    }
+    const char *label = argv[1];
+    const char *path = argv[2];
     struct stat st;
     if (stat(path, &st) == 0) {
-        printf("DYLD_SHARED_CACHE_DISK_STAT: EXISTS\n");
+        printf("%s_STAT: EXISTS\n", label);
+    } else if (errno == ENOENT) {
+        printf("%s_STAT: ENOENT\n", label);
     } else {
-        if (errno == ENOENT) {
-            printf("DYLD_SHARED_CACHE_DISK_STAT: ENOENT\n");
-        } else {
-            printf("DYLD_SHARED_CACHE_DISK_STAT: ERRNO_%d\n", errno);
-        }
+        printf("%s_STAT: ERRNO_%d\n", label, errno);
     }
 
     void *handle = dlopen(path, RTLD_NOW);
     if (handle != NULL) {
-        printf("DYLD_SHARED_CACHE_DLOPEN: SUCCESS\n");
+        printf("%s_DLOPEN: SUCCESS\n", label);
         dlclose(handle);
     } else {
-        printf("DYLD_SHARED_CACHE_DLOPEN: FAILED\n");
+        printf("%s_DLOPEN: FAILED\n", label);
     }
     return 0;
 }

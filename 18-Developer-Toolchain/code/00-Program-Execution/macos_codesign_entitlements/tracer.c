@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#define EXPECTED_TOKEN 0xDEADC0DECAFEFEEDULL
+
 int main(int argc, char **argv) {
     if (argc < 3) {
         return 1;
@@ -25,10 +27,13 @@ int main(int argc, char **argv) {
     unsigned long long token = 0;
     vm_size_t out_size = 0;
     kr = vm_read_overwrite(task, addr, sizeof(token), (vm_address_t)&token, &out_size);
-    if (kr == KERN_SUCCESS) {
-        printf("VM_READ: token=0x%llX\n", token);
-    } else {
+    if (kr != KERN_SUCCESS) {
         printf("VM_READ: kr=%d\n", kr);
+    } else if (out_size == sizeof(token) && token == EXPECTED_TOKEN) {
+        /* A boolean, not the value: the harness rewrites long hex numbers to 0xADDR. */
+        printf("VM_READ: token_match=YES\n");
+    } else {
+        printf("VM_READ: token_match=NO\n");
     }
     mach_port_deallocate(mach_task_self(), task);
     return 0;
