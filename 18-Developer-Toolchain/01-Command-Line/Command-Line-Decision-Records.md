@@ -651,7 +651,7 @@ Inspect the certificate output to verify that:
 3. `Principals` contains the approved usernames.
 4. `Extensions` contains ONLY `permit-port-forwarding` and `permit-pty`, confirming `permit-agent-forwarding` has been explicitly revoked.
 
-The lab `code/01-Command-Line/adr_gates/` runs this recipe with OpenSSH 10.6p2 on macOS arm64 (as of 2026-11) and prints the block below, byte-identical to its `expected/darwin-arm64.txt`.
+The lab `code/01-Command-Line/adr_gates/` runs this recipe in a scratch directory with OpenSSH 10.6p2 on macOS arm64 (as of 2026-11) and prints the block below, byte-identical to an excerpt of its `expected/darwin-arm64.txt`.
 The lab masks the key fingerprints and the two timestamps, which change on every run, and checks the span between them separately (it printed `validity span within 8h to 8h05m: True`).
 `ssh-keygen -L` echoes the path it was given, so the first line is the relative file name.
 Without `-O clear` the same key is signed with the default set `permit-X11-forwarding`, `permit-agent-forwarding`, `permit-port-forwarding`, `permit-pty`, and `permit-user-rc`, and without `-V` it is `Valid: forever`; the lab prints both.
@@ -723,8 +723,8 @@ PASS: All shell scripts conform to ADR-001 boundaries.
 ==> All Architectural Decision Record checks passed.
 ```
 Exit status must be 0.
-The block above is byte-identical to an excerpt of `code/01-Command-Line/adr_gates/expected/darwin-arm64.txt` (platform darwin-arm64, bash 5.3.15, Python 3.15.2, as of 2026-11), which the lab produces by running Steps 1 to 5 in a scratch git repository.
-The same lab adds a `ssh/config.bad` file containing `ForwardAgent yes`: the hook then prints `./ssh/config.bad:2:    ForwardAgent yes` and exits 1.
+The block above is byte-identical to an excerpt of `code/01-Command-Line/adr_gates/expected/darwin-arm64.txt` (platform darwin-arm64, bash 5.3.15, Python 3.15.2, as of 2026-11), which the lab produces by extracting the Step 1 to 5 files verbatim from this note's heredocs into a scratch git repository and running each gate.
+The same lab adds a `ssh/config.bad` file containing `ForwardAgent yes`: the hook then prints `./ssh/config.bad:2:    ForwardAgent yes` and exits 1, and a real `git commit` of that file through `core.hooksPath` is rejected.
 It also feeds the linter an ADR with an invalid status and one without `## Confirmation`, and feeds the audit a 120-line script with `declare -A` plus an oversized script under `node_modules/`; each gate fails or skips exactly as the steps claim.
 
 ## Rollback Procedure

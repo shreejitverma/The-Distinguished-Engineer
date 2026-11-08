@@ -304,13 +304,13 @@ The table below contrasts how C++, Python, and Rust runtime primitives behave wh
 
 ## Worked Lab Example
 
-The companion lab `code/01-Command-Line/container_vm_io_bench/` provides an automated, deterministic verification harness measuring the behavioral and performance divergences between native container storage (`overlayfs`) and host bind-mounts (`virtiofs` on APFS).
+The companion lab `code/01-Command-Line/container_vm_io_bench/` provides an automated verification harness measuring the behavioral and performance divergences between native container storage (`overlayfs`) and host bind-mounts (`virtiofs` on APFS).
 
 The lab verifies four mechanical invariants:
 1. Architectural inspection: validates guest kernel architecture and identifies mount filesystem types for both the container root (`overlay`) and the host bind-mount (`virtiofs`).
 2. Semantic divergence: demonstrates case-folding on the host bind-mount (where `probe.txt` and `PROBE.TXT` collide onto a single entry, counted both by the guest and by macOS itself in the same directory) versus native Linux `overlayfs` (where two distinct files are created).
-3. Metadata latency penalty: executes an automated cycle of 500 file creations, stat queries, directory listings, and unlinks on both targets, asserting that host bind-mount metadata latency is at least 2x the native storage latency (about 7x was observed under OrbStack).
-4. Ownership: verifies that a file created inside the Linux guest container is owned on the macOS host by the UID of the process that ran the lab.
+3. Metadata latency penalty: executes an automated cycle of 500 file creations, stat queries, directory listings, and unlinks on both targets, asserting that host bind-mount metadata latency is at least 2x the native storage latency (about 7x was observed under OrbStack); this is a thresholded wall-clock check, so its line depends on timing and a heavily loaded host can fail it.
+4. Ownership: verifies that a file created inside the Linux guest container by the image's unprivileged `lab` user is owned on the macOS host by the UID of the process that ran the lab.
 
 To execute the verification lab:
 
@@ -337,7 +337,7 @@ Host UID translation: VERIFIED (mapped to host process UID)
 ```
 
 The output shows the bind mount collapsing both names into one entry, as seen from the guest and from macOS itself, while metadata operations cost at least twice as much as on native storage.
-The file created by root inside the guest is owned on the macOS host by the UID running the lab (`id -u`), because the host-side file server writes as the developer's user; the output is specific to OrbStack, and other engines may report a different bind-mount filesystem type.
+The file created inside the guest by the image's unprivileged `lab` user (the image sets `USER lab`, and `run.sh` passes no `--user`) is owned on the macOS host by the UID running the lab (`id -u`), because the host-side file server writes as the developer's user; the output is specific to OrbStack, and other engines may report a different bind-mount filesystem type.
 
 > [!warning] Pitfalls:
 > 1. APFS Case-Folding Masking Linux Import Failures:
@@ -515,4 +515,4 @@ This eliminates hypervisor translation layers, FUSE virtqueues, and architecture
 - Prerequisites: [[macOS-vs-Linux-Toolchain-Mechanics]]
 - Next: [[CLI-Design-and-Agent-Friendly-Interfaces-AXI]]
 - See also: [[04-System-Design/00-Concepts/Virtual-Machines-vs-Containers|Virtual Machines vs Containers]], [[17-Cloud-AI-Engineering/Volume_00_Foundations_Under_the_Cloud/Chapter_01_Hypervisors_MicroVMs_and_Sandboxing|Chapter_01_Hypervisors_MicroVMs_and_Sandboxing]]
-- Lab: `code/01-Command-Line/container_vm_io_bench/` (requires: docker)
+- Lab: `code/01-Command-Line/container_vm_io_bench/` (requires: docker, macos)

@@ -3,10 +3,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
 
 export LC_ALL=C
 
 CC="${CC:-gcc}"
-"$CC" -std=c11 -Wall -Wextra -O2 -o lab main.c
-./lab
+"$CC" -std=c11 -Wall -Wextra -O2 -o "${WORKDIR}/lab" "${SCRIPT_DIR}/main.c"
+"${WORKDIR}/lab"
