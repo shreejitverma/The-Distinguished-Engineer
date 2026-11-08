@@ -1,0 +1,64 @@
+=== 1. Relocations in Object Files ===
+Traditional dialect relocations:
+R_AARCH64_CALL26 __tls_get_addr
+R_AARCH64_TLSGD_ADD_LO12_NC .LANCHOR0
+R_AARCH64_TLSGD_ADD_LO12_NC var_gd
+R_AARCH64_TLSGD_ADR_PAGE21 .LANCHOR0
+R_AARCH64_TLSGD_ADR_PAGE21 var_gd
+R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 var_ie
+R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC var_ie
+R_AARCH64_TLSLE_ADD_TPREL_HI12 .LANCHOR1
+R_AARCH64_TLSLE_ADD_TPREL_LO12_NC .LANCHOR1
+TLSDESC dialect relocations:
+R_AARCH64_TLSDESC_ADD_LO12 .LANCHOR0
+R_AARCH64_TLSDESC_ADD_LO12 var_gd
+R_AARCH64_TLSDESC_ADR_PAGE21 .LANCHOR0
+R_AARCH64_TLSDESC_ADR_PAGE21 var_gd
+R_AARCH64_TLSDESC_CALL .LANCHOR0
+R_AARCH64_TLSDESC_CALL var_gd
+R_AARCH64_TLSDESC_LD64_LO12 .LANCHOR0
+R_AARCH64_TLSDESC_LD64_LO12 var_gd
+R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21 var_ie
+R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC var_ie
+R_AARCH64_TLSLE_ADD_TPREL_HI12 .LANCHOR1
+R_AARCH64_TLSLE_ADD_TPREL_LO12_NC .LANCHOR1
+R_AARCH64_TLSLD relocations (trad, desc): 0 0
+__tls_get_addr symbol references (trad, desc): 1 0
+blr instructions in get_ld (trad, desc): 0 1
+=== 2. Relocations in Shared Libraries ===
+var_le (Local Exec) symbols in the shared objects (trad, desc): 0 0
+libmodels_trad.so dynamic TLS relocations:
+R_AARCH64_JUMP_SLOT __tls_get_addr@GLIBC_2.17
+R_AARCH64_TLS_DTPMOD64 
+R_AARCH64_TLS_DTPMOD64 var_gd
+R_AARCH64_TLS_DTPREL64 var_gd
+R_AARCH64_TLS_TPREL64 var_ie
+libmodels_desc.so dynamic TLS relocations:
+R_AARCH64_TLSDESC 
+R_AARCH64_TLSDESC var_gd
+R_AARCH64_TLS_TPREL64 var_ie
+__tls_get_addr dynamic symbol references (trad, desc): 1 0
+=== 3. Static Linker Relaxation ===
+prog_desc dynamic TLS relocations (post-link relaxation):
+none (fully relaxed to Local Exec)
+get_ld instructions blr/movz/movk/nop: models_desc.o 1/0/0/0, prog_desc 0/1/1/2
+Values: gd=10 ld=50 ie=40 le=50
+=== 4. Thread Isolation Across POSIX Threads ===
+Main thread before: var_gd=10
+Thread 1: var_gd=110
+Thread 2: var_gd=210
+Main thread after: var_gd=10
+=== 5. PT_TLS Segment Inspection ===
+PT_TLS filesz=20 bytes memsz=20 bytes
+=== 6. Static TLS Surplus Exhaustion & Remediation ===
+Default dlopen with 96 KiB Initial Exec library:
+dlopen ./liblarge_ie.so: FAIL (./liblarge_ie.so: cannot allocate memory in static TLS block)
+Remediation 1: Increase surplus with GLIBC_TUNABLES optional_static_tls:
+dlopen ./liblarge_ie.so: SUCCESS
+Remediation 2: Recompile library with Global Dynamic (GD) model:
+dlopen ./liblarge_gd.so: SUCCESS
+Remediation 3: Load the library at startup with LD_PRELOAD:
+dlopen ./liblarge_ie.so: SUCCESS
+Default surplus threshold with Initial Exec libraries (glibc 2.39):
+dlopen ./libie_1664.so: SUCCESS
+dlopen ./libie_1700.so: FAIL (./libie_1700.so: cannot allocate memory in static TLS block)

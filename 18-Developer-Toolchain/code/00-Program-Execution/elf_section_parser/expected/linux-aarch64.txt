@@ -1,0 +1,96 @@
+=== 1. ELF Section and Segment Parser Output ===
+ELF Identification:
+  Magic:   7f 45 4c 46 (Valid ELF)
+  Class:   ELFCLASS64 (64-bit)
+  Data:    ELFDATA2LSB (Little-Endian)
+  Version: 1 (EV_CURRENT)
+  OS/ABI:  0 (System V / UNIX)
+  Type:    ET_DYN (Position-Independent Shared Object / PIE)
+  Machine: 183
+
+Header Invariants:
+  e_ehsize:    64 bytes (ABI struct size 64) -> MATCH
+  e_phentsize: 56 bytes (ABI struct size 56) -> MATCH
+  e_shentsize: 64 bytes (ABI struct size 64) -> MATCH
+  e_phnum:     9 program headers
+  e_shnum:     27 section headers
+  e_shstrndx:  26 (string table index)
+
+Program Headers (Execution View):
+  [00] PHDR           flags=R   filesz=0x1f8 memsz=0x1f8 align=0x8
+  [01] INTERP         flags=R   filesz=0x1b memsz=0x1b align=0x1
+  [02] LOAD           flags=R E filesz=0x8d4 memsz=0x8d4 align=0x10000 (congruence: vaddr%align=0 == offset%align=0 -> OK)
+  [03] LOAD           flags=RW  filesz=0x27c memsz=0x698 align=0x10000 (congruence: vaddr%align=64920 == offset%align=64920 -> OK) [BSS zero-fill: 1052 bytes]
+  [04] DYNAMIC        flags=RW  filesz=0x1f0 memsz=0x1f0 align=0x8
+  [05] NOTE           flags=R   filesz=0x20 memsz=0x20 align=0x4
+  [06] GNU_EH_FRAME   flags=R   filesz=0x44 memsz=0x44 align=0x4
+  [07] GNU_STACK      flags=RW  filesz=0x0 memsz=0x0 align=0x10 [stack: NON-EXECUTABLE (NX)]
+  [08] GNU_RELRO      flags=R   filesz=0x268 memsz=0x268 align=0x1
+
+Section Headers (Linking View):
+  [00] [NULL]               NULL         flags=-    size=0x0 align=0x0
+  [01] .interp              PROGBITS     flags=A    size=0x1b align=0x1
+  [02] .note.ABI-tag        NOTE         flags=A    size=0x20 align=0x4
+  [03] .gnu.hash            GNU_HASH     flags=A    size=0x1c align=0x8
+  [04] .dynsym              DYNSYM       flags=A    size=0xd8 align=0x8
+  [05] .dynstr              STRTAB       flags=A    size=0x8d align=0x1
+  [06] .gnu.version         GNU_VERSYM   flags=A    size=0x12 align=0x2
+  [07] .gnu.version_r       GNU_VERNEED  flags=A    size=0x30 align=0x8
+  [08] .rela.dyn            RELA         flags=A    size=0xc0 align=0x8
+  [09] .rela.plt            RELA         flags=AI   size=0x60 align=0x8
+  [10] .init                PROGBITS     flags=AX   size=0x18 align=0x4
+  [11] .plt                 PROGBITS     flags=AX   size=0x60 align=0x10
+  [12] .text                PROGBITS     flags=AX   size=0x170 align=0x40
+  [13] .fini                PROGBITS     flags=AX   size=0x14 align=0x4
+  [14] .rodata              PROGBITS     flags=A    size=0x42 align=0x10
+  [15] .eh_frame_hdr        PROGBITS     flags=A    size=0x44 align=0x4
+  [16] .eh_frame            PROGBITS     flags=A    size=0xbc align=0x8
+  [17] .init_array          INIT_ARRAY   flags=WA   size=0x8 align=0x8
+  [18] .fini_array          FINI_ARRAY   flags=WA   size=0x8 align=0x8
+  [19] .dynamic             DYNAMIC      flags=WA   size=0x1f0 align=0x8
+  [20] .got                 PROGBITS     flags=WA   size=0x68 align=0x8
+  [21] .data                PROGBITS     flags=WA   size=0x14 align=0x8
+  [22] .bss                 NOBITS       flags=WA   size=0x410 align=0x10
+  [23] .comment             PROGBITS     flags=MS   size=0x2d align=0x1
+  [24] .symtab              SYMTAB       flags=-    size=0x8b8 align=0x8
+  [25] .strtab              STRTAB       flags=-    size=0x26a align=0x1
+  [26] .shstrtab            STRTAB       flags=-    size=0xe7 align=0x1
+
+Section to Segment Mapping:
+  Segment Sections...
+   00     
+   01     .interp 
+   02     .interp .note.ABI-tag .gnu.hash .dynsym .dynstr .gnu.version .gnu.version_r .rela.dyn .rela.plt .init .plt .text .fini .rodata .eh_frame_hdr .eh_frame 
+   03     .init_array .fini_array .dynamic .got .data .bss 
+   04     .dynamic 
+   05     .note.ABI-tag 
+   06     .eh_frame_hdr 
+   07     
+   08     .init_array .fini_array .dynamic .got 
+
+Allocated vs Unallocated Section Inventory:
+  Total Allocatable Sections (loaded into memory): 22
+  Total Non-Allocatable Sections (debug/linking metadata): 4
+
+=== 2. Cross-Verification with GNU readelf ===
+Verification: Parser Section-to-Segment mapping matches GNU readelf 100% exactly (PASS)
+
+=== 3. Invariant Enforcement & Failure Mode Testing ===
+Test A (Bad Magic): Rejection with exit code 1 (PASS)
+Test B (Congruence Violation): Rejection with exit code 6 (PASS)
+Test C (Truncated Header): Rejection with exit code 7 (PASS)
+Test D (Bad e_shstrndx): Rejection with exit code 5 (PASS)
+Test E (PN_XNUM phnum read from shdrs[0].sh_info): exit code 0 (PASS)
+Test F (PN_XNUM count beyond file): exit code 7 (PASS)
+Test G (SHN_XINDEX shstrndx read from shdrs[0].sh_link): exit code 0 (PASS)
+Test H (SHN_XINDEX target out of range): exit code 5 (PASS)
+Test I (reserved e_shstrndx 0xff00): exit code 5 (PASS)
+Test J (e_shnum 0 read from shdrs[0].sh_size): exit code 0 (PASS)
+Test K (sh_name outside the name table): exit code 9 (PASS)
+Test L (e_shstrndx names a non-STRTAB section): exit code 5 (PASS)
+Test M (p_align 0 accepted, no division by zero): exit code 0 (PASS)
+Test N (p_align not a power of two): exit code 6 (PASS)
+Test P (name table beyond file end): exit code 7 (PASS)
+Test O (zero-size section kept in mapping, matches readelf): PASS
+
+All ELF structural invariants and failure modes verified successfully.
