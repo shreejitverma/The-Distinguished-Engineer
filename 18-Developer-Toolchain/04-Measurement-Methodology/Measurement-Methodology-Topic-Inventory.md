@@ -31,6 +31,9 @@ This document maps authoritative upstream source heading groups for benchmarking
 | Benchmark Statistics Literature: Coordinated Omission, Open vs Closed Workloads, HdrHistogram Bucket Architecture | [[Statistics-for-Benchmarks-Coordinated-Omission-and-HDR-Histograms]] | Use, Explain, Rebuild | [[14-Low-Latency-Systems/07 - Time & Measurement/Coordinated Omission in Low Latency Systems.md\|Coordinated-Omission]] |
 | CI Performance Gating: Wall-Clock vs Instruction Counts, Non-Parametric Hypothesis Testing, Change-Point Detection | [[Performance-Regression-Detection-in-CI]] | Explain, Decide | [[14-Low-Latency-Systems/13 - Reliability, Ops & Testing/Latency Regression Testing in Continuous Integration.md\|Latency-Testing]] |
 | Measurement Architecture: Decision Records for Sampling vs Instrumentation, CI Gating Policies, Frame Pointer Standards | [[Measurement-Methodology-Decision-Records]] | Explain, Decide | none |
+| Playbook: Design a Low-Noise Benchmark Harness Playbook | [[Design-a-Low-Noise-Benchmark-Harness-Playbook]] | Debug | none |
+| Drill: Drill: Environment Size and Code Alignment Bias | [[Drill-Measurement-Methodology-Environment-Size-Bias]] | Debug | none |
+| Drill: Drill: Coordinated Omission in Load Generators | [[Drill-Measurement-Methodology-Coordinated-Omission-Trap]] | Debug | none |
 
 ## Out of scope
 

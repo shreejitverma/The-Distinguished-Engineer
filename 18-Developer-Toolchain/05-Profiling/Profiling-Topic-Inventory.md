@@ -61,6 +61,10 @@ This document maps authoritative upstream source heading groups for profilers, t
 | Rust CPU Profiling: cargo flamegraph, samply, std Frame Pointers (-Cforce-frame-pointers=non-leaf) | [[Rust-CPU-Profiling-cargo-flamegraph-samply-and-Frame-Pointers]] | Use, Explain, Debug | none |
 | Rust Benchmarking: Criterion.rs Regression, Divan Allocations, Gungraun Instruction Counters, dhat-rs | [[Rust-Benchmarking-Criterion-Divan-Gungraun-and-dhat]] | Use, Explain, Rebuild | none |
 | Rust Build Diagnostics: cargo build --timings, -Z self-profile crox, cargo-llvm-lines, cargo-bloat | [[Rust-Compile-Time-and-Binary-Size-Profiling]] | Use, Explain, Debug | none |
+| Playbook: Playbook: Diagnose a Production Tail Latency Spike With eBPF and perf | [[Playbook-Diagnose-a-Production-Tail-Latency-Spike-with-eBPF-and-perf]] | Debug | none |
+| Drill: Drill: Profiling False Sharing and Cache Contention | [[Drill-Profiling-False-Sharing-Cache-Contention]] | Debug | none |
+| Drill: Drill: Profiling Python-C Extension GIL and Allocation Bottleneck | [[Drill-Profiling-Python-C-Extension-GIL-and-Allocation-Bottleneck]] | Debug | none |
+| Drill: Drill: Profiling Rust Monomorphization and Inlining Regression | [[Drill-Profiling-Rust-Monomorphization-and-Inlining-Regression]] | Debug | none |
 
 ## Out of scope
 

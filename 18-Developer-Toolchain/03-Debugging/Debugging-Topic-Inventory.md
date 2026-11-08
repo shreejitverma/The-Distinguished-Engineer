@@ -84,6 +84,21 @@ This document maps authoritative upstream source heading groups for debugging to
 | Tokio Console & tracing Docs: Task Diagnostics, Lost Waker Detection, Span Context Chains | [[Rust-Async-Debugging-tokio-console-and-tracing]] | Use, Explain, Debug | none |
 | Crashpad Documentation: Out-of-Process Crash Handler, Exception Ports, Minidump Generation | [[Core-Dumps-Minidumps-and-Crash-Reporting]] | Explain, Decide | none |
 | debuginfod Documentation: HTTP Build ID Indexing, Client Federation, Debuginfo Stripping | [[Symbol-Servers-and-debuginfod]] | Use, Explain, Decide | none |
+| Concept: Scientific Debugging, Delta Debugging, and Heisenbugs | [[Scientific-Debugging-Delta-Debugging-and-Heisenbugs]] | Explain | none |
+| Concept: Debugging Without a Debugger and Concurrency Bugs | [[Debugging-Without-a-Debugger-and-Concurrency-Bugs]] | Explain | none |
+| Concept: Debugging Distributed Systems with Traces and Correlation | [[Debugging-Distributed-Systems-with-Traces-and-Correlation]] | Explain | none |
+| Playbook: Debugging Decision Records | [[Debugging-Decision-Records]] | Decide at Scale | none |
+| Playbook: Debug a Production Crash From a Core Dump | [[Debug-a-Production-Crash-From-a-Core-Dump]] | Debug | none |
+| Playbook: Rebuild Lab: ptrace Debugger with DWARF Backtrace | [[Rebuild-Lab-ptrace-Debugger-with-DWARF-Backtrace]] | Debug | none |
+| Drill: Drill: Debugging Use-After-Free From a Core Dump | [[Drill-Debugging-Use-After-Free-Core-Dump]] | Debug | none |
+| Drill: Drill: Debugging Asyncio and Tokio Deadlock | [[Drill-Debugging-Asyncio-and-Tokio-Deadlock]] | Debug | none |
+| Drill: Drill: Debugging Mixed Python-Rust FFI Segfault | [[Drill-Debugging-Mixed-Python-Rust-FFI-Segfault]] | Debug | none |
+| Concept: C++ ODR Violations, Static Init, and Linker Template Errors | [[Cpp-ODR-Violations-Static-Init-and-Linker-Template-Errors]] | Explain | none |
+| Playbook: C++ Playbook: Heap Corruption | [[Cpp-Playbook-Heap-Corruption]] | Debug | none |
+| Playbook: C++ Playbook: Deadlocks and Livelocks | [[Cpp-Playbook-Deadlocks-and-Livelocks]] | Debug | none |
+| Concept: Python Concurrency: Asyncio, Multiprocessing, and Free-Threading Bugs | [[Python-Concurrency-Asyncio-Multiprocessing-and-Free-Threading-Bugs]] | Explain | none |
+| Concept: Rust Borrow Checker, Trait Errors, Cargo-Expand, and Clippy | [[Rust-Borrow-Checker-Trait-Errors-Cargo-Expand-and-Clippy]] | Explain | none |
+| Concept: Rust FFI Boundary Debugging Across C++ and Python | [[Rust-FFI-Boundary-Debugging-Across-Cpp-and-Python]] | Explain | none |
 
 ## Out of scope
 

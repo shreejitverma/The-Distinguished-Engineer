@@ -59,6 +59,10 @@ This inventory maps the authoritative documentation, internal technical specific
 | Scalar Reference Manual: Enlistments, Background Maintenance, Sparse-Checkout Cone Mode (`scalar(1)`) | [[Git-At-Scale-VFS-Scalar-and-Monorepos]] | Use, Explain, Decide at Scale | none |
 | git-filter-repo Manual: History Rewriting, Secret Scrubbing, Ref Filtering (`git-filter-repo(1)`) | [[Remove-Secrets-and-Rewrite-Git-History]] | Use, Debug, Decide at Scale | [[11-Security-And-Cryptography/README.md\|Security-And-Cryptography]] |
 | Git LFS Specification: Pointer Files, Clean and Smudge Filter Protocol, Batch API (`docs/spec.md`) | [[Git-Submodules-Subtrees-LFS-and-Attributes]] | Explain, Decide at Scale | none |
+| Playbook: Decision Record: Monorepo versus Polyrepo Architecture | [[Decision-Record-Monorepo-vs-Polyrepo]] | Decide at Scale | none |
+| Drill: Drill: Detached Rebase Failure and Dangling Tree Recovery | [[Drill-Git-Detached-Rebase-and-Dangling-Tree-Recovery]] | Debug | none |
+| Drill: Drill: Corrupted Packfile Index and Multi-Pack-Index Rescue | [[Drill-Git-Corrupted-Packfile-and-MIDX-Rescue]] | Debug | none |
+| Drill: Drill: Automated Git Bisect Across Non-Linear Merge History | [[Drill-Git-Automated-Bisect-on-Non-Linear-History]] | Debug | none |
 
 ## Out of scope
 
