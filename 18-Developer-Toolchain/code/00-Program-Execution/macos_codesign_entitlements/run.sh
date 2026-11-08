@@ -14,6 +14,8 @@ WARN="-Wno-deprecated-declarations"
 # Sets TARGET_PID and TARGET_ADDR; the caller kills it with stop_target.
 start_target() {
     local bin="$1" out="${WORK_DIR}/$(basename "$1").out"
+    # A second start of the same binary must not see the previous instance's READY line.
+    rm -f "${out}"
     "${bin}" > "${out}" 2>&1 &
     TARGET_PID=$!
     local i=0
