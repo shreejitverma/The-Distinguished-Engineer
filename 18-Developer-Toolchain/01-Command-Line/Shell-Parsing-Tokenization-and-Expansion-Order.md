@@ -280,7 +280,7 @@ cd code && python3 -m _harness.verify 01-Command-Line/expansion_order/
 
 ### Reference Engine Stage Trace
 
-The C99 reference engine (`expansion_engine.c`) runs seven traces.
+The C99 reference engine (`expansion_engine.c`) runs nine traces.
 It lexes each input line into words at unquoted blanks, tags every character with its origin (unquoted, single-quoted, double-quoted, produced by an unquoted expansion, produced by a quoted expansion, backslash, backslash-protected), and applies the five stages in order.
 Stage 3 follows the POSIX.1-2024 Section 2.6.5 IFS algorithm, and Stage 4 calls `glob(3)` in a directory where `run.sh` has created `data_a.tmp` and `data_b.tmp`.
 The first block is the start of `expected/darwin-arm64.txt` (darwin-arm64), covering `pkg_{core,net}_"$TAG"` with `TAG="v1.0 release"` and `cmd $ARGS` with `ARGS="--mode=fast -v"`:
@@ -408,7 +408,7 @@ Raw Input: list $PATHLIST
 The unquoted `data_$PATTERN` becomes `data_*.tmp` in Stage 2 and matches the two real files in Stage 4.
 The double-quoted copy never globs, and Stage 5 only strips its quotes.
 With `IFS=:`, the value `:a::b:` splits into an empty field, `a`, an empty field, and `b`, with no trailing empty field.
-The remaining traces in the expected file cover backslash and single-quote protection, a numeric range `n{1..3}`, and an empty brace alternative `{x,}y`.
+The remaining traces in the expected file cover backslash and single-quote protection, a numeric range `n{1..3}`, an empty brace alternative `{x,}y`, and tilde expansion, where `~` and `~/src` become `/home/user` and `/home/user/src` while `"~/q"` and `a~b` keep their tilde.
 
 The engine is a model, not a shell.
 It handles one brace expression per word with no nesting or increment, no backslashes inside double quotes, no `${...}` forms, command substitution, or arithmetic, and it reads parameters from a fixed table.

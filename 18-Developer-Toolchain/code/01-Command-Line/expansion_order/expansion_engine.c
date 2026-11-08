@@ -458,6 +458,7 @@ int main(void) {
     run_trace("Non-whitespace IFS (IFS=:)", "list $PATHLIST", ":");
     run_trace("Backslash and single quotes protect characters", "echo a\\ b \\*.tmp \\$TAG '$TAG'", " \t\n");
     run_trace("Numeric range and an empty brace alternative", "echo n{1..3} {x,}y", " \t\n");
+    run_trace("Tilde only when leading and unquoted", "ls ~ ~/src \"~/q\" a~b", " \t\n");
 
     return 0;
 }

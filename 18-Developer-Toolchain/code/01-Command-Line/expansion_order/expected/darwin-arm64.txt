@@ -224,6 +224,45 @@ Raw Input: echo n{1..3} {x,}y
     [3] "n3"
     [4] "xy"
     [5] "y"
+============================================================
+TRACE: Tilde only when leading and unquoted
+Raw Input: ls ~ ~/src "~/q" a~b
+  Stage 0: Lexed Words         [5 word(s)]:
+    [0] "ls"
+    [1] "~"
+    [2] "~/src"
+    [3] ""~/q""
+    [4] "a~b"
+  Stage 1: Brace Expansion     [5 word(s)]:
+    [0] "ls"
+    [1] "~"
+    [2] "~/src"
+    [3] ""~/q""
+    [4] "a~b"
+  Stage 2: Parameter & Tilde   [5 word(s)]:
+    [0] "ls"
+    [1] "/home/user"
+    [2] "/home/user/src"
+    [3] ""~/q""
+    [4] "a~b"
+  Stage 3: Field Splitting (IFS) [5 word(s)]:
+    [0] "ls"
+    [1] "/home/user"
+    [2] "/home/user/src"
+    [3] ""~/q""
+    [4] "a~b"
+  Stage 4: Pathname Expansion  [5 word(s)]:
+    [0] "ls"
+    [1] "/home/user"
+    [2] "/home/user/src"
+    [3] ""~/q""
+    [4] "a~b"
+  Stage 5: Quote Removal (Final) [5 word(s)]:
+    [0] "ls"
+    [1] "/home/user"
+    [2] "/home/user/src"
+    [3] "~/q"
+    [4] "a~b"
 
 === PHASE 2: LIVE SHELL PARSING & EXPANSION SUITE ===
 --- 1. Brace Expansion Precedence Over Parameter Expansion ---
