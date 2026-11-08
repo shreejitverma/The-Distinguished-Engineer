@@ -1,0 +1,38 @@
+=== Case 1: local var=$(cmd) Return Code Masking (SC2155) ===
+Masked assignment: exit_code=0, val=''
+Unmasked assignment: caught command failure explicitly
+=== Case 2: errexit Suppression in Conditionals ===
+callee: step 1 (before failure)
+callee: step 2 (errexit was suppressed by caller condition)
+caller: condition branch taken despite callee failure
+Same callee called directly under set -e:
+callee: step 1 (before failure)
+Direct call aborted with exit code 1
+=== Case 3: inherit_errexit in Command Substitutions ===
+Default subshell command substitution:
+out=survived_cmdsub
+With inherit_errexit enabled:
+Command substitution aborted with exit code 1
+=== Case 4: Signal Traps and Cooperative Re-raising ===
+Variant A, re-raise handler:
+trap EXIT: cleaning up allocated_resource
+child terminated by SIGINT (WIFSIGNALED)
+Variant B, anti-pattern exit 1 handler:
+trap EXIT: cleaning up allocated_resource
+child exited with status 1 (WIFEXITED)
+Variant C, no INT trap:
+trap EXIT: cleaning up allocated_resource
+child terminated by SIGINT (WIFSIGNALED)
+=== Case 5: Atomic File Replacement and Symlink Pitfall ===
+Atomic file content: updated_payload
+Naive mv: current -> release_a, link deposited inside release_a: yes
+Symlink atomically updated to: release_b
+Link deposited inside release_a: no
+=== Case 6: ShellCheck Static Analysis ===
+Running ShellCheck on anti-pattern script:
+3:13: warning: Use single quotes, otherwise this expands now rather than when signalled. [SC2064]
+5:11: warning: Declare and assign separately to avoid masking return values. [SC2155]
+6:10: note: Double quote to prevent globbing and word splitting. [SC2086]
+Anti-pattern exit code: 1
+Running ShellCheck on remediated script:
+Remediated exit code: 0

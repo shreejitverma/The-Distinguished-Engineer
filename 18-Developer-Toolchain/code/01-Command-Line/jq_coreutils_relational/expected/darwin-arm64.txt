@@ -1,0 +1,67 @@
+=== 1. JQ In-Memory Hash Join ===
+{"emp_id":"E101","name":"Alice","dept":"Engineering","salary":180000}
+{"emp_id":"E102","name":"Bob","dept":"Engineering","salary":165000}
+{"emp_id":"E103","name":"Carol","dept":"Product","salary":170000}
+{"emp_id":"E104","name":"Dan","dept":"Unassigned","salary":150000}
+
+=== 2. JQ Stream Truncation for Bounded Memory ===
+{"event_id":"EV-01","action":"LOGIN","status":"ALLOW"}
+{"event_id":"EV-02","action":"WRITE","status":"DENY"}
+{"event_id":"EV-03","action":"LOGOUT","status":"ALLOW"}
+--- Truncated input: --stream emits before the error, DOM mode emits nothing ---
+[["a",0],1]
+[["a",1],2]
+stream exit=5
+dom exit=5
+
+=== 3. Coreutils Relational Joins (LC_ALL=C) ===
+--- Inner Join ---
+E101,Alice,Engineer,180000,US
+E102,Bob,Manager,165000,US
+E105,Eve,Architect,210000,US
+--- Left Outer Join (Unmatched Replaced by NULL) ---
+E101,Alice,Engineer,180000,US
+E102,Bob,Manager,165000,US
+E103,Carol,Designer,NULL,NULL
+E105,Eve,Architect,210000,US
+--- Full Outer Join ---
+E101,Alice,Engineer,180000,US
+E102,Bob,Manager,165000,US
+E103,Carol,Designer,NULL,NULL
+E104,NULL,NULL,150000,EU
+E105,Eve,Architect,210000,US
+--- Anti-Join (In Master but No Payroll) ---
+E103,Carol,Designer
+
+=== 4. Set Operations with comm ===
+--- Common IDs (Intersection) ---
+E101
+E102
+E105
+--- Master Only (Difference) ---
+E103
+--- Payroll Only (Difference) ---
+E104
+
+=== 5. Hybrid Pipeline: JSON Stream -> TSV Coreutils -> JSON Output ===
+{"user_id":"U1","order_id":"1001","amount":500,"name":"Alice","tier":"gold"}
+{"user_id":"U1","order_id":"1002","amount":250,"name":"Alice","tier":"gold"}
+{"user_id":"U2","order_id":"1003","amount":120,"name":"Bob","tier":"silver"}
+
+=== 6. Failure Modes and Hazards ===
+--- Unsorted Input Detection with sort -c ---
+sort: -:2: disorder: E101,Alice
+sort -c exit=1
+--- IEEE 754 Precision Truncation in JQ ---
+{"input":9007199254740993,"evaluated":9007199254740992,"equality_collapsed":true}
+--- YAML 1.2 String Preservation in yq ---
+{"country":"NO"}
+
+=== 7. Collation Mismatch: the Headline Join Failure ===
+--- Left sorted under en_US.UTF-8, right under C, join under C ---
+left key order:  ab_d ab-c abb
+right key order: ab-c ab_d abb
+rows joined: 2 of 3 (exit=0)
+sort -c on the locale-sorted file under C: exit=1
+--- Both sorted under C ---
+rows joined: 3 of 3 (exit=0)

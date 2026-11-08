@@ -21,7 +21,7 @@ Re-run the script after every structural change; this file is its output and sho
 | Note folders without README (depth <= 3) | 0 |
 | Notes with emojis / total emojis | 0 / 0 |
 | Notes with em dashes / total em dashes | 0 / 0 |
-| Identical-content groups / redundant MB | 306 / 41.9 |
+| Identical-content groups / redundant MB | 307 / 41.9 |
 | Vendored or imported repos | 10 |
 | Tracked build junk | 0 |
 | Files >= 5 MB / total MB | 1 / 5.1 |
