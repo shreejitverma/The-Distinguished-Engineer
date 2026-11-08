@@ -1,0 +1,20 @@
+=== 1. Baseline Compilation (No LTO, No PGO) ===
+Checksum: 8741899300
+=== 2. Link-Time Optimization (LTO / Whole Program Optimization) ===
+Checksum: 8741899300
+=== 3. Profile-Guided Optimization (PGO Instrumentation & Feedback) ===
+Checksum: 8741899300
+=== 4. Layout & Optimization Analysis ===
+=== Symbol Resolution & Cross-TU Optimization ===
+packet_process in baseline: GLOBAL
+packet_process in LTO: INLINED
+packet_process in PGO: INLINED
+dead_debug_helper in baseline: PRESENT
+dead_debug_helper in baseline with --gc-sections: PRESENT
+dead_debug_helper in LTO: STRIPPED
+dead_debug_helper in PGO: STRIPPED
+handle_cold_error linkage: base=GLOBAL, lto=LOCAL, pgo=LOCAL
+=== Profile Effect on Code Generation ===
+main size in LTO: 120 bytes
+main size in PGO: 632 bytes
+PGO changed main: YES

@@ -1,0 +1,43 @@
+=== Itanium C++ ABI Object Model and Vtable Inspection ===
+[Layout] MultiDerived sizeof: 32
+[Layout] Empty base optimization active (0 extra bytes): PASS
+[Layout] Non-POD tail padding reuse (sizeof=16): PASS
+[Layout] POD tail padding preserved (sizeof=24): PASS
+[Layout] Base1 primary subobject offset: 0
+[Layout] Base2 secondary subobject offset: 16
+[Layout] EmptyTag base shares the complete object address: PASS
+[Vtable] Primary vtable offset-to-top: 0
+[Vtable] Secondary vtable offset-to-top: -16
+[Vtable] Primary RTTI demangled: MultiDerived
+[Vtable] Secondary RTTI matches primary pointer: PASS
+[Vtable] dynamic_cast<void*> matches subobject + offset-to-top: PASS
+[Thunk] Call via Base1* this matches complete object: PASS
+[Thunk] Call via Base2* this adjusted from +16 to complete object: PASS
+[Thunk] Raw thunk call adjusted pointer: PASS
+[VBase] Primary vbase_offset value: 32
+[VBase] Primary vbase_offset matches (VBase - Diamond): PASS
+[VBase] Secondary vbase_offset value: 16
+[VBase] Secondary vbase_offset matches (VBase - DiamondB2): PASS
+[VThunk] Call via VBase* this adjusted to complete object: PASS
+[CtorVtable] vptr seen during base construction differs from final vptr: PASS
+[CtorVtable] RTTI in construction vtable names the base: PASS
+[CtorVtable] RTTI in final vtable names the complete type: PASS
+[CovThunk] Return pointer adjusted to RetB subobject: PASS
+[RTTI] Resolved RTTI metadata class symbol: vtable for __cxxabiv1::__vmi_class_type_info
+[RTTI] Direct base count: 3
+[RTTI] Base 0: name=EmptyTag, offset=0, public=true, virtual=false
+[RTTI] Base 1: name=Base1, offset=0, public=true, virtual=false
+[RTTI] Base 2: name=Base2, offset=16, public=true, virtual=false
+[Guard] Initializer ran exactly once across 8 racing threads: PASS
+[Guard] Every thread observed the initialized value: PASS
+[Symbol] vtable        : _ZTV12MultiDerived
+[Symbol] typeinfo      : _ZTI12MultiDerived
+[Symbol] typeinfo name : _ZTS12MultiDerived
+[Symbol] adjustor thunk: _ZThn16_N12MultiDerived2f2Ev
+[Symbol] VTT           : _ZTT14DiamondDerived
+[Symbol] ctor vtable   : _ZTC14DiamondDerived0_9DiamondB1
+[Symbol] ctor vtable   : _ZTC14DiamondDerived16_9DiamondB2
+[Symbol] virtual thunk : _ZTv0_n40_N14DiamondDerived5vthisEv
+[Symbol] covariant thnk: _ZTch0_h16_N10CovDerived3getEv
+[Symbol] guard acquire : __cxa_guard_acquire
+[Symbol] guard release : __cxa_guard_release

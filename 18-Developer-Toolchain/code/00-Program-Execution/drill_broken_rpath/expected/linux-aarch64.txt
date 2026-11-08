@@ -1,0 +1,79 @@
+=== Stage 1: Reproduce Transitive DT_RUNPATH Lookup Failure ===
+[Execution] Launching host_app with unpatched plugin...
+./host_app: error while loading shared libraries: libinternal_math.so: cannot open shared object file: No such file or directory
+Exit status: 127
+
+=== Stage 2: Inspect Dynamic Tags (DT_RPATH vs DT_RUNPATH) ===
+host_app dynamic tags:
+0xADDR (NEEDED)             Shared library: [libplugin.so]
+0xADDR (NEEDED)             Shared library: [libc.so.6]
+0xADDR (NEEDED)             Shared library: [ld-linux-aarch64.so.1]
+0xADDR (RUNPATH)            Library runpath: [$ORIGIN/plugins:$ORIGIN/plugins/lib]
+plugins/libplugin.so dynamic tags:
+0xADDR (NEEDED)             Shared library: [libinternal_math.so]
+0xADDR (NEEDED)             Shared library: [libc.so.6]
+
+=== Stage 3: Trace Dynamic Linker Search Paths (LD_DEBUG=libs) ===
+Loader search trace for libinternal_math.so:
+find library=libinternal_math.so ; searching
+search cache=/etc/ld.so.cache
+search path=/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:/lib:/usr/lib		(system search path)
+trying file=/lib/aarch64-linux-gnu/libinternal_math.so
+trying file=/usr/lib/aarch64-linux-gnu/libinternal_math.so
+
+=== Stage 4: Fix 1 - Embed $ORIGIN/lib RUNPATH in libplugin.so ===
+[Build] Relinking libplugin.so with -Wl,-rpath,'$ORIGIN/lib'...
+plugins/libplugin.so updated dynamic tags:
+0xADDR (NEEDED)             Shared library: [libinternal_math.so]
+0xADDR (NEEDED)             Shared library: [libc.so.6]
+0xADDR (RUNPATH)            Library runpath: [$ORIGIN/lib]
+[Execution] Launching host_app with fixed plugin RUNPATH...
+Host started: dispatching task to plugin...
+Plugin received task payload: 'transaction_record_99'
+Internal hash computed: 0xADDR (CORRUPTED)
+Result: MISMATCH! Expected real hash, got host interposed 0xADDR
+
+=== Stage 5: Diagnose Symbol Preemption (LD_DEBUG=bindings) ===
+Symbol binding trace:
+binding file libinternal_math.so to ./host_app : normal symbol `compute_hash'
+compute_hash bindings resolved to host_app: 1
+Symbol visibility in host_app dynamic symbol table (.dynsym):
+FUNC GLOBAL DEFAULT compute_hash
+Symbol visibility in libinternal_math.so dynamic symbol table (.dynsym):
+FUNC GLOBAL DEFAULT compute_hash
+FUNC GLOBAL DEFAULT internal_calc_checksum
+
+=== Stage 6: Fix 2 - Restructure Symbol Visibility and Local Binding ===
+Applying Fix 2A: Compile libinternal_math with -fvisibility=hidden
+Dynamic symbols exported by updated libinternal_math.so (.dynsym):
+FUNC GLOBAL DEFAULT internal_calc_checksum
+compute_hash: not exported
+[Execution] Launching host_app with hidden visibility...
+Host started: dispatching task to plugin...
+Plugin received task payload: 'transaction_record_99'
+Internal hash computed: 0xADDR (CORRECT)
+Result: SUCCESS! Computation matches expected hash.
+compute_hash bindings resolved to host_app: 0
+
+Applying Fix 2B: Rebuild with Linker Script (--version-script)
+Dynamic symbols exported with version script (.dynsym):
+FUNC GLOBAL DEFAULT internal_calc_checksum@@INTERNAL_MATH_1.0
+compute_hash: not exported
+[Execution] Launching host_app with version script DSO...
+Host started: dispatching task to plugin...
+Plugin received task payload: 'transaction_record_99'
+Internal hash computed: 0xADDR (CORRECT)
+Result: SUCCESS! Computation matches expected hash.
+compute_hash bindings resolved to host_app: 0
+
+Applying Fix 2C: Rebuild with Direct Binding (-Wl,-Bsymbolic-functions)
+Dynamic symbols exported with -Bsymbolic-functions (.dynsym):
+FUNC GLOBAL DEFAULT compute_hash
+FUNC GLOBAL DEFAULT internal_calc_checksum
+compute_hash: exported
+[Execution] Launching host_app with -Bsymbolic-functions DSO...
+Host started: dispatching task to plugin...
+Plugin received task payload: 'transaction_record_99'
+Internal hash computed: 0xADDR (CORRECT)
+Result: SUCCESS! Computation matches expected hash.
+compute_hash bindings resolved to host_app: 0

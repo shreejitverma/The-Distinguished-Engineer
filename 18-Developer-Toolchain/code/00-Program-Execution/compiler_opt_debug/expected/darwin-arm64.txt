@@ -1,0 +1,50 @@
+=== Compiler Pipeline Optimization and Debuggability Lab ===
+
+1. Inlining (Call Boundary Dissolution):
+  - O0 inlined subroutine DIE present: False
+  - O0 compute_distance_sq has its own address range: True
+  - O2 inlined subroutine DIE present: True
+  - O2 inlined subroutine sits inside transform_point and originates from compute_distance_sq: True
+  - O2 inlined call site recorded: line 26
+  - Debugger symptom: stepping enters inlined body without physical call frame
+
+2. SROA (Aggregate Decomposition into Registers):
+  - O0 'pt' location expression: DW_OP_breg31 WSP+16 (contiguous stack storage)
+  - O2 'pt' uses DW_OP_piece composite locations: True
+  - O2 piecewise variable location slices:
+      [ADDR_RANGE]: DW_OP_reg8 W8, DW_OP_piece 0x4
+      [ADDR_RANGE]: DW_OP_reg8 W8, DW_OP_piece 0x4, DW_OP_reg9 W9, DW_OP_piece 0x4
+      [ADDR_RANGE]: DW_OP_piece 0x4, DW_OP_reg9 W9, DW_OP_piece 0x4
+  - O2 'pt' has a range where piece 0 (x) has no location: True
+  - Debugger symptom: inspecting struct yields <optimized out> or partial fields
+
+3. Tail Call Elimination (Frame Destruction):
+  - O0 DW_AT_call_tail_call attribute in transform_point: False
+  - O2 DW_AT_call_tail_call attribute in transform_point: True
+  - O0 transform_point reaches external_sink with: bl
+  - O2 transform_point reaches external_sink with: b
+  - Debugger symptom: caller frame vanishes from call stack during tail call
+
+4. Line Table and Statement Progression (.debug_line):
+  - O0 transform_point statement line sequence: [22, 24, 25, 26, 27]
+  - O0 compute_distance_sq statement line sequence: [16, 17]
+  - O2 transform_point statement line sequence: [24, 25, 17, 27]
+  - O0 transform_point non-monotonic: False
+  - O2 transform_point non-monotonic (backwards line jump): True
+  - O2 transform_point has a statement row for line 26: False
+  - Debugger symptom: single-stepping cursor jumps backward and skips intermediate lines
+
+5. Loop Vectorization Induction Variable Tracking:
+  - O0 induction variable 'i' tracked in stack frame: True
+  - O0 vector_sum contains fadd.4s: False
+  - O2 vector_sum contains fadd.4s: True
+  - O2 induction variable 'i' collapsed to constant value: True
+  - O2 bytes of vector_sum where 'i' is the constant 0: 208 of 236
+  - Debugger symptom: inspecting 'i' inside vectorized loop prints constant 0
+
+6. Quantitative DWARF Quality Metrics (dwarfdump --statistics):
+  - O0 local variables with 100% scope coverage: 3
+  - O0 local variable location coverage: 240 of 240 scope bytes (100.0%)
+  - O2 local variables with 100% scope coverage: 0
+  - O2 local variable location coverage: 228 of 272 scope bytes (83.8%)
+  - O2 covered bytes that are the constant-0 location of 'i': 208 of 228

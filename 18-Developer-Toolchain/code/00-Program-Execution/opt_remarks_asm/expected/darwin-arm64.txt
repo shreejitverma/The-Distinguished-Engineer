@@ -1,0 +1,33 @@
+=== Compiler Optimization Diagnostic Verification ===
+Compiler: clang
+Architecture: aarch64
+
+--- Diagnostic Remarks Output ---
+Remark [inlining success]: helper_inline into call_inline, cost -15025 < threshold 375 -> PASSED
+Remark [inlining inhibited]: helper_noinline into call_noinline, cost=never -> PASSED
+Remark [vectorization success]: vector_add, width 4, interleave 4 -> PASSED
+Remark [vectorization missed]: dependent_add, backward loop-carried dependence -> PASSED
+
+--- Serialized Optimization Records (YAML) ---
+Total serialized records: 5
+  Analysis loop-vectorize UnsafeDep dependent_add
+  Missed inline NeverInline call_noinline
+  Missed loop-vectorize MissedDetails dependent_add
+  Passed inline Inlined call_inline
+  Passed loop-vectorize Vectorized vector_add
+Records match the remarks per function: PASSED
+
+--- Assembly Structure and Filtering ---
+Raw assembly lines: 186
+Filtered assembly instructions: 123
+Directives, comments, and labels removed: 33.9%
+Functions found in assembly: all 5
+
+--- Code Generation ---
+vector_add 128-bit fadd.4s instructions: 5 (interleave count 4 + 1 epilogue) -> PASSED
+dependent_add vector instructions: 0 (expected 0)
+dependent_add scalar fadd instructions: 9 (expected more than 0)
+call_inline calls: 0 (expected 0), madd present: True, helper_inline symbol emitted: False
+call_noinline calls: ['bl _helper_noinline'] (expected ['bl _helper_noinline']), 16-byte frame setup: True
+
+Verification status: ALL CHECKS PASSED
