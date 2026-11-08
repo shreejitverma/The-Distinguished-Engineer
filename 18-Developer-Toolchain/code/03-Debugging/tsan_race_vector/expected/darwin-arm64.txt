@@ -1,0 +1,51 @@
+== Stage 1: calls the TSan pass inserted (instr.cpp, -O1, from the assembly) ==
+  plain_write      __tsan_func_entry __tsan_write4 __tsan_func_exit
+  plain_increment  __tsan_func_entry __tsan_write4 __tsan_func_exit
+  const_read       (no runtime calls)
+  escaped_local    __tsan_func_entry __tsan_write4 __tsan_read4 __tsan_func_exit __tsan_func_exit
+  release_store    __tsan_func_entry __tsan_atomic32_store __tsan_func_exit
+  acquire_load     __tsan_func_entry __tsan_atomic32_load __tsan_func_exit
+  release_fence    __tsan_func_entry __tsan_atomic_thread_fence __tsan_func_exit
+
+== Stage 2: race reports (races.cpp, TSAN_OPTIONS=atexit_sleep_ms=0:abort_on_error=0) ==
+  racy_counter: warnings=1 exit=66
+    report: data race
+    Write of size 4 at races.cpp:15
+    Previous write of size 4 at races.cpp:15
+    location: global 'counter'
+    summary: data race at races.cpp:15
+    threads involved: T1, main
+  mutex_counter: warnings=0 exit=0
+  relaxed_publish: warnings=1 exit=66
+    report: data race
+    Read of size 4 at races.cpp:51
+    Previous write of size 4 at races.cpp:46
+    location: global 'payload'
+    summary: data race at races.cpp:51
+    threads involved: T1, main
+  acqrel_publish: warnings=0 exit=0
+  fence_publish: warnings=1 exit=66
+    report: data race
+    Read of size 4 at races.cpp:79
+    Previous write of size 4 at races.cpp:72
+    location: global 'payload'
+    summary: data race at races.cpp:79
+    threads involved: T1, main
+  sleep_ordered: warnings=1 exit=66
+    report: data race
+    Read of size 4 at races.cpp:94
+    Previous write of size 4 at races.cpp:88
+    note: as if synchronized via sleep
+    location: global 'payload'
+    summary: data race at races.cpp:94
+    threads involved: T1, main
+
+== Stage 3: exit status of a racy run under different TSAN_OPTIONS ==
+  TSAN_OPTIONS=atexit_sleep_ms=0: signal 6, warnings=1
+  TSAN_OPTIONS=atexit_sleep_ms=0:abort_on_error=0: exit 66, warnings=1
+  TSAN_OPTIONS=atexit_sleep_ms=0:abort_on_error=0:exitcode=3: exit 3, warnings=1
+  TSAN_OPTIONS=atexit_sleep_ms=0:report_bugs=0: exit 0, warnings=0
+
+== Stage 4: MemorySanitizer ==
+  -fsanitize=memory rejected by this compiler: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin'
+  MSan stage skipped; the MSan report shape is described in the note.

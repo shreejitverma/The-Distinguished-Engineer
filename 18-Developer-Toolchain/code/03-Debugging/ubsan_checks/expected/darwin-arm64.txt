@@ -1,0 +1,277 @@
+== 1. Catalog: -std=c++17 -O0 -fsanitize=undefined, report_error_type=1
+[signed-add]
+  report:  ub_catalog.cpp:20:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: signed-integer-overflow
+  stdout:  signed-add returned -2147483648
+  stdout:  main reached the end
+  exit:    0
+[int-min-div]
+  report:  ub_catalog.cpp:24:28: runtime error: division of -2147483648 by -1 cannot be represented in type 'int'
+  summary: signed-integer-overflow
+  stdout:  int-min-div returned -2147483648
+  stdout:  main reached the end
+  exit:    0
+[div-zero]
+  report:  ub_catalog.cpp:28:22: runtime error: division by zero
+  summary: integer-divide-by-zero
+  stdout:  div-zero returned 0
+  stdout:  main reached the end
+  exit:    0
+[shift-exponent]
+  report:  ub_catalog.cpp:32:14: runtime error: shift exponent 32 is too large for 32-bit type 'int'
+  summary: invalid-shift-exponent
+  stdout:  shift-exponent returned 1
+  stdout:  main reached the end
+  exit:    0
+[shift-negative-base]
+  report:  ub_catalog.cpp:36:23: runtime error: left shift of negative value -1
+  summary: invalid-shift-base
+  stdout:  shift-negative-base returned -2
+  stdout:  main reached the end
+  exit:    0
+[shift-overflow-base]
+  report:  ub_catalog.cpp:40:22: runtime error: left shift of 3 by 31 places cannot be represented in type 'int'
+  summary: invalid-shift-base
+  stdout:  shift-overflow-base returned -2147483648
+  stdout:  main reached the end
+  exit:    0
+[array-bounds]
+  report:  ub_catalog.cpp:45:22: runtime error: index 4 out of bounds for type 'int[4]'
+  summary: out-of-bounds-index
+  stdout:  array-bounds returned -1
+  stdout:  main reached the end
+  exit:    0
+[misaligned-load]
+  report:  ub_catalog.cpp:53:12: runtime error: load of misaligned address 0xADDR for type 'int', which requires 4 byte alignment
+  summary: misaligned-pointer-use
+  stdout:  misaligned-load returned 0
+  stdout:  main reached the end
+  exit:    0
+[null-reference]
+  report:  ub_catalog.cpp:58:14: runtime error: reference binding to null pointer of type 'int'
+  summary: null-pointer-use
+  stdout:  null-reference returned 1
+  stdout:  main reached the end
+  exit:    0
+[null-plus-offset]
+  report:  ub_catalog.cpp:64:17: runtime error: applying non-zero offset 16 to null pointer
+  summary: nullptr-with-nonzero-offset
+  stdout:  null-plus-offset returned 1
+  stdout:  main reached the end
+  exit:    0
+[bool-load]
+  report:  ub_catalog.cpp:72:12: runtime error: load of value 2, which is not a valid value for type 'bool'
+  summary: invalid-bool-load
+  stdout:  bool-load returned 0
+  stdout:  main reached the end
+  exit:    0
+[enum-in-range]
+  report:  (none)
+  stdout:  enum-in-range returned 3
+  stdout:  main reached the end
+  exit:    0
+[enum-out-of-range]
+  report:  ub_catalog.cpp:80:30: runtime error: load of value 4, which is not a valid value for type 'Color'
+  summary: invalid-enum-load
+  stdout:  enum-out-of-range returned 4
+  stdout:  main reached the end
+  exit:    0
+[enum-class-unlisted]
+  report:  (none)
+  stdout:  enum-class-unlisted returned 7
+  stdout:  main reached the end
+  exit:    0
+[float-cast]
+  report:  ub_catalog.cpp:97:29: runtime error: 1e+10 is outside the range of representable values of type 'int'
+  summary: float-cast-overflow
+  stdout:  float-cast returned 2147483647
+  stdout:  main reached the end
+  exit:    0
+[builtin-ctz]
+  report:  ub_catalog.cpp:101:26: runtime error: passing zero to __builtin_ctz(), which is not a valid argument
+  summary: invalid-builtin-use
+  stdout:  builtin-ctz returned 32
+  stdout:  main reached the end
+  exit:    0
+[nonnull-arg]
+  report:  ub_catalog.cpp:109:26: runtime error: null pointer passed as argument 1, which is declared to never be null
+  summary: invalid-null-argument
+  stdout:  nonnull-arg returned -1
+  stdout:  main reached the end
+  exit:    0
+
+== 2. Not in -fsanitize=undefined: vptr and the integer group
+[bad-downcast, -fsanitize=undefined]
+  report:  (none)
+  stdout:  bad-downcast returned 1
+  stdout:  main reached the end
+  exit:    0
+[bad-downcast, -fsanitize=undefined,vptr]
+  report:  ub_catalog.cpp:137:14: runtime error: downcast of address 0xADDR which does not point to an object of type 'Dog'
+  report:  0xADDR: note: object is of type '(anonymous namespace)::Cat'
+  report:  ub_catalog.cpp:137:36: runtime error: member call on address 0xADDR which does not point to an object of type '(anonymous namespace)::Dog'
+  report:  0xADDR: note: object is of type '(anonymous namespace)::Cat'
+  summary: dynamic-type-mismatch
+  summary: dynamic-type-mismatch
+  stdout:  bad-downcast returned 1
+  stdout:  main reached the end
+  exit:    0
+[unsigned-wrap, -fsanitize=undefined]
+  report:  (none)
+  stdout:  unsigned-wrap returned 4294967295
+  stdout:  main reached the end
+  exit:    0
+[implicit-truncation, -fsanitize=undefined]
+  report:  (none)
+  stdout:  implicit-truncation returned 44
+  stdout:  main reached the end
+  exit:    0
+[unsigned-wrap, -fsanitize=integer]
+  report:  ub_catalog.cpp:114:14: runtime error: unsigned integer overflow: 0 - 1 cannot be represented in type 'unsigned int'
+  summary: unsigned-integer-overflow
+  stdout:  unsigned-wrap returned 4294967295
+  stdout:  main reached the end
+  exit:    0
+[implicit-truncation, -fsanitize=integer]
+  report:  ub_catalog.cpp:119:23: runtime error: implicit conversion from type 'int' of value 300 (32-bit, signed) to type 'unsigned char' changed the value to 44 (8-bit, unsigned)
+  summary: implicit-signed-integer-truncation
+  stdout:  implicit-truncation returned 44
+  stdout:  main reached the end
+  exit:    0
+
+== 3. The language mode changes what is UB: shifts under -std=c++20
+[shift-negative-base, c++20]
+  report:  (none)
+  stdout:  shift-negative-base returned -2
+  stdout:  main reached the end
+  exit:    0
+[shift-overflow-base, c++20]
+  report:  (none)
+  stdout:  shift-overflow-base returned -2147483648
+  stdout:  main reached the end
+  exit:    0
+[shift-exponent, c++20]
+  report:  ub_catalog.cpp:32:14: runtime error: shift exponent 32 is too large for 32-bit type 'int'
+  summary: invalid-shift-exponent
+  stdout:  shift-exponent returned 1
+  stdout:  main reached the end
+  exit:    0
+
+== 4. One report per source location
+same-site-loop: same-site-loop returned -6442450944; 3 overflows at one location, reports printed: 1
+three cases at three locations, reports printed: 3
+always_inline helper overflowing in 3 callers, -O0: reports printed: 1
+always_inline helper overflowing in 3 callers, -O2: reports printed: 1
+
+== 5. Recovery: what happens after the first report
+[recover (default build)]
+  report:  ub_catalog.cpp:20:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  report:  ub_catalog.cpp:32:14: runtime error: shift exponent 32 is too large for 32-bit type 'int'
+  summary: undefined-behavior
+  summary: undefined-behavior
+  stdout:  signed-add returned -2147483648
+  stdout:  shift-exponent returned 1
+  stdout:  main reached the end
+  exit:    0
+[-fno-sanitize-recover=undefined]
+  report:  ub_catalog.cpp:20:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: undefined-behavior
+  exit:    signal SIGABRT
+[halt_on_error=1]
+  report:  ub_catalog.cpp:20:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: undefined-behavior
+  exit:    signal SIGABRT
+[halt_on_error=1:abort_on_error=0]
+  report:  ub_catalog.cpp:20:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: undefined-behavior
+  exit:    1
+[halt_on_error=1:abort_on_error=0:exitcode=42]
+  report:  ub_catalog.cpp:20:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: undefined-behavior
+  exit:    42
+[missing-return (unrecoverable even in a recover build)]
+  report:  ub_catalog.cpp:144:31: runtime error: execution reached the end of a value-returning function without returning a value
+  summary: undefined-behavior
+  exit:    signal SIGABRT
+
+== 6. Runtime suppressions (recoverable checks only)
+[suppress signed-integer-overflow]
+  report:  ub_catalog.cpp:32:14: runtime error: shift exponent 32 is too large for 32-bit type 'int'
+  summary: undefined-behavior
+  stdout:  signed-add returned -2147483648
+  stdout:  shift-exponent returned 1
+  stdout:  main reached the end
+  exit:    0
+
+== 7. Trap mode: no runtime, one trap instruction per check kind
+rt_main: undefined __ubsan_handle_* symbols: 3; UBSan dylib: libclang_rt.ubsan_osx_dynamic.dylib
+trap_main: undefined __ubsan_handle_* symbols: 0; UBSan dylib: none
+[runtime build]
+  report:  trap_kinds.cpp:2:45: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: undefined-behavior
+  stdout:  before the overflow
+  stdout:  after the overflow: -2147483648
+  exit:    0
+[trap build]
+  report:  (none)
+  stdout:  before the overflow
+  exit:    signal SIGTRAP
+add     brk #0x5500  high byte 0x55 (U)  ordinal  0 -> add_overflow; compiler reason: Integer addition overflowed
+mul     brk #0x550c  high byte 0x55 (U)  ordinal 12 -> mul_overflow; compiler reason: Integer multiplication overflowed
+sdiv    brk #0x5503  high byte 0x55 (U)  ordinal  3 -> divrem_overflow; compiler reason: Integer divide or remainder overflowed
+index4  brk #0x5512  high byte 0x55 (U)  ordinal 18 -> out_of_bounds; compiler reason: Array index out of bounds
+add -O2 instrumentation none: 2 instructions
+add -O2 instrumentation trap: 4 instructions
+add -O2 instrumentation runtime: 19 instructions
+two_adds_one_mul -O2 (merge on): trap instructions: 2
+two_adds_one_mul -O2 -fno-sanitize-merge=signed-integer-overflow: trap instructions: 3
+three_adds -O2 (defaults):
+  trap: line table line 0; trap-reason frame call line none
+three_adds -O2 -fno-sanitize-merge=signed-integer-overflow:
+  trap: line table line 0; trap-reason frame call line 3
+  trap: line table line 0; trap-reason frame call line 4
+  trap: line table line 0; trap-reason frame call line 5
+three_adds -O2 -fno-sanitize-debug-trap-reasons:
+  trap: line table line 0; trap-reason frame call line none
+three_adds -O2 -fno-sanitize-merge=signed-integer-overflow -fno-sanitize-debug-trap-reasons:
+  trap: line table line 3; trap-reason frame call line none
+  trap: line table line 4; trap-reason frame call line none
+  trap: line table line 5; trap-reason frame call line none
+
+== 8. Trap reasons recorded in DWARF (fake inlined frame names)
+-O0:
+  __clang_trap_msg$Undefined Behavior Sanitizer$Integer divide or remainder overflowed
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer addition overflow in 'a + b'
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer addition overflow in 'x + c'
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer multiplication overflow in 'a * b'
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer multiplication overflow in 'x * y'
+-O2:
+  __clang_trap_msg$Undefined Behavior Sanitizer$Integer divide or remainder overflowed
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer addition overflow in 'a + b'
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer multiplication overflow in 'a * b'
+  __clang_trap_msg$Undefined Behavior Sanitizer$signed integer multiplication overflow in 'x * y'
+-O2 -fsanitize-debug-trap-reasons=basic:
+  __clang_trap_msg$Undefined Behavior Sanitizer$Integer addition overflowed
+  __clang_trap_msg$Undefined Behavior Sanitizer$Integer divide or remainder overflowed
+  __clang_trap_msg$Undefined Behavior Sanitizer$Integer multiplication overflowed
+-O2 -fno-sanitize-debug-trap-reasons:
+  (no trap reasons)
+
+== 9. The optimizer assumes no signed overflow: x + 1 > x at INT_MAX
+[-O2]
+  report:  (none)
+  stdout:  plus_one_is_greater(2147483647) = 1
+  exit:    0
+[-O2 -fwrapv]
+  report:  (none)
+  stdout:  plus_one_is_greater(2147483647) = 0
+  exit:    0
+[-O2 -fsanitize=signed-integer-overflow]
+  report:  optimizer.cpp:8:14: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+  summary: undefined-behavior
+  stdout:  plus_one_is_greater(2147483647) = 0
+  exit:    0
+-O2 body of plus_one_is_greater: mov w0, #0x1; ret; 
+
+== 10. Minimal runtime availability in this toolchain
+-fsanitize-minimal-runtime: link failed; missing libclang_rt.ubsan_minimal_osx_dynamic.dylib; driver warnings: 5

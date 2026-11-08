@@ -1,0 +1,162 @@
+compiler family: gcc
+
+== 1. Mapping: shadow = (addr >> scale) + offset
+  scale 3, granule 8 bytes per shadow byte
+  offset 2^36 (a compile-time constant on this target)
+
+== 2. Partial granules: shadow of malloc(n), first three granules
+  malloc(1)                          01 fa fa
+  malloc(7)                          07 fa fa
+  malloc(8)                          00 fa fa
+  malloc(9)                          00 01 fa
+  malloc(13)                         00 05 fa
+  malloc(16)                         00 00 fa
+  malloc(17)                         00 00 01
+
+== 3. Shadow around objects, one byte per 8-byte granule
+  malloc(13) [-16,+32)               fa fa 00 05 fa fa
+  char buf[10] on the stack [-32,+32) f1 f1 f1 f1 00 02 f3 f3
+  global char g13[13] [0,+32)        00 05 f9 f9
+  vector<char> size 5 cap 32 [0,+32) 00 00 00 00
+  poison [16,32) of malloc(64)       00 00 f7 f7 00 00 00 00
+  poison [20,28) of malloc(64)       00 00 04 00 00 00 00 00
+
+== 4. Rebuilt inline check vs __asan_region_is_poisoned
+  heap   malloc(13): 93/93 aligned accesses agree
+  stack  buf[10]:    124/124 aligned accesses agree
+  global g13[13]:    124/124 aligned accesses agree
+  unaligned 8-byte access at +6: one-granule check passes, byte-exact check fails
+
+== 5. Free and quarantine
+  malloc(13) after free [-16,+32)    fa fa fd fd fa fa
+  freed chunk returned by one of the next 1000 malloc(13) calls: no
+  same loop with ASAN_OPTIONS=quarantine_size_mb=0:
+  freed chunk returned by one of the next 1000 malloc(13) calls: yes
+
+== 6. Report anatomy (ASAN_OPTIONS=symbolize=0:detect_leaks=0, plus the options shown)
+
+-- heap-overflow
+  exit status 1
+  AddressSanitizer: heap-buffer-overflow
+  READ of size 1
+  located 0 bytes after 13-byte region
+  shadow byte at the fault: 05 (Partially addressable)
+
+-- heap-underflow
+  exit status 1
+  AddressSanitizer: heap-buffer-overflow
+  READ of size 1
+  located 1 bytes before 13-byte region
+  shadow byte at the fault: fa (Heap left redzone)
+
+-- use-after-free
+  exit status 1
+  AddressSanitizer: heap-use-after-free
+  READ of size 1
+  located 0 bytes inside of 13-byte region
+  shadow byte at the fault: fd (Freed heap region)
+
+-- double-free
+  exit status 1
+  AddressSanitizer: attempting double-free
+  located 0 bytes inside of 13-byte region
+
+-- stack-overflow
+  exit status 1
+  AddressSanitizer: stack-buffer-overflow
+  READ of size 1
+  located in stack of thread T0 at offset 42 in frame
+  frame object [32, 42) 'buf'
+  shadow byte at the fault: 02 (Partially addressable)
+
+-- global-overflow
+  exit status 1
+  AddressSanitizer: global-buffer-overflow
+  READ of size 1
+  located 0 bytes after global variable 'g13' of size 13
+  shadow byte at the fault: 05 (Partially addressable)
+
+-- use-after-scope
+  exit status 1
+  AddressSanitizer: stack-use-after-scope
+  READ of size 4
+  located in stack of thread T0 at offset 48 in frame
+  frame object [48, 52) 'x'
+  frame object [64, 72) 'v'
+  frame object [96, 120) 'v'
+  shadow byte at the fault: f8 (Stack use after scope)
+
+-- container-overflow
+  exit status 0
+
+-- user-poisoned
+  exit status 1
+  AddressSanitizer: use-after-poison
+  READ of size 1
+  located 20 bytes inside of 64-byte region
+  shadow byte at the fault: f7 (Poisoned by user)
+
+-- unaligned-cast
+  8-byte load through a misaligned uint64_t* at +6: not detected
+  exit status 0
+
+-- unaligned-memcpy
+  exit status 1
+  AddressSanitizer: unknown-crash
+  READ of size 8
+  located 0 bytes after 13-byte region
+  shadow byte at the fault: 00 (Addressable)
+
+-- use-after-return, default options
+  exit status 1
+  AddressSanitizer: stack-use-after-return
+  READ of size 1
+  located in stack of thread T0 at offset 64 in frame
+  frame object [32, 40) 'p'
+  frame object [64, 80) 'buf'
+  shadow byte at the fault: f5 (Stack after return)
+
+-- use-after-return, detect_stack_use_after_return=1
+  exit status 1
+  AddressSanitizer: stack-use-after-return
+  READ of size 1
+  located in stack of thread T0 at offset 64 in frame
+  frame object [32, 40) 'p'
+  frame object [64, 80) 'buf'
+  shadow byte at the fault: f5 (Stack after return)
+
+-- stale-write-after-reuse, default quarantine
+  new malloc(13) reuses the freed chunk: no
+  exit status 1
+  AddressSanitizer: heap-use-after-free
+  WRITE of size 1
+  located 0 bytes inside of 13-byte region
+  shadow byte at the fault: fd (Freed heap region)
+
+-- stale-write-after-reuse, quarantine_size_mb=0
+  new malloc(13) reuses the freed chunk: yes
+  write through the stale pointer: not detected
+  exit status 0
+
+-- heap-overflow built without -fsanitize=address
+  exit status 0
+
+== 7. LeakSanitizer reachability (sizes are listed in leaks.cpp)
+
+-- ASan with LSan, detect_leaks=1
+  exit status 1
+  LeakSanitizer: detected memory leaks
+  Direct leak: 48 bytes in 1 object(s)
+  Direct leak: 40 bytes in 1 object(s)
+  Direct leak: 32 bytes in 1 object(s)
+  Indirect leak: 80 bytes in 1 object(s)
+  summary from AddressSanitizer: 200 byte(s) leaked in 4 allocation(s)
+
+-- standalone LSan, -fsanitize=leak
+  exit status 23
+  LeakSanitizer: detected memory leaks
+  Direct leak: 48 bytes in 1 object(s)
+  Direct leak: 40 bytes in 1 object(s)
+  Direct leak: 32 bytes in 1 object(s)
+  Indirect leak: 80 bytes in 1 object(s)
+  summary from LeakSanitizer: 200 byte(s) leaked in 4 allocation(s)
