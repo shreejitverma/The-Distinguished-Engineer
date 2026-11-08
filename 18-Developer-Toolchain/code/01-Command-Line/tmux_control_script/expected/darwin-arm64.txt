@@ -1,0 +1,28 @@
+1. Socket Lifecycle: stream socket created, mode 600
+   Server daemon: active
+2. Hierarchy:
+   session s0: id=$0 windows=2
+   window 0 (win0): id=@0 panes=2
+   window 1 (win1): id=@1 panes=1
+   pane 0: id=%0 size=40x24 pty=allocated
+   pane 1: id=%1 size=39x24 pty=allocated
+   pane 0: id=%2 size=80x24 pty=allocated
+   distinct slave PTYs: 3 of 3 panes, 3 character devices
+3. Headless Automation:
+   wait-for synchronization: unblocked
+   capture-pane output: TASK_COMPLETED
+4. Environment Propagation:
+   tmux session environment: SSH_AUTH_SOCK=agent_v2.sock
+   shell BEFORE=agent_v1.sock
+   shell UNCHANGED=agent_v1.sock
+   shell AFTER=agent_v2.sock
+5. Control Mode Protocol:
+%begin <TIMESTAMP> <CMD_NUM> 0
+CONTROL_MODE_STREAM_OK
+%end <TIMESTAMP> <CMD_NUM> 0
+%exit
+6. Resilience and Recovery:
+   socket state after unlink: unlinked
+   socket state after SIGUSR1: recreated
+   survived windows over restored socket: 2
+   pane processes after restore: unchanged

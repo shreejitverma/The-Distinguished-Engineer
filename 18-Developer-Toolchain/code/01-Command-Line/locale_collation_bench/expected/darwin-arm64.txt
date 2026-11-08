@@ -1,0 +1,67 @@
+=== 1. Environment Precedence and Multibyte Character Width ===
+Precedence test (LC_ALL=C overriding LC_COLLATE and LANG):
+  Resolved locale: C
+  MB_CUR_MAX: 1
+UTF-8 locale test (LC_ALL=en_US.UTF-8):
+  Resolved locale: en_US.UTF-8
+  MB_CUR_MAX: 4
+
+=== 2. Collation Sequence vs Binary Byte Order ===
+Binary strcmp("a", "A") in ASCII order: a > A (ASCII 'a'=97 > 'A'=65)
+Locale strcoll("a", "A") in en_US.UTF-8: a < A (lowercase before uppercase)
+
+=== 3. POSIX Bracket Range Pattern Matching (fnmatch) ===
+fnmatch("[a-z]", "B") in C locale: NOMATCH
+fnmatch("[a-z]", "B") in en_US.UTF-8 locale: MATCH
+
+=== 4. Collation Key Transformation Overhead (strxfrm) ===
+strxfrm("Apple") in C locale: transformed_len=5, raw_len=5 (ratio=1.0x)
+strxfrm("Apple") in en_US.UTF-8: transformed_len=33, raw_len=5 (multi-level expansion)
+
+=== 5. CLI Tool Collation Order (sort) ===
+LC_ALL=C sort order:
+  Apple
+  Banana
+  a-1
+  a1
+  apple
+  b-1
+  b1
+  banana
+LC_ALL=en_US.UTF-8 sort order:
+  a-1
+  a1
+  apple
+  Apple
+  b-1
+  b1
+  banana
+  Banana
+
+=== 6. Relational Join Integrity Across Sort Locales (join) ===
+Matching LC_ALL=C sort and join: 4/4 rows matched
+  Apple 100 fruit
+  Banana 200 fruit
+  apple 300 fruit
+  banana 400 fruit
+Mismatched sort locales in join: 3/4 rows matched (silent data loss)
+  Apple 100 fruit
+  apple 300 fruit
+  banana 400 fruit
+Dropped record keys (computed): Banana
+join exit status with out-of-order input (BSD join on macOS): 0
+
+=== 7. Set Intersection Integrity (comm) ===
+Mismatched sort locales in comm -12: 3/4 common rows detected
+  Apple 100
+  apple 300
+  banana 400
+Dropped common records (computed): Banana 200
+comm exit status with out-of-order input (BSD comm on macOS): 0
+
+=== 8. Filesystem Unicode Normalization (macOS APFS) ===
+APFS lookup via decomposed NFD path: SUCCESS
+APFS on-disk directory record preserved form: NFC (raw bytes intact)
+In-memory raw byte equality: False
+  NFC UTF-8 bytes: 6974656d5fc3a92e747874 (11 bytes)
+  NFD UTF-8 bytes: 6974656d5f65cc812e747874 (12 bytes)

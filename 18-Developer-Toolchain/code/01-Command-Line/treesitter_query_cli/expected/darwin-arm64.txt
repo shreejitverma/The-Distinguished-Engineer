@@ -1,0 +1,86 @@
+=== Concrete Syntax Tree (S-expression) ===
+(translation_unit (comment) (function_definition type: (primitive_type) name: (identifier) parameters: (parameter_list "(" (parameter_declaration type: (primitive_type) name: (identifier)) ")") body: (compound_statement "{" (declaration type: (primitive_type) declarator: (identifier) "=" value: (number_literal) ";") (return_statement "return" argument: (identifier) ";") "}")) (function_definition type: (primitive_type) name: (identifier) parameters: (parameter_list "(" (parameter_declaration type: (primitive_type) name: (identifier)) "," (parameter_declaration type: (primitive_type) name: (identifier)) ")") body: (compound_statement "{" (declaration type: (primitive_type) declarator: (identifier) "=" value: (number_literal) ";") (return_statement "return" argument: (identifier) ";") "}")) (function_definition type: (primitive_type) name: (identifier) parameters: (parameter_list "(" (parameter_declaration type: (primitive_type) name: (identifier)) ")") body: (compound_statement "{" (declaration type: (primitive_type) declarator: (identifier) "=" value: (number_literal) ";") (return_statement "return" argument: (identifier) ";") "}")))
+
+=== Syntax Tree Node Summary ===
+Root: translation_unit [0:0 - 14:1] (280 bytes)
+  Child 0: comment [0:0 - 0:44]
+  Child 1: function_definition name='validate_input' [1:0 - 4:1]
+  Child 2: function_definition name='process_transaction' [6:0 - 9:1]
+  Child 3: function_definition name='log_audit' [11:0 - 14:1]
+
+=== Query Execution: 1 pattern(s) ===
+Match #1 (pattern 0):
+  @fn.name            [1:4 - 1:18] (identifier): "validate_input"
+Match #2 (pattern 0):
+  @fn.name            [6:4 - 6:23] (identifier): "process_transaction"
+Match #3 (pattern 0):
+  @fn.name            [11:4 - 11:13] (identifier): "log_audit"
+Total matches: 3
+
+=== Query Execution: 1 pattern(s) ===
+Match #1 (pattern 0):
+  @param.type         [1:19 - 1:22] (primitive_type): "int"
+  @param.name         [1:23 - 1:25] (identifier): "id"
+Match #2 (pattern 0):
+  @param.type         [6:24 - 6:27] (primitive_type): "int"
+  @param.name         [6:28 - 6:33] (identifier): "tx_id"
+Match #3 (pattern 0):
+  @param.type         [6:35 - 6:38] (primitive_type): "int"
+  @param.name         [6:39 - 6:48] (identifier): "tx_amount"
+Match #4 (pattern 0):
+  @param.type         [11:14 - 11:17] (primitive_type): "int"
+  @param.name         [11:18 - 11:28] (identifier): "event_code"
+Total matches: 4
+
+=== Query Execution: 1 pattern(s) ===
+Match #1 (pattern 0):
+  @fn.name            [6:4 - 6:23] (identifier): "process_transaction"
+Total matches: 1
+
+=== Query Execution: 1 pattern(s) ===
+Match #1 (pattern 0):
+  @tx_var             [6:28 - 6:33] (identifier): "tx_id"
+Match #2 (pattern 0):
+  @tx_var             [6:39 - 6:48] (identifier): "tx_amount"
+Total matches: 2
+
+QueryError: Invalid syntax: capture @tx_var inside '(identifier' must follow the closing parenthesis
+exit status: 2
+
+=== Query Execution: 1 pattern(s) ===
+Match #1 (pattern 0):
+  @function.outer     [1:0 - 4:1] (function_definition): "int validate_input(int id) ..."
+  @function.inner     [1:27 - 4:1] (compound_statement): "{     int valid = 1;     re..."
+Match #2 (pattern 0):
+  @function.outer     [6:0 - 9:1] (function_definition): "int process_transaction(int..."
+  @function.inner     [6:50 - 9:1] (compound_statement): "{     int status = 0;     r..."
+Match #3 (pattern 0):
+  @function.outer     [11:0 - 14:1] (function_definition): "int log_audit(int event_cod..."
+  @function.inner     [11:30 - 14:1] (compound_statement): "{     int logged = 1;     r..."
+Total matches: 3
+
+=== Initial Parse (Tree v1) ===
+Source size: 281 bytes
+  function: validate_input         bytes: [ 45..112] span: [1:0 - 4:1]
+  function: process_transaction    bytes: [114..206] span: [6:0 - 9:1]
+  function: log_audit              bytes: [208..280] span: [11:0 - 14:1]
+
+=== Applied TSInputEdit ===
+  start_byte:    170 (start_point: 7:4)
+  old_end_byte:  185 (old_end_point: 7:19)
+  new_end_byte:  204 (new_end_point: 7:38)
+  byte delta:    +19 bytes
+
+=== Incremental Re-parse (Tree v2) ===
+New source size: 300 bytes
+Dirty range re-lexed: bytes [112..227) -> 24 of 57 tokens
+  function: validate_input         bytes: [ 45..112] span: [1:0 - 4:1] -> REUSED (same object as v1)
+  function: process_transaction    bytes: [114..225] span: [6:0 - 9:1] -> REPARSED (new object)
+  function: log_audit              bytes: [227..299] span: [11:0 - 14:1] -> REUSED (same object as v1)
+
+=== Subtree Reuse Statistics ===
+Total top-level functions: 3
+Reused subtrees:           2 ['validate_input', 'log_audit']
+Re-parsed subtrees:        1 ['process_transaction']
+Subtree reuse ratio:       66.7%
+Tree v2 equals a from-scratch parse: yes

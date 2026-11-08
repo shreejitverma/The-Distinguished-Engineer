@@ -1,0 +1,62 @@
+=== 1. Minted User Certificate Metadata ===
+        Type: ssh-ed25519-cert-v01@openssh.com user certificate
+        Public key: ED25519-CERT SHA256:<key-fingerprint>
+        Signing CA: ED25519 SHA256:<ca-fingerprint> (using ssh-ed25519)
+        Key ID: "alice-corp-session-42"
+        Serial: 42
+        Valid: from 2026-11-01T00:00:00 to 2026-11-02T00:00:00
+        Principals: 
+                alice
+                dev-operator
+        Critical Options: (none)
+        Extensions: 
+                permit-X11-forwarding
+                permit-agent-forwarding
+                permit-port-forwarding
+                permit-pty
+                permit-user-rc
+
+=== 2. Minted Host Certificate Metadata ===
+        Type: ssh-ed25519-cert-v01@openssh.com host certificate
+        Public key: ED25519-CERT SHA256:<key-fingerprint>
+        Signing CA: ED25519 SHA256:<ca-fingerprint> (using ssh-ed25519)
+        Key ID: "bastion-corp-host-101"
+        Serial: 101
+        Valid: from 2026-11-01T00:00:00 to 2027-11-01T00:00:00
+        Principals: 
+                bastion.corp.internal
+                10.0.0.1
+        Critical Options: (none)
+        Extensions: (none)
+
+=== 3. Binary Wire Format Verification ===
+Wire protocol certificate type: ssh-ed25519-cert-v01@openssh.com
+Nonce length: 32 bytes (present)
+Public key bytes length: 32 bytes
+Serial: 42
+Role type: 1 (SSH2_CERT_TYPE_USER)
+Key ID: alice-corp-session-42
+Principals list: ['alice', 'dev-operator']
+Validity window: 1793491200 to 1793577600 (duration: 86400s)
+Critical options count: 0
+Extensions count: 5
+CA public key bytes length: 32 bytes
+Signature algorithm: ssh-ed25519
+Signature length: 64 bytes
+Ed25519 cryptographic CA signature: VALID
+
+=== 4. OpenSSH Certificate Enforcement (ssh-keygen -Y verify, pinned clock) ===
+Check 1 (user cert, principal 'alice', inside window): ACCEPT
+Check 2 (user cert, principal 'root' not on the cert): REJECT - Certificate invalid: name is not a listed principal
+Check 3 (user cert, after valid_before): REJECT - Certificate invalid: expired
+Check 4 (user cert, before valid_after): REJECT - Certificate invalid: not yet valid
+Check 5 (host cert presented as a user cert): REJECT - Certificate invalid: not a user certificate
+
+=== 5. Tampered Key ID Byte ===
+Flipped bit 0 of byte 124 (first byte of Key ID 'alice-corp-session-42')
+Pure-Python Ed25519 check of the tampered bytes: SIGNATURE_INVALID
+ssh-keygen -L on the tampered certificate: invalid key: incorrect signature
+
+=== 6. OpenSSH Key Revocation List (KRL) Enforcement ===
+Query user certificate (serial 42): REVOKED (exit 1)
+Query host certificate (serial 101): OK (exit 0)
