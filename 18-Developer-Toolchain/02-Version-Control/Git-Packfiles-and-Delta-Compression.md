@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Git Contributors, gitformat-pack - Git pack format, Git Reference Manual, Git 2.55.0, 2026, https://git-scm.com/docs/gitformat-pack"
@@ -14,6 +14,18 @@ sources:
   - "Git Contributors, builtin/pack-objects.c, git.git source at v2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/builtin/pack-objects.c"
   - "Scott Chacon and Ben Straub, Pro Git, 2nd Edition, Section 10.4 Git Internals - Packfiles, Apress, 2014, https://git-scm.com/book/en/v2/Git-Internals-Packfiles"
   - "Taylor Blau, Scaling Git's garbage collection, The GitHub Blog, 2022, https://github.blog/engineering/architecture-optimization/scaling-gits-garbage-collection/"
+  - "Nicolas Pitre and Git Contributors, diff-delta.c, git.git source at v2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/diff-delta.c"
+  - "Git Contributors, pack-objects.h (pack_name_hash, OE_DEPTH_BITS), git.git source at v2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/pack-objects.h"
+  - "Git Contributors, hash-lookup.c (bsearch_hash), git.git source at v2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/hash-lookup.c"
+  - "Git Contributors, pack-write.c (large offsets, index version), git.git source at v2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/pack-write.c"
+  - "Git Contributors, repack-geometry.c (geometric split), git.git source at v2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/repack-geometry.c"
+  - "Git Contributors, Documentation/config/pack.adoc, gc.adoc, repack.adoc, maintenance.adoc, extensions.adoc, git.git at v2.55.0, 2026, https://github.com/git/git/tree/v2.55.0/Documentation/config"
+  - "Git Contributors, git-gc, git-init (object-format-disclaimer), and git-index-pack, Git Reference Manual, Git 2.55.0, 2026, https://github.com/git/git/blob/v2.55.0/Documentation/object-format-disclaimer.adoc"
+  - "Git Contributors, Release notes for Git 2.32, 2.34, 2.37, 2.49, 2.51, 2.52, and 2.54, git.git Documentation/RelNotes at v2.55.0, 2026, https://github.com/git/git/tree/v2.55.0/Documentation/RelNotes"
+  - "GitoxideLabs, gix-pack index/access.rs (lookup, fanout bounds and binary search), gitoxide main branch, 2026, https://github.com/GitoxideLabs/gitoxide/blob/main/gix-pack/src/index/access.rs"
+  - "Git Contributors, git-repack manual page (--geometric), git.git at v2.31.0 and v2.32.0, 2021, https://github.com/git/git/blob/v2.32.0/Documentation/git-repack.txt"
+  - "GitoxideLabs, gix-pack and gix-zlib Cargo.toml (memmap2, crc32fast, zlib-rs, sirocco), gitoxide main branch, 2026, https://github.com/GitoxideLabs/gitoxide/blob/main/gix-zlib/Cargo.toml"
+  - "Jelmer Vernooij and Dulwich contributors, dulwich/pack.py (bisect_find_sha, mmap, binascii.crc32), Dulwich main branch, 2026, https://github.com/jelmer/dulwich/blob/main/dulwich/pack.py"
 ---
 
 # Git Packfiles and Delta Compression
@@ -180,7 +192,7 @@ It collects the objects to pack, sorts them, and slides a window over the sorted
 5. Size, largest first.
 6. Original list position, which the source comments as "newest first".
 
-The default name-hash (version 1) is `pack_name_hash()`:
+The default name-hash (version 1) is `pack_name_hash()` in `pack-objects.h` (source comment omitted):
 
 ```c
 static inline uint32_t pack_name_hash(const char *name)
@@ -205,11 +217,11 @@ The same property causes collisions in trees with many files that share a basena
 
 #### The window
 
-`find_deltas()` keeps the last `pack.window` objects in a circular array and tries each new object as a target against the other `pack.window - 1` entries, which are the same type, usually the same name-hash, and usually larger.
+`prepare_pack()` calls `ll_find_deltas()` with `window + 1`, so `find_deltas()` keeps the last `pack.window + 1` objects in a circular array and tries each new object as a target against the other `pack.window` entries, which are the same type, usually the same name-hash, and usually larger.
 `try_delta()` skips a pair when:
 
 - The candidate base is already at the maximum depth.
-- The size difference alone exceeds the size budget, which starts at `target_size / 2 - hash_size` and shrinks as the base's depth approaches the maximum.
+- The size difference alone reaches the size budget, which is `target_size / 2 - hash_size` while the target has no delta yet and the size of its best delta so far once it has one, scaled down as the base's depth approaches the maximum.
 - The target is smaller than 1/32 of the base.
 - Delta islands are enabled and the pair is not in the same island.
 
@@ -227,7 +239,7 @@ The newest revision of a file tends to be stored whole, so checkouts of recent h
 Index version 2 dates from Git 1.5.2 and is the default; Git forces version 2 whenever the pack is larger than 2 GB, whatever `pack.indexVersion` says.
 For hash size H and L large offsets, its layout is:
 
-- A 4-byte magic `\377tOc` (`0xff744f63`), chosen because it is an impossible `fanout[0]` value in a version 1 index, which starts directly with the fanout.
+- A 4-byte magic `\377tOc` (`0xff744f63`), chosen because it is "an unreasonable fanout[0] value" (`gitformat-pack`) in a version 1 index, which starts directly with the fanout.
 - A 4-byte version number, 2.
 - A 256-entry fanout table of 4-byte network-order counts, where `fanout[i]` is the number of objects whose first name byte is at most `i`, so `fanout[255]` is N.
 - N sorted object names of H bytes each, packed together "without offset values to reduce the cache footprint of the binary search".
@@ -290,9 +302,9 @@ Git itself is written in C, and C++ tools usually reach packs through Git or the
 | Concern | C (git v2.55.0) | Python (this lab; Dulwich) | Rust (gitoxide `gix-pack`) |
 | :--- | :--- | :--- | :--- |
 | Index access | `xmmap()` of the whole `.idx` in `packfile.c` | Lab reads the file into `bytes`; Dulwich uses `mmap` when available | `memmap2` crate |
-| Name lookup | `bsearch_hash()`: fanout bounds, then binary search with a fixed stride | Lab's `find_offset()`: fanout bounds, then binary search over the raw 20-byte name table, no `dict`; Dulwich has `bisect_find_sha()` | Binary search over the mapped name table |
+| Name lookup | `bsearch_hash()`: fanout bounds, then binary search with a fixed stride | Lab's `find_offset()`: fanout bounds, then binary search over the raw 20-byte name table, no `dict`; Dulwich has `bisect_find_sha()` | `lookup()` in `gix-pack/src/index/access.rs`: fanout bounds, then binary search over the mapped name table |
 | Pack access | Sliding `mmap` windows sized by `core.packedGitWindowSize` | Lab slices the whole pack held in memory | `memmap2` crate |
-| Inflate | zlib through Git's `git_inflate()` wrappers | `zlib.decompressobj()` | `gix-zlib`, built on the pure-Rust `zlib-rs` crate |
+| Inflate | zlib through Git's `git_inflate()` wrappers | `zlib.decompressobj()` | `gix-zlib`, built on the pure-Rust `zlib-rs` crate, with an optional `sirocco` backend |
 | Delta apply | `patch_delta()`: allocate exact target size, `memcpy` per instruction, bounds-check each copy | `bytearray.extend()` per instruction, size checks at start and end | Rust buffer copies into a preallocated `Vec<u8>` |
 | CRC32 | zlib `crc32()` | `zlib.crc32()` in the lab; `binascii.crc32()` in Dulwich | `crc32fast` crate |
 
@@ -312,12 +324,18 @@ One thread keeps the delta search, and therefore the pack bytes, reproducible.
 2. It verifies both trailers before trusting either file: the pack's trailing SHA-1 over all preceding pack bytes, the index's trailing SHA-1 over all preceding index bytes, and the index's copy of the pack checksum against the pack's own; any failure raises an error.
 3. It rejects a fanout table that is not monotonic, then looks names up with `find_offset()`, which narrows the range with the fanout entries for the first name byte and binary searches the raw name table, so no name-to-offset `dict` is built.
 4. It checks the `.pack` header for `PACK`, version 2, and an object count equal to `fanout[255]`.
-5. For every entry it decodes the type and size header, decodes the `OBJ_OFS_DELTA` distance or reads the `OBJ_REF_DELTA` base name (resolved through `find_offset()`), inflates the payload, and computes the CRC32 of the raw entry bytes.
-6. It resolves delta chains iteratively: it walks from the target down to a whole object or an already rebuilt one, then applies the collected deltas back up, so chain depth never touches the Python recursion limit.
-7. It applies deltas with the copy rules above, including size3 and the `0x10000` rule, rejects opcode `0x00`, and checks both the base size and the target size.
+5. For every entry it decodes the type and size header, decodes the `OBJ_OFS_DELTA` distance or reads the `OBJ_REF_DELTA` base name (resolved through `find_offset()`), inflates the payload in 4 KiB slices, requires the inflated length to equal the header size, and computes the CRC32 of the raw entry bytes.
+6. It resolves delta chains iteratively: it walks from the target down to a whole object or an already rebuilt one, then applies the collected deltas back up, so chain depth never touches the Python recursion limit; it also raises on a delta cycle and on a chain longer than 4,095, Git's `--depth` ceiling.
+7. It applies deltas with the copy rules above, including size3 and the `0x10000` rule, rejects opcode `0x00`, bounds-checks every copy against the base and every insert against the delta, and checks both the base size and the target size.
 8. It raises an error unless every entry's CRC32 matches the index and every rebuilt object's SHA-1 of `"<type> <size>\0" + body` equals its name, so a clean run means all 21 objects passed both checks.
 9. It prints type counts and a depth histogram, then feeds every name to `git cat-file --batch` and compares each rebuilt object's type and bytes with Git's own output, which matched for 21 of 21 objects.
 10. Last, it resolves three fixed blobs through `find_offset()` and compares their rebuilt sizes with `git cat-file -s`.
+
+`run.sh` then runs `faults.py`, which prints nothing and fails the lab if any defence above stops firing.
+It breaks one rule at a time in a copy of the lab's pack (each trailer, the fanout order, the pack object count, one index CRC32) and asserts the specific error for each.
+It also parses hand-built packs: a REF_DELTA cycle, a chain of 4,098 deltas, the same chain with a mid-chain object sorted first so half of it is already cached when the deepest object is walked (the cap counts the cached depth too), an entry whose header size lies about its inflated length, and an index whose offsets sit in the large-offset table (which `git cat-file` must also read).
+A sixth pack holds 1,200 similar blobs repacked with `repack.useDeltaBaseOffset=false`, so it contains only REF_DELTA entries and its biggest first-byte bucket holds at least 8 names, which makes the name lookup run a real binary search; the lab's own 21 objects rarely put two names in one bucket.
+The silent checks add no lines to the output below.
 
 ```bash
 cd code/02-Version-Control/packfile_parser
@@ -406,7 +424,7 @@ The tools Git provides for these problems, as of Git 2.55.0:
 
 | Tool | What it does | Introduced |
 | :--- | :--- | :--- |
-| `git repack --geometric=<factor>` | Rolls up only the smallest packs so each remaining pack holds at least `<factor>` times the objects of the next smaller one | Documented in Git 2.55.0 |
+| `git repack --geometric=<factor>` | Rolls up only the smallest packs so each remaining pack holds at least `<factor>` times the objects of the next smaller one | Git 2.32 (absent from the v2.31.0 manual page, present in v2.32.0 and its release notes) |
 | Multi-pack index and its bitmaps | One index over many packs, and reachability bitmaps that span them | MIDX bitmaps in Git 2.34 |
 | Cruft packs | Unreachable objects in one pack with a `.mtimes` table of 4-byte epoch seconds; `gc.cruftPacks` defaults to true | Git 2.37 |
 | `git maintenance` geometric strategy | Geometric repacks plus auxiliary structures, with a cruft pack on an all-into-one repack | Git 2.52, default since Git 2.54 |

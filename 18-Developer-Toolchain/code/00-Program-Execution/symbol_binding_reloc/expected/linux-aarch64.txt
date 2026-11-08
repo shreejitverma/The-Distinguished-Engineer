@@ -1,0 +1,38 @@
+=== 1. Archive Member Extraction Order ===
+Linking: main.o libbeta.a libalpha.a
+Result: FAIL (undefined reference to 'beta')
+Linking: main.o libalpha.a libbeta.a
+Result: SUCCESS (exit code 42)
+Linking: main.o --start-group libbeta.a libalpha.a --end-group
+Result: SUCCESS (exit code 42)
+
+=== 2. Symbol Binding and Precedence Rules ===
+Weak symbol overridden by strong symbol:
+Result: SUCCESS (priority = 20)
+Two conflicting strong symbols:
+Result: FAIL (multiple definition of 'priority')
+Common symbols with -fcommon:
+Result: SUCCESS (merged common symbol size = 128 bytes in .bss)
+Common symbols with -fno-common:
+Result: FAIL (multiple definition of 'shared_comm')
+
+=== 3. Symbol Visibility and Symbol Tables ===
+Relocatable object .symtab:
+sym_default: bind=GLOBAL, vis=DEFAULT
+sym_hidden: bind=GLOBAL, vis=HIDDEN
+sym_protected: bind=GLOBAL, vis=PROTECTED
+Shared library .symtab:
+sym_default: bind=GLOBAL, vis=DEFAULT
+sym_hidden: bind=LOCAL, vis=DEFAULT
+sym_protected: bind=GLOBAL, vis=PROTECTED
+Shared library .dynsym (exported for dynamic linking):
+sym_default: bind=GLOBAL, vis=DEFAULT
+sym_hidden: ABSENT
+sym_protected: bind=GLOBAL, vis=PROTECTED
+
+=== 4. Static Relocation Calculations ===
+Architecture: aarch64
+Relocation R_AARCH64_ABS64: S + A -> MATCH
+Relocation R_AARCH64_ADR_PREL_PG_HI21: Page(S + A) - Page(P) -> MATCH
+Relocation R_AARCH64_ADD_ABS_LO12_NC: (S + A) & 0xFFF -> MATCH
+Relocation R_AARCH64_CALL26: S + A - P -> MATCH

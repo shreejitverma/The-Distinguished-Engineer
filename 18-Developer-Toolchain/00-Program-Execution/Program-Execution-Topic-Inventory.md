@@ -81,6 +81,13 @@ Curriculum coverage matrix mapping authoritative execution specifications to own
 | BOLT README: Post-Link Binary Optimization (LBR Profiling, perf2bolt, Basic Block Reordering) | [[Linkers-LTO-PGO-AutoFDO-and-BOLT]] | Use | none |
 | mold & lld Documentation: Modern High-Speed Linker Architectures, Concurrency, Memory Mapping | [[Linkers-LTO-PGO-AutoFDO-and-BOLT]] | Explain | none |
 | Compiler Explorer Documentation: Interactive Assembly Inspection, IR/AST Views, Optimization Remarks | [[Reading-Assembly-and-Optimization-Remarks]] | Use | none |
+| Concept: Symbol Versioning, IFUNC, and Linker Scripts | [[Symbol-Versioning-IFUNC-and-Linker-Scripts]] | Explain | none |
+| Concept: Compiler Pipeline and Debuggability | [[Compiler-Pipeline-and-Debuggability]] | Explain | none |
+| Concept: macOS vs Linux Toolchain Mechanics | [[macOS-vs-Linux-Toolchain-Mechanics]] | Explain | none |
+| Playbook: Program Execution Decision Records | [[Program-Execution-Decision-Records]] | Decide at Scale | none |
+| Drill: Drill: Broken Rpath and Symbol Interposition | [[Drill-Program-Execution-Broken-Rpath-and-Symbol-Interposition]] | Debug | none |
+| Drill: Drill: Stripped Binary Crash and Split DWARF | [[Drill-Program-Execution-Stripped-Binary-Crash-and-Split-DWARF]] | Debug | none |
+| Drill: Drill: Cross-DSO Exception and RTTI Failure | [[Drill-Program-Execution-Cross-DSO-Exception-and-RTTI-Failure]] | Debug | none |
 
 ## Out of scope
 

@@ -8,9 +8,9 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Check | Result |
 | :--- | ---: |
-| Tracked files | 17435 |
+| Tracked files | 17465 |
 | Markdown notes | 2944 |
-| Internal links checked | 22950 |
+| Internal links checked | 22977 |
 | Broken links (links into private locations are not counted) | 0 |
 | Wikilink aliases that split a table cell | 0 |
 | Broken wikilinks fixable by unique basename | 0 |
@@ -51,7 +51,7 @@ Re-run the script after every structural change; this file is its output and sho
 | `15-Technical-Whitepapers` | 44 | 44 | 0 | 0 | 0 | 0.3 | 2026-10-25 |
 | `16-Interview-Command-Center` | 51 | 51 | 0 | 0 | 0 | 0.1 | 2026-10-25 |
 | `17-Cloud-AI-Engineering` | 162 | 162 | 0 | 0 | 0 | 9.8 | 2026-11-01 |
-| `18-Developer-Toolchain` | 384 | 343 | 24 | 0 | 17 | 1.3 | 2026-11-08 |
+| `18-Developer-Toolchain` | 414 | 343 | 50 | 0 | 21 | 1.3 | 2026-11-08 |
 | `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-05 |
 | `CS-Subjects` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
 | `tools` | 26 | 1 | 23 | 0 | 2 | 0.2 | 2026-11-01 |

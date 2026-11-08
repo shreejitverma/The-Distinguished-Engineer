@@ -1,0 +1,30 @@
+[dso2] constructor priority 101
+[dso] constructor priority 101
+[dso] constructor priority 200
+[dso] constructor unnumbered
+[dso] constructor priority 65535
+[exe] constructor priority 101 (TLS canary: 0x1337)
+[exe] constructor priority 200 (TLS canary: 0x1338)
+[exe] constructor priority default (TLS canary: 0x1339)
+[main] entry reached (TLS canary: 0x133a)
+[main] new thread sees initial TLS image: 0x1337 (main thread: 0x133a)
+auxv AT_PAGESZ matches sysconf: true (non-zero: true)
+auxv AT_ENTRY equals &_start: true
+auxv AT_BASE non-zero: true (ELF header valid: true, e_type is ET_DYN: true)
+auxv AT_PHDR valid: true (phnum > 0: true, phent == sizeof(Elf64_Phdr): true)
+auxv program headers contain LOAD: true, INTERP: true, DYNAMIC: true, TLS: true
+auxv AT_RANDOM has at least 8 distinct bytes of 16: true
+auxv AT_SYSINFO_EHDR (vDSO) valid: true (ELF header valid: true)
+/proc/self/auxv matches getauxval for all 9 checked types: true
+auxv AT_SECURE record present in /proc/self/auxv: true (value: 0)
+[main] exiting
+[atexit] registered during main
+[atexit] registered during exe constructor
+[exe] destructor priority default
+[exe] destructor priority 200
+[exe] destructor priority 101
+[dso] destructor priority 65535
+[dso] destructor unnumbered
+[dso] destructor priority 200
+[dso] destructor priority 101
+[dso2] destructor priority 101
