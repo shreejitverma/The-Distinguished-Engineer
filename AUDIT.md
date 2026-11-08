@@ -8,9 +8,9 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Check | Result |
 | :--- | ---: |
-| Tracked files | 17465 |
+| Tracked files | 17505 |
 | Markdown notes | 2944 |
-| Internal links checked | 22977 |
+| Internal links checked | 23085 |
 | Broken links (links into private locations are not counted) | 0 |
 | Wikilink aliases that split a table cell | 0 |
 | Broken wikilinks fixable by unique basename | 0 |
@@ -30,7 +30,7 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Folder | Files | Notes | Code | Papers | Other | MB | Last touched |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-06 |
+| `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-08 |
 | `.github` | 1 | 0 | 0 | 0 | 1 | 0.0 | 2026-11-05 |
 | `.obsidian` | 45 | 0 | 0 | 0 | 45 | 0.0 | 2026-10-21 |
 | `00-Start-Here` | 6 | 5 | 0 | 0 | 1 | 0.0 | 2026-10-25 |
@@ -51,7 +51,7 @@ Re-run the script after every structural change; this file is its output and sho
 | `15-Technical-Whitepapers` | 44 | 44 | 0 | 0 | 0 | 0.3 | 2026-10-25 |
 | `16-Interview-Command-Center` | 51 | 51 | 0 | 0 | 0 | 0.1 | 2026-10-25 |
 | `17-Cloud-AI-Engineering` | 162 | 162 | 0 | 0 | 0 | 9.8 | 2026-11-01 |
-| `18-Developer-Toolchain` | 414 | 343 | 50 | 0 | 21 | 1.3 | 2026-11-08 |
+| `18-Developer-Toolchain` | 454 | 343 | 77 | 0 | 34 | 2.4 | 2026-11-08 |
 | `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-05 |
 | `CS-Subjects` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
 | `tools` | 26 | 1 | 23 | 0 | 2 | 0.2 | 2026-11-01 |
@@ -77,6 +77,7 @@ Re-run the script after every structural change; this file is its output and sho
 - **interview**: `13-Agentic-AI/Agentic-Harness/interview`, `14-Low-Latency-Systems/Interview`
 - **appendice**: `13-Agentic-AI/Agentic_AI_Zero_to_Godhood/Appendices`, `17-Cloud-AI-Engineering/Appendices`
 - **execution program**: `18-Developer-Toolchain/00-Program-Execution`, `18-Developer-Toolchain/code/00-Program-Execution`
+- **command line**: `18-Developer-Toolchain/01-Command-Line`, `18-Developer-Toolchain/code/01-Command-Line`
 - **control version**: `18-Developer-Toolchain/02-Version-Control`, `18-Developer-Toolchain/code/02-Version-Control`
 - **packaging release**: `18-Developer-Toolchain/07-Packaging-and-Release`, `18-Developer-Toolchain/code/07-Packaging-and-Release`
 
