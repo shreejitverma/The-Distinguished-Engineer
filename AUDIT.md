@@ -1,6 +1,6 @@
 # Vault Audit
 
-Generated 2026-11-05 by `python3 tools/audit_vault.py` over git-tracked files.
+Generated 2026-11-08 by `python3 tools/audit_vault.py` over git-tracked files.
 Re-run the script after every structural change; this file is its output and should not be hand-edited.
 0 files in private locations (`tools/private_paths.py`) are excluded; `tools/audit_pii.py` inventories them into a private path.
 
@@ -8,9 +8,9 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Check | Result |
 | :--- | ---: |
-| Tracked files | 17417 |
+| Tracked files | 17465 |
 | Markdown notes | 2944 |
-| Internal links checked | 22926 |
+| Internal links checked | 22977 |
 | Broken links (links into private locations are not counted) | 0 |
 | Wikilink aliases that split a table cell | 0 |
 | Broken wikilinks fixable by unique basename | 0 |
@@ -30,11 +30,11 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Folder | Files | Notes | Code | Papers | Other | MB | Last touched |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-05 |
+| `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-06 |
 | `.github` | 1 | 0 | 0 | 0 | 1 | 0.0 | 2026-11-05 |
 | `.obsidian` | 45 | 0 | 0 | 0 | 45 | 0.0 | 2026-10-21 |
 | `00-Start-Here` | 6 | 5 | 0 | 0 | 1 | 0.0 | 2026-10-25 |
-| `01-CS-Foundations` | 507 | 262 | 141 | 0 | 104 | 4.7 | 2026-11-05 |
+| `01-CS-Foundations` | 507 | 262 | 141 | 0 | 104 | 4.7 | 2026-11-06 |
 | `02-Programming-Languages` | 5828 | 818 | 2860 | 466 | 1684 | 112.2 | 2026-11-01 |
 | `03-Data-Structures-Algorithms` | 8293 | 185 | 7988 | 0 | 120 | 17.3 | 2026-10-25 |
 | `04-System-Design` | 991 | 177 | 657 | 0 | 157 | 9.8 | 2026-10-25 |
@@ -46,12 +46,12 @@ Re-run the script after every structural change; this file is its output and sho
 | `10-Development-Practices` | 4 | 2 | 0 | 0 | 2 | 0.0 | 2026-10-25 |
 | `11-Security-And-Cryptography` | 3 | 2 | 1 | 0 | 0 | 0.0 | 2026-10-25 |
 | `12-Performance-Engineering` | 4 | 2 | 2 | 0 | 0 | 0.0 | 2026-10-25 |
-| `13-Agentic-AI` | 185 | 185 | 0 | 0 | 0 | 3.4 | 2026-11-05 |
+| `13-Agentic-AI` | 185 | 185 | 0 | 0 | 0 | 3.4 | 2026-11-06 |
 | `14-Low-Latency-Systems` | 262 | 262 | 0 | 0 | 0 | 1.7 | 2026-10-25 |
 | `15-Technical-Whitepapers` | 44 | 44 | 0 | 0 | 0 | 0.3 | 2026-10-25 |
 | `16-Interview-Command-Center` | 51 | 51 | 0 | 0 | 0 | 0.1 | 2026-10-25 |
 | `17-Cloud-AI-Engineering` | 162 | 162 | 0 | 0 | 0 | 9.8 | 2026-11-01 |
-| `18-Developer-Toolchain` | 366 | 343 | 12 | 0 | 11 | 0.8 | 2026-11-05 |
+| `18-Developer-Toolchain` | 414 | 343 | 50 | 0 | 21 | 1.3 | 2026-11-08 |
 | `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-05 |
 | `CS-Subjects` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
 | `tools` | 26 | 1 | 23 | 0 | 2 | 0.2 | 2026-11-01 |
@@ -76,6 +76,7 @@ Re-run the script after every structural change; this file is its output and sho
 - **profiling**: `12-Performance-Engineering/02-Profiling`, `18-Developer-Toolchain/05-Profiling`
 - **interview**: `13-Agentic-AI/Agentic-Harness/interview`, `14-Low-Latency-Systems/Interview`
 - **appendice**: `13-Agentic-AI/Agentic_AI_Zero_to_Godhood/Appendices`, `17-Cloud-AI-Engineering/Appendices`
+- **execution program**: `18-Developer-Toolchain/00-Program-Execution`, `18-Developer-Toolchain/code/00-Program-Execution`
 - **control version**: `18-Developer-Toolchain/02-Version-Control`, `18-Developer-Toolchain/code/02-Version-Control`
 - **packaging release**: `18-Developer-Toolchain/07-Packaging-and-Release`, `18-Developer-Toolchain/code/07-Packaging-and-Release`
 
