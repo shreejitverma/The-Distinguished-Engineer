@@ -1,0 +1,81 @@
+=== DWARF Line Table Parser Verification ===
+--- Object file: test_program_v4.o ---
+ELF section: .debug_line (size: 99 bytes)
+Header:
+  DWARF Version: 4
+  Prologue length: 38
+  Min instruction length: 4
+  Max ops per instruction: 1
+  Default is_stmt: 1
+  Line base: -5
+  Line range: 14
+  Opcode base: 13
+  Standard opcode lengths: [0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1]
+  Directories: 0 entries
+  Files: 1 entries
+    [1] test_program.c (dir=0)
+State Machine Execution:
+  Decoded instructions: 27
+  Emitted matrix rows: 14
+  Address range: 0x0 - 0x7c (124 bytes)
+  Line span: 1 - 16
+Matrix Row Spot Checks:
+  Row  0: addr=0x00 line= 1 col=22 is_stmt=1
+  Row  1: addr=0x08 line= 2 col= 9 is_stmt=1
+  Row  3: addr=0x20 line= 4 col= 8 is_stmt=1
+  Row  6: addr=0x48 line= 9 col=12 is_stmt=1
+  Row 13: addr=0x7c line=16 col= 1 is_stmt=1 end_seq=1
+Cross-Tool Verification:
+  GNU readelf decoded rows: 14
+  Rows equal on (file, line, address, is_stmt): 14 of 14
+Integrity and Error Checks:
+  Rejects truncated header: PASS
+  Rejects zero line_range: PASS
+  Rejects unit_length past section: PASS
+  Rejects unknown version: PASS
+  Rejects VLIW max_ops: PASS
+  Rejects header_length off by one: PASS
+  Rejects bad ELF magic: PASS
+  Rejects 32-bit ELF: PASS
+  Rejects big-endian ELF: PASS
+--- Object file: test_program_v5.o ---
+ELF section: .debug_line (size: 105 bytes)
+Header:
+  DWARF Version: 5
+  Prologue length: 42
+  Min instruction length: 4
+  Max ops per instruction: 1
+  Default is_stmt: 1
+  Line base: -5
+  Line range: 14
+  Opcode base: 13
+  Standard opcode lengths: [0, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1]
+  Directories: 1 entries
+  Files: 2 entries
+    [0] test_program.c (dir=0)
+    [1] test_program.c (dir=0)
+State Machine Execution:
+  Decoded instructions: 27
+  Emitted matrix rows: 14
+  Address range: 0x0 - 0x7c (124 bytes)
+  Line span: 1 - 16
+Matrix Row Spot Checks:
+  Row  0: addr=0x00 line= 1 col=22 is_stmt=1
+  Row  1: addr=0x08 line= 2 col= 9 is_stmt=1
+  Row  3: addr=0x20 line= 4 col= 8 is_stmt=1
+  Row  6: addr=0x48 line= 9 col=12 is_stmt=1
+  Row 13: addr=0x7c line=16 col= 1 is_stmt=1 end_seq=1
+Cross-Tool Verification:
+  GNU readelf decoded rows: 14
+  Rows equal on (file, line, address, is_stmt): 14 of 14
+Integrity and Error Checks:
+  Rejects truncated header: PASS
+  Rejects zero line_range: PASS
+  Rejects unit_length past section: PASS
+  Rejects unknown version: PASS
+  Rejects VLIW max_ops: PASS
+  Rejects header_length off by one: PASS
+  Rejects bad ELF magic: PASS
+  Rejects 32-bit ELF: PASS
+  Rejects big-endian ELF: PASS
+Verification Result: PASS
