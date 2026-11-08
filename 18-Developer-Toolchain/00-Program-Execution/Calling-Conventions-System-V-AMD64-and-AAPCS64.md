@@ -5,7 +5,7 @@ level:
 status: solid
 last_reviewed:
 sources:
-  - "H.J. Lu, Michael Matz, Milian Wolff, Jan Hubicka, Andreas Jaeger, and Mark Mitchell, System V Application Binary Interface: AMD64 Architecture Processor Supplement (Draft Version 1.0), GitLab psABI Group, 2026, https://gitlab.com/x86-psABIs/x86-64-ABI"
+  - "H.J. Lu, Michael Matz, Milind Girkar, Jan Hubicka, Andreas Jaeger, and Mark Mitchell, System V Application Binary Interface: AMD64 Architecture Processor Supplement (Draft Version 1.0), GitLab psABI Group, 2026, https://gitlab.com/x86-psABIs/x86-64-ABI"
   - "Arm Limited, Procedure Call Standard for the Arm 64-bit Architecture (AAPCS64), Release 2026Q3, Arm Software, 2026, https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst"
   - "Arm Limited, ELF for the Arm 64-bit Architecture (AAELF64), Arm Software, 2025, https://github.com/ARM-software/abi-aa/blob/main/aaelf64/aaelf64.rst"
   - "The Santa Cruz Operation, System V Application Binary Interface - Edition 4.1 (gABI), SCO, 1997, https://refspecs.linuxbase.org/elf/gabi4+/contents.html"
@@ -24,7 +24,6 @@ sources:
   - "Felix Cloutier, x86 reference: VZEROUPPER (from Intel SDM), 2026, https://www.felixcloutier.com/x86/vzeroupper"
   - "Python Software Foundation, ctypes: Calling variadic functions, Python 3 documentation, 2026, https://docs.python.org/3/library/ctypes.html"
   - "Linux kernel mailing list, kselftest/arm64: Only enumerate power of two VLs in syscall-abi (references Arm known issue C215, DDI0487I.a), 2022, https://lkml.rescloud.iu.edu/2212.3/01122.html"
-  - "Intel Community, What is the status of VZEROUPPER use? (Skylake transition behavior), 2016, https://community.intel.com/t5/Intel-ISA-Extensions/What-is-the-status-of-VZEROUPPER-use/m-p/1098375"
   - "Android Open Source Project, ShadowCallStack, Android Documentation, 2026, https://source.android.com/docs/security/test/shadow-call-stack"
   - "LLVM Project, ShadowCallStack, Clang documentation, 2026, https://clang.llvm.org/docs/ShadowCallStack.html"
   - "Fedora Project, Changes/fno-omit-frame-pointer, Fedora Linux 38 change proposal, 2022, https://fedoraproject.org/wiki/Changes/fno-omit-frame-pointer"

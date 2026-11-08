@@ -8,7 +8,7 @@ sources:
   - "DWARF Debugging Information Format Committee, DWARF Debugging Information Format Specification Version 5.0, DWARF Standards Committee, 2017, https://dwarfstd.org/doc/DWARF5.pdf"
   - "LLVM Project, Source Level Debugging with LLVM, LLVM Project Reference Manual, 2026, https://llvm.org/docs/SourceLevelDebugging.html"
   - "LLVM Project, How to Update Debug Info: A Guide for LLVM Pass Authors, LLVM Project Reference Manual, 2026, https://llvm.org/docs/HowToUpdateDebugInfo.html"
-  - "LLVM Project, Debug Info Migration: From Intrinsics to Records (RemoveDIs), LLVM Project Reference Manual, 2026, https://llvm.org/docs/DebugInfoMigration.html"
+  - "LLVM Project, Debug info migration: From intrinsics to records (RemoveDIs), LLVM Project Reference Manual, 2026, https://llvm.org/docs/RemoveDIsDebugInfo.html"
   - "Free Software Foundation, GCC Online Documentation: Options That Control Optimization, Free Software Foundation, 2026, https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html"
   - "Free Software Foundation, GCC Online Documentation: Options for Debugging Your Program, Free Software Foundation, 2026, https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html"
   - "Alexandre Oliva, The Quest for Cheaper Variable Tracking in GCC, GNU Tools Cauldron, 2012, https://www.fsfla.org/~lxoliva/papers/vta/slides-cauldron2012.pdf"

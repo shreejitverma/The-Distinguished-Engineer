@@ -100,8 +100,6 @@ def parse_dies(text: str) -> list[Die]:
         if a:
             cur.attrs[a.group(1)] = a.group(2)
             in_loc = a.group(1) == "DW_AT_location"
-            if in_loc and "loclist" in a.group(2):
-                continue
             continue
         if in_loc and RANGE_RE.search(line):
             cur.loc_lines.append(line.strip().rstrip(")"))

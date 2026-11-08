@@ -490,6 +490,7 @@ The lab builds a shared library `libdummy.so`, six test binaries, and (on AArch6
 
 The runtime test dynamically parses its own ELF headers using `dl_iterate_phdr(3)` to locate the exact Global Offset Table slot assigned to the exported function `target_func()` and global pointer `target_data_ptr`.
 It forks child processes and attempts memory writes against the GOT entries.
+It calls `fflush(stdout)` before every `fork()`, because under the harness stdout is a pipe and fully buffered, so an unflushed line would be copied into the child and printed twice.
 The `stack-exec` mode copies a bare `ret` instruction into a stack buffer and calls it in a child process.
 Section 5 only runs on AArch64, because the harness has no architecture token in `# requires:`; other architectures print a skip line.
 
@@ -529,14 +530,12 @@ GOT write target_func: caught signal 11 (SIGSEGV)
 Partial RELRO (target_func):
 Original target_func
 Hijacked target_func execution!
-Original target_func
 GOT write target_func: succeeded (writable GOT)
 Partial RELRO (target_data_ptr):
 GOT write target_data_ptr: caught signal 11 (SIGSEGV)
 No RELRO (target_func):
 Original target_func
 Hijacked target_func execution!
-Original target_func
 GOT write target_func: succeeded (writable GOT)
 === 5. Branch Protection (BTI and PAC) Properties ===
 Object, -mbranch-protection=none: no AArch64 feature note

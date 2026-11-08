@@ -7,9 +7,8 @@ last_reviewed:
 sources:
   - "DWARF Debugging Information Format Committee, DWARF Debugging Information Format Specification Version 4, 2010, https://dwarfstd.org/doc/DWARF4.pdf"
   - "DWARF Debugging Information Format Committee, DWARF Debugging Information Format Specification Version 5, 2017, https://dwarfstd.org/doc/DWARF5.pdf"
-  - "DWARF Debugging Information Format Committee, DWARF Version 6 Working Draft and Issues List, 2026, https://dwarfstd.org/issues.php"
+  - "DWARF Debugging Information Format Committee, Issues for DWARF Version 6, 2026, https://dwarfstd.org/issues.html"
   - "Cary Coutant, Split DWARF (DWARF Extensions for Separate Debug Information), DWARF Committee, 2012, https://gcc.gnu.org/wiki/DebugFission"
-  - "Frank Ch. Eigler and elfutils contributors, debuginfod - compile-id-indexed debuginfo server, elfutils 0.178 manual, 2019, https://sourceware.org/elfutils/debuginfod/"
   - "Apple Inc., dsymutil - manipulate archived DWARF debug info, macOS Developer Tools Manual, Apple Inc., 2026, https://keith.github.io/xcode-man-pages/dsymutil.1.html"
   - "LLVM Project, DWARF Debug Information in LLVM, LLVM Project Documentation, 2026, https://llvm.org/docs/SourceLevelDebugging.html"
   - "Free Software Foundation, Debugging Options in GCC 14, GCC Online Documentation, 2026, https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html"
@@ -518,10 +517,11 @@ The companion lab `code/00-Program-Execution/dwarf_line_parser/` implements a co
    The parser adds the addend to the stored value before reading the name from `.debug_line_str`.
 
 3. **Line Header Decoding:**
-   `parse_debug_line()` reads `unit_length`, accepts `version` 2 through 5, reads the DWARF 5 `address_size` and `segment_selector_size` bytes when present, reads `header_length`, and parses the state machine parameters:
+   `parse_debug_line()` reads `unit_length`, accepts `version` 4 or 5, reads the DWARF 5 `address_size` and `segment_selector_size` bytes when present, reads `header_length`, and parses the state machine parameters:
    `min_inst_len`, `max_ops`, `default_is_stmt`, `line_base`, `line_range`, `opcode_base`, and `standard_opcode_lengths`.
-   For versions 2 to 4 it reads the null-terminated directory and file tables; for version 5 it reads the entry-format descriptions (content type and form pairs) and then the directory and file entries.
+   For version 4 it reads the null-terminated directory and file tables; for version 5 it reads the entry-format descriptions (content type and form pairs) and then the directory and file entries.
    It then requires the tables to end exactly at the byte that `header_length` names, and rejects 64-bit DWARF, `max_ops` other than 1, and unknown forms rather than guessing.
+   Versions 2 and 3 are rejected too: their headers have no `maximum_operations_per_instruction` byte, so every later field sits one byte earlier than in version 4.
 
 4. **Virtual State Machine Execution:**
    Starting at `header_end`, the parser initializes the virtual registers:

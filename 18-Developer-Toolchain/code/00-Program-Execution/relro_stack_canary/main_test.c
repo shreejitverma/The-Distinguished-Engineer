@@ -125,6 +125,7 @@ int main(int argc, char **argv) {
     }
 
     if (strcmp(argv[1], "canary-smash") == 0) {
+        fflush(stdout);
         pid_t pid = fork();
         if (pid == 0) {
             close(2); // suppress verbose crash text
@@ -142,6 +143,7 @@ int main(int argc, char **argv) {
     }
 
     if (strcmp(argv[1], "stack-exec") == 0) {
+        fflush(stdout);
         pid_t pid = fork();
         if (pid == 0) {
             // Copy a bare "ret" instruction into a stack buffer and call it.
@@ -177,6 +179,9 @@ int main(int argc, char **argv) {
             return 1;
         }
 
+        fflush(stdout);
+
+        fflush(stdout);
         pid_t pid = fork();
         if (pid == 0) {
             uintptr_t *ptr = (uintptr_t *)slot;
@@ -208,6 +213,9 @@ int main(int argc, char **argv) {
             return 0;
         }
 
+        fflush(stdout);
+
+        fflush(stdout);
         pid_t pid = fork();
         if (pid == 0) {
             uintptr_t *ptr = (uintptr_t *)slot;

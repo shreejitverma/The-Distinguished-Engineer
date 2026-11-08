@@ -27,14 +27,12 @@ GOT write target_func: caught signal 11 (SIGSEGV)
 Partial RELRO (target_func):
 Original target_func
 Hijacked target_func execution!
-Original target_func
 GOT write target_func: succeeded (writable GOT)
 Partial RELRO (target_data_ptr):
 no GOT slot for target_data_ptr: the linker used a copy relocation into .bss
 No RELRO (target_func):
 Original target_func
 Hijacked target_func execution!
-Original target_func
 GOT write target_func: succeeded (writable GOT)
 === 5. Branch Protection (BTI and PAC) Properties ===
 skipped: -mbranch-protection needs an AArch64 host

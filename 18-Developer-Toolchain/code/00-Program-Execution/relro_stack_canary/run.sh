@@ -5,29 +5,34 @@
 # architectures print a skip line there instead.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TMPDIR_BUILD="$(mktemp -d)"
+trap 'rm -rf "${TMPDIR_BUILD}"' EXIT
+cd "${TMPDIR_BUILD}"
+
 CC="${CC:-gcc}"
 
 # Build shared library
-"${CC}" -fPIC -shared libdummy.c -o libdummy.so
+"${CC}" -fPIC -shared "${SCRIPT_DIR}/libdummy.c" -o libdummy.so
 
 # 1. Stack protector binaries
-"${CC}" -O0 -Wno-stringop-overflow -fstack-protector-strong main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_canary
-"${CC}" -O0 -Wno-stringop-overflow -fno-stack-protector main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_nocanary
+"${CC}" -O0 -Wno-stringop-overflow -fstack-protector-strong "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_canary
+"${CC}" -O0 -Wno-stringop-overflow -fno-stack-protector "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_nocanary
 
 # 2. RELRO binaries
-"${CC}" -O0 -Wno-stringop-overflow -Wl,-z,relro,-z,now main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_full
-"${CC}" -O0 -Wno-stringop-overflow -Wl,-z,relro,-z,lazy main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_partial
-"${CC}" -O0 -Wno-stringop-overflow -Wl,-z,norelro,-z,lazy main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_norelro
+"${CC}" -O0 -Wno-stringop-overflow -Wl,-z,relro,-z,now "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_full
+"${CC}" -O0 -Wno-stringop-overflow -Wl,-z,relro,-z,lazy "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_partial
+"${CC}" -O0 -Wno-stringop-overflow -Wl,-z,norelro,-z,lazy "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_norelro
 
 # 3. Executable stack binary
-"${CC}" -O0 -Wno-stringop-overflow -z execstack main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_execstack
+"${CC}" -O0 -Wno-stringop-overflow -z execstack "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_execstack
 
 # 4. Branch protection (AArch64 only): objects with and without it, and linked executables
 if [ "$(uname -m)" = aarch64 ]; then
-    "${CC}" -c -O0 -Wno-stringop-overflow -mbranch-protection=none main_test.c -o main_nobti.o
-    "${CC}" -c -O0 -Wno-stringop-overflow -mbranch-protection=standard main_test.c -o main_bti.o
-    "${CC}" -O0 -Wno-stringop-overflow -mbranch-protection=standard main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_bti_plain
-    "${CC}" -O0 -Wno-stringop-overflow -mbranch-protection=standard main_test.c -L. -ldummy -Wl,-rpath,'$ORIGIN' -Wl,-z,force-bti -o main_bti_forced
+    "${CC}" -c -O0 -Wno-stringop-overflow -mbranch-protection=none "${SCRIPT_DIR}/main_test.c" -o main_nobti.o
+    "${CC}" -c -O0 -Wno-stringop-overflow -mbranch-protection=standard "${SCRIPT_DIR}/main_test.c" -o main_bti.o
+    "${CC}" -O0 -Wno-stringop-overflow -mbranch-protection=standard "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -o main_bti_plain
+    "${CC}" -O0 -Wno-stringop-overflow -mbranch-protection=standard "${SCRIPT_DIR}/main_test.c" -L. -ldummy -Wl,-rpath,'$ORIGIN' -Wl,-z,force-bti -o main_bti_forced
 fi
 
 echo "=== 1. Stack Canary Verification ==="

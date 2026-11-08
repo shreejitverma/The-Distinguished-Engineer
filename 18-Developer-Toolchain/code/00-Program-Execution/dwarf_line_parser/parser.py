@@ -1,8 +1,9 @@
 """Decode DWARF .debug_line from ELF relocatable objects and cross-check it against GNU readelf.
 
-Supports DWARF 2 to 5 line headers in little-endian ELF64 relocatable objects with 32-bit DWARF (4-byte offsets).
+Supports DWARF 4 and 5 line headers in little-endian ELF64 relocatable objects with 32-bit DWARF (4-byte offsets).
 Limits, all rejected with ValueError rather than guessed: big-endian or 32-bit ELF, 64-bit DWARF,
-VLIW (max_ops > 1), unknown DW_FORM codes in DWARF 5 entry formats.
+VLIW (max_ops > 1), unknown DW_FORM codes in DWARF 5 entry formats, and DWARF 2 and 3 line headers,
+which lack maximum_operations_per_instruction.
 """
 
 import os
@@ -164,7 +165,7 @@ def parse_debug_line(data, sections=None, relocs=None):
 
     version = struct.unpack("<H", data[offset : offset + 2])[0]
     offset += 2
-    if version not in (2, 3, 4, 5):
+    if version not in (4, 5):
         raise ValueError(f"Unsupported DWARF version: {version}")
 
     if version == 5:
@@ -200,7 +201,7 @@ def parse_debug_line(data, sections=None, relocs=None):
     directories = []
     files = []
 
-    if version <= 4:
+    if version == 4:
         while data[offset] != 0:
             dir_name, offset = read_cstr(data, offset)
             directories.append(dir_name)
