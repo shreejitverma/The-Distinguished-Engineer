@@ -152,6 +152,7 @@ def build_pack(objects: list[tuple[bytes, bytes]], *, large_offsets: bool = Fals
         pack += enc
     pack += hashlib.sha1(pack).digest()
     names = sorted(offsets)
+    encoded = dict(objects)
     fan = [0] * 256
     for n in names:
         fan[n[0]] += 1
@@ -159,7 +160,7 @@ def build_pack(objects: list[tuple[bytes, bytes]], *, large_offsets: bool = Fals
     idx = bytearray(b"\xfftOc" + struct.pack(">I", 2) + struct.pack(">256I", *fanout))
     idx += b"".join(names)
     for n in names:
-        idx += struct.pack(">I", zlib.crc32(pack[offsets[n] : offsets[n] + len(dict(objects)[n])]))
+        idx += struct.pack(">I", zlib.crc32(pack[offsets[n] : offsets[n] + len(encoded[n])]))
     big = bytearray()
     for k, n in enumerate(names):
         # Git rejects an idx whose large-offset table has more than N-1 entries, so entry 0 stays direct.
@@ -205,6 +206,21 @@ def hostile_packs(parent: str) -> None:
     n = MAX_CHAIN + 3
     objs = [(ref(i + 1), entry(7, empty_delta, base=ref(i + 2))) for i in range(n)]
     objs.append((ref(n + 1), entry(3, b"x")))
+    install(repo, *build_pack(objs))
+    expect_error(repo, "delta chain longer than")
+
+    # Same depth, but a mid-chain object sorts first, so its half of the chain is cached before
+    # the deepest object is walked; the cap must count the cached depth, not just the new deltas.
+    repo = fresh_repo(parent, "deep-cached")
+    datas = [b"chain node %d\n" % i for i in range(n + 1)]
+    first = min(datas, key=blob_oid)
+    datas.remove(first)
+    datas.insert(n // 2, first)
+    objs = [
+        (blob_oid(d), entry(7, delta_header(len(datas[i + 1]), len(d)) + bytes([len(d)]) + d, base=blob_oid(datas[i + 1])))
+        for i, d in enumerate(datas[:-1])
+    ]
+    objs.append((blob_oid(datas[-1]), entry(3, datas[-1])))
     install(repo, *build_pack(objs))
     expect_error(repo, "delta chain longer than")
 

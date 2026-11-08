@@ -237,6 +237,8 @@ def parse_packfile(repo_dir: str) -> tuple[dict[str, tuple[str, int, int]], coll
             chain.append((cur, decomp_data))
             cur = int(base_info[1]) if type_id == 6 else find_offset(str(base_info[1]))
         base_type, base_data, base_depth = resolved[cur]
+        if base_depth + len(chain) > MAX_CHAIN:
+            raise ValueError(f"delta chain longer than {MAX_CHAIN} at offset {off}")
         for delta_off, delta in reversed(chain):
             base_data = apply_delta(base_data, delta)
             base_depth += 1
