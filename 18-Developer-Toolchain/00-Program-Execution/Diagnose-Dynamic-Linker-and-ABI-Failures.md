@@ -273,7 +273,7 @@ readelf -d ./app | grep -E '\((RPATH|RUNPATH)\)'
 ```
 
 GNU ld emits `DT_RUNPATH` only when `--enable-new-dtags` is in effect; the upstream ld manual states that by default the new dynamic tags are not created, so upstream ld emits `DT_RPATH`.
-Ubuntu's GCC passes `--enable-new-dtags` by default (observed: a plain `-Wl,-rpath` link emits `RUNPATH` with GCC 13.2 and binutils 2.42 on Ubuntu 24.04, as of 2026-11, Linux).
+Ubuntu 24.04's GNU ld (binutils 2.42) emits the new dtags by default, and the GCC driver does not pass `--enable-new-dtags` (observed: `gcc -dumpspecs` and the `gcc -v` linker command line contain no `--enable-new-dtags`, yet a plain `-Wl,-rpath` link emits `RUNPATH` with GCC 13.3 and binutils 2.42 on Ubuntu 24.04, as of 2026-11, Linux), so the tag depends on how the distribution built its linker; check with `readelf -d`.
 
 Check dynamic string tokens:
 - `$ORIGIN` (or `${ORIGIN}`): Expands to the directory containing the executable or DSO requesting the dependency.
@@ -339,7 +339,7 @@ When a binary fails with `symbol lookup error: undefined symbol: <name>`, execut
 
 #### Step 5: Force Immediate Load-Time Relocation Binding
 
-By default, ELF dynamic linkers utilize lazy binding for functions in the Procedure Linkage Table (PLT).
+Unless a binary is linked with `-z now` (Ubuntu 24.04's GCC passes it by default), ELF dynamic linkers use lazy binding for functions in the Procedure Linkage Table (PLT).
 Function symbols are resolved on first invocation rather than at startup.
 This causes missing symbol crashes to occur hours or days after service launch when an uncommon error branch executes.
 
@@ -658,7 +658,7 @@ labs: 1 passed, 0 failed, 0 skipped, 0 unrecorded on darwin-arm64
 
 ### Worked Lab Golden Execution
 
-The following deterministic output was measured and recorded directly inside the Ubuntu 24.04 Linux container (glibc 2.39, GCC 13.2, binutils 2.42, as of 2026-11, linux-aarch64).
+The following deterministic output was measured and recorded directly inside the Ubuntu 24.04 Linux container (glibc 2.39, GCC 13.3, binutils 2.42, as of 2026-11, linux-aarch64).
 The scrubber replaces PIDs and the sandbox path, rewrites the backtick that glibc prints before version names (`` `VER_2.0' ``) to a plain quote, and every `exit=` line is the status of the command above it:
 
 ```text
@@ -695,7 +695,7 @@ exit=0
  0xTAG (NEEDED)             Shared library: [libc.so.6]
  0xTAG (RPATH)              Library rpath: [$ORIGIN/lib]
 === Stage 2: Undefined Symbols and Immediate Binding ===
---- Step 2.1: Default lazy binding deferred abort ---
+--- Step 2.1: Lazy binding (-z lazy) deferred abort ---
 Main started
 Engine initialized (core=42)
 Dispatching task...
@@ -804,7 +804,7 @@ When an operational workaround or binary modification fails during troubleshooti
 
 > [!warning] Lazy Binding Masks Missing Symbols in Production
 > Under lazy binding (`-Wl,-z,lazy`, the upstream GNU ld behavior), dynamic linkers resolve function addresses on demand through PLT trampolines.
-> Some distributions harden the default: Ubuntu 24.04 GCC 13.2 links with `BIND_NOW` unless `-Wl,-z,lazy` is passed (observed with `readelf -d`, as of 2026-11, Linux), so check the target's toolchain rather than assuming either default.
+> Some distributions harden the default: Ubuntu 24.04 GCC 13.3 links with `BIND_NOW` unless `-Wl,-z,lazy` is passed, because its driver specs pass `-z now` (observed with `gcc -dumpspecs` and `readelf -d`, as of 2026-11, Linux), so check the target's toolchain rather than assuming either default.
 > If a shared library dependency is upgraded and drops a function that is only called in disaster recovery or alert pathways, the application will boot cleanly and run without issues for days.
 > The crash occurs only when the disaster recovery path triggers, terminating the production service at the worst possible time.
 > Always link production binaries with Full RELRO (`-Wl,-z,relro -Wl,-z,now`) and execute smoke test suites with `LD_BIND_NOW=1`.

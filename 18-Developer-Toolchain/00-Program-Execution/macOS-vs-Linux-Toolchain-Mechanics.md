@@ -320,7 +320,7 @@ The companion lab `code/00-Program-Execution/macos_codesign_entitlements/` demon
 2. The `task_for_pid()` authorization boundary separating un-entitled binaries from those embedding `com.apple.security.get-task-allow`.
 3. In-memory virtual memory inspection via `vm_read_overwrite()`, with the token compared inside the tracer.
 4. `PT_DENY_ATTACH`: the traced-caller exit status, the `SIGSEGV` sent to an attacher, and the unchanged `task_for_pid()` result.
-5. Hardened Runtime sanitization of `DYLD_INSERT_LIBRARIES`, the environment-only entitlement that still fails library validation, and the full entitlement bypass.
+5. Hardened Runtime sanitization of `DYLD_INSERT_LIBRARIES`, the environment-only entitlement under which `dyld` honors `DYLD_*` variables but library validation refuses to map the dylib, and the full entitlement bypass.
 6. Two-level namespace versus `__DATA,__interpose` versus `-flat_namespace`.
 7. Dyld shared cache resolution of non-existent on-disk dylib paths, for a linked library, an unlinked one, and a negative control.
 
@@ -352,8 +352,12 @@ DENY_ATTACH_TASK_FOR_PID: kr=0 ((os/kern) successful)
 DENY_ATTACH_VM_READ: token_match=YES
 ADHOC_DYLD_INSERT: HOOK_EXECUTED, MAIN_EXECUTED
 HARDENED_DYLD_INSERT: MAIN_EXECUTED
+HARDENED_DYLD_ENV_HONORED: NO
 ENV_ONLY_HARDENED_DYLD_INSERT: MAIN_EXECUTED
+ENV_ONLY_DYLD_ENV_HONORED: YES
+ENV_ONLY_HOOK_MAPPED: NO
 ENTITLED_HARDENED_DYLD_INSERT: HOOK_EXECUTED, MAIN_EXECUTED
+ENTITLED_HOOK_MAPPED: YES
 NO_INSERT: PPID_FAKE=0
 TWO_LEVEL_PLAIN_DEFINITION: PPID_FAKE=0
 TWO_LEVEL_INTERPOSE: PPID_FAKE=1
@@ -387,8 +391,9 @@ ABSENT_LIB_DLOPEN: FAILED
 5. **`ADHOC_DYLD_INSERT` vs `HARDENED_DYLD_INSERT` vs `ENV_ONLY_HARDENED_DYLD_INSERT`**:
    Executing the un-hardened binary with `DYLD_INSERT_LIBRARIES=libhook.dylib` caused the library constructor to execute prior to `main()`.
    When the target was signed with `--options runtime`, `dyld` stripped the environment variable, preventing the hook from executing.
-   With only `com.apple.security.cs.allow-dyld-environment-variables`, the hook still did not run and the process exited normally: library validation rejected the ad-hoc dylib silently.
-   When re-signed with both `com.apple.security.cs.allow-dyld-environment-variables` and `com.apple.security.cs.disable-library-validation`, the hook ran successfully under Hardened Runtime.
+   The `*_DYLD_ENV_HONORED` lines tell the two hardened cases apart: `DYLD_PRINT_LIBRARIES=1` lists every mapped image on stderr only if `dyld` keeps `DYLD_*` variables, and it prints nothing for the plain Hardened Runtime binary.
+   With only `com.apple.security.cs.allow-dyld-environment-variables`, `dyld` honors the variables (`ENV_ONLY_DYLD_ENV_HONORED: YES`), yet the hook still did not run and `libhook.dylib` is absent from the mapped-image list (`ENV_ONLY_HOOK_MAPPED: NO`): library validation rejected the ad-hoc dylib, silently, and the process exited normally.
+   When re-signed with both `com.apple.security.cs.allow-dyld-environment-variables` and `com.apple.security.cs.disable-library-validation`, the hook ran successfully under Hardened Runtime, and `dyld` lists `libhook.dylib` among the mapped images (`ENTITLED_HOOK_MAPPED: YES`).
 6. **`NO_INSERT`, `TWO_LEVEL_PLAIN_DEFINITION`, `TWO_LEVEL_INTERPOSE`, `FLAT_NAMESPACE_PLAIN_DEFINITION`**:
    The app prints `PPID_FAKE=1` only when `getppid()` returns the injected 4242.
    A plain same-named definition injected into a two-level app changes nothing, an interpose tuple does, and a plain definition does when the app is linked with `-Wl,-flat_namespace`.
@@ -428,7 +433,7 @@ ABSENT_LIB_DLOPEN: FAILED
 > When configuring Hardened Runtime binaries for local integration testing, engineers often add `com.apple.security.cs.allow-dyld-environment-variables` and expect `DYLD_INSERT_LIBRARIES` to succeed.
 > Hardened Runtime simultaneously enforces Library Validation (`CS_REQUIRE_LV`).
 > Even though `dyld` now honors `DYLD_*` variables, it refuses an inserted dylib that is not signed by Apple or with the host's Team ID (Apple, com.apple.security.cs.allow-dyld-environment-variables).
-> The failure is silent: in the lab (`ENV_ONLY_HARDENED_DYLD_INSERT`, macOS 27.2 arm64) the ad-hoc hook never loaded and the process ran to completion with no error.
+> The failure is silent: in the lab (macOS 27.2 arm64) `dyld` honored `DYLD_PRINT_LIBRARIES` (`ENV_ONLY_DYLD_ENV_HONORED: YES`), but the ad-hoc hook was never mapped (`ENV_ONLY_HOOK_MAPPED: NO`) and the process ran to completion with no error.
 > Test configurations must supply both `com.apple.security.cs.allow-dyld-environment-variables` and `com.apple.security.cs.disable-library-validation`.
 
 ## At Scale

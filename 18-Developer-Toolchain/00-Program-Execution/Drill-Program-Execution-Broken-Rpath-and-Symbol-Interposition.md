@@ -655,7 +655,7 @@ To build deep muscle memory for dynamic library debugging, perform this drill lo
 > > - **Relocation Table Reduction:** Shrinks the size of `.rela.plt` and `.dynsym`, reducing page table footprint and binary load size.
 > >
 > > **2. Impact of `-Wl,-z,now` (Full RELRO):**
-> > - **Elimination of Latency Jitter:** Under default lazy binding (`-Wl,-z,lazy`), the first call to any external function traps into the dynamic loader (`_dl_runtime_resolve`), incurring the symbol hash table search and GOT slot update on that first call.
+> > - **Elimination of Latency Jitter:** Under lazy binding (`-Wl,-z,lazy`, the upstream GNU ld default; Ubuntu 24.04's GCC links with `-z now` unless told otherwise), the first call to any external function traps into the dynamic loader (`_dl_runtime_resolve`), incurring the symbol hash table search and GOT slot update on that first call.
 > >   `-Wl,-z,now` forces immediate binding: all dynamic relocations (`R_X86_64_JUMP_SLOT`, `R_X86_64_GLOB_DAT`) are computed and written before `main()` executes.
 > >   Zero dynamic linker resolution occurs on the hot trading path.
 > > - **Memory Protection:** Combined with `-z relro`, enables Full RELRO (Ubuntu 24.04's GCC passes both `-z relro` and `-z now` by default, as of 2026-11).

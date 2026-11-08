@@ -31,7 +31,7 @@ exit=0
  0xTAG (NEEDED)             Shared library: [libc.so.6]
  0xTAG (RPATH)              Library rpath: [$ORIGIN/lib]
 === Stage 2: Undefined Symbols and Immediate Binding ===
---- Step 2.1: Default lazy binding deferred abort ---
+--- Step 2.1: Lazy binding (-z lazy) deferred abort ---
 Main started
 Engine initialized (core=42)
 Dispatching task...

@@ -1,0 +1,77 @@
+== Dynamic loader knobs
+default: glibc.rtld.optional_static_tls: 0x200
+ok   optional_static_tls default
+GLIBC_TUNABLES=glibc.rtld.optional_static_tls=2048: glibc.rtld.optional_static_tls: 0x800
+ok   optional_static_tls override
+ok   LD_DEBUG help lists statistics
+ok   LD_DEBUG help lists no timing option
+LD_DEBUG=timing: warning: debug option `timing' unknown; try LD_DEBUG=help
+ok   LD_DEBUG=timing is rejected
+LD_DEBUG=statistics labels:
+final number of relocations
+final number of relocations from cache
+number of relative relocations
+number of relocations
+number of relocations from cache
+runtime linker statistics
+ok   LD_DEBUG=statistics prints relocation counts
+LD_DEBUG=statistics startup-time lines: 0
+== ADR-001: static PIE
+static-pie: ELF type DYN (Position-Independent Executable file); PT_INTERP headers 0
+static-nopie: ELF type EXEC (Executable file); PT_INTERP headers 0
+dynamic-pie: ELF type DYN (Position-Independent Executable file); PT_INTERP headers 1
+ok   static-pie ELF type is DYN (PIE)
+ok   static non-PIE ELF type is EXEC
+ok   dynamic PIE ELF type is DYN (PIE)
+ok   static-pie has no PT_INTERP
+ok   static-pie keeps PT_DYNAMIC
+ok   dynamic PIE has one PT_INTERP
+caller of _dl_relocate_static_pie: __libc_start_main_impl
+ok   _dl_relocate_static_pie is called from __libc_start_main
+ok   _start itself does not call _dl_relocate_static_pie
+ok   static-pie has relative relocations
+-- ldd
+ldd static-pie: statically linked; exit 0
+ok   ldd static-pie exit status
+ok   ldd static-pie says statically linked
+ldd static non-PIE: not a dynamic executable; exit 1
+ok   ldd static non-PIE exit status
+ok   ldd dynamic PIE lists libc.so.6
+-- NSS: the files and dns services are built into libc since glibc 2.34
+hosts line: hosts: files dns
+link warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
+ok   static getaddrinfo link warning
+static-pie run: getaddrinfo: resolved;libnss objects mapped: 0;
+ok   static-pie resolves localhost
+ok   static-pie maps no libnss object
+dynamic run: getaddrinfo: resolved;libnss objects mapped: 0;
+ok   dynamic PIE maps no libnss object
+== ADR-002: leaf frame pointers
+-- leaf, -fomit-frame-pointer
+add w0, w0, w0, lsl #1
+add w0, w0, #0x1
+ret
+ok   leaf frame with -fomit-frame-pointer
+-- leaf, -fno-omit-frame-pointer
+add w0, w0, w0, lsl #1
+add w0, w0, #0x1
+ret
+ok   leaf frame with -fno-omit-frame-pointer
+-- leaf, -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+stp x29, x30, [sp, #-16]!
+add w0, w0, w0, lsl #1
+add w0, w0, #0x1
+mov x29, sp
+ldp x29, x30, [sp], #16
+ret
+ok   leaf frame with -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+-- leaf_stack, -fno-omit-frame-pointer (frame setup instructions)
+ok   leaf_stack frame setup with -fno-omit-frame-pointer
+-- leaf_stack, -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer (frame setup instructions)
+stp x29, x30, [sp, #-48]!
+mov x29, sp
+ok   leaf_stack frame setup with -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+-- nonleaf, -fno-omit-frame-pointer (frame setup instructions)
+stp x29, x30, [sp, #-32]!
+mov x29, sp
+ok   nonleaf frame setup with -fno-omit-frame-pointer

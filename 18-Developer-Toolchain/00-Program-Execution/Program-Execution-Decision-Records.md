@@ -162,7 +162,7 @@ Mach-O binaries do not use ELF BOLT; Apple platforms utilize `ld64` order files 
 | Item | Platform | Value `(as of 2026-11)` | Why it matters |
 | :--- | :--- | :--- | :--- |
 | `-static-pie` support | Linux | GCC 8+, Clang 9+, glibc 2.27+ (opt-in `--enable-static-pie`; auto-detected since 2.35), musl 1.1.10+ (`rcrt1.o`) | Builds position-independent static binaries with ASLR and zero dynamic loader overhead. |
-| Dynamic startup overhead | Linux | No fixed figure; measure per binary. `LD_DEBUG=statistics` prints relocation counts, plus a startup-time line on x86-64 glibc 2.39 but none on aarch64 (lab) | Dynamic linker must load, map, and relocate symbol tables before calling `main()`. |
+| Dynamic startup overhead | Linux | No fixed figure; measure per binary. `LD_DEBUG=statistics` prints relocation counts but no startup-time line on aarch64 glibc 2.39 (lab) | Dynamic linker must load, map, and relocate symbol tables before calling `main()`. |
 | Static PIE startup | Linux | No `ld.so` runs; in glibc 2.39 `_start` calls `__libc_start_main`, which calls `_dl_relocate_static_pie` (lab); musl uses `_dlstart_c` | The kernel transfers control directly to `_start`, so startup cost is the self-relocation of `R_*_RELATIVE` entries and no library search. |
 | Distro frame pointer default | Linux | Fedora 38+ default C/C++ flags; Ubuntu 24.04 on 64-bit platforms | Eliminates profiler blind spots across standard distribution libraries. |
 | Frame pointer CPU throughput impact | Linux | Usually under 1% (Netflix, Gregg); Fedora measured 2.4% kernel build, 2% Blender, 1% to 10% CPython on x86-64; no AArch64 figure was found in the sources used | Consumes one register (`%rbp`) on register-starved x86-64; AArch64 has 31 general registers, so measure the cost on your own hardware. |
@@ -185,7 +185,7 @@ perf stat -e cycles,instructions,frontend_retired.l1i_miss,frontend_retired.itlb
     -- ./order_matcher --benchmark-iterations=500000
 
 # Audit current dynamic linker relocation work and library count
-# (LD_DEBUG has no "timing" option; "statistics" prints relocation counts, plus a startup-time line on x86-64 glibc only)
+# (LD_DEBUG has no "timing" option; "statistics" prints relocation counts, and on aarch64 glibc 2.39 no startup-time line)
 LD_DEBUG=statistics ./order_matcher --version 2>&1 | grep -E 'startup time|relocations'
 ldd ./order_matcher | wc -l
 # Wall-clock startup, repeated: compare the dynamic and static builds of the same program
@@ -197,7 +197,7 @@ sudo bpftrace -e 'profile:hz:99 /comm == "order_matcher"/ { @[ustack] = count();
 
 Inspect `stack_samples.txt` for stacks that are one or two frames deep, and for frames shown as raw addresses instead of symbols; both mean the unwinder lost the chain.
 
-The lab prints what the loader knobs above do on a dynamic PIE (linux-aarch64, `expected/linux-aarch64.txt`; the x86-64 recording adds one `total startup time in dynamic loader` line):
+The lab prints what the loader knobs above do on a dynamic PIE (linux-aarch64, `expected/linux-aarch64.txt`):
 
 ```text
 == Dynamic loader knobs
@@ -215,7 +215,9 @@ final number of relocations from cache
 number of relative relocations
 number of relocations
 number of relocations from cache
-ok   LD_DEBUG=statistics startup-time lines
+runtime linker statistics
+ok   LD_DEBUG=statistics prints relocation counts
+LD_DEBUG=statistics startup-time lines: 0
 ```
 
 Read the output against these starting thresholds (heuristics to calibrate per fleet, not measured facts):
@@ -252,7 +254,7 @@ Understand the structural mechanism:
 - A standard dynamic executable contains a `PT_INTERP` program header specifying `/lib64/ld-linux-x86-64.so.2` and an `ET_EXEC` or `ET_DYN` ELF type.
 - A static PIE executable has ELF type `ET_DYN` (binutils 2.42 `readelf -h` prints `DYN (Position-Independent Executable file)` because `DT_FLAGS_1` carries `PIE`) but contains NO `PT_INTERP` header; it still has a `PT_DYNAMIC` segment for its own relocations.
 - Because there is no `PT_INTERP`, kernel `execve(2)` maps the binary at a randomized address and jumps directly to the entry point `_start`.
-- The static PIE start file is `rcrt1.o` in both glibc and musl (musl since 1.1.10); in glibc 2.39 its `_start` calls `__libc_start_main`, which calls `_dl_relocate_static_pie()` (the lab shows `_start` itself does not), and musl's start code runs `_dlstart_c`, each processing the binary's own relative relocations (`R_X86_64_RELATIVE`) from its embedded `DT_RELA` table (the lab shows the symbol is called from `__libc_start_main`).
+- The static PIE start file is `rcrt1.o` in both glibc and musl (musl since 1.1.10); in glibc 2.39 its `_start` calls `__libc_start_main`, which calls `_dl_relocate_static_pie()` (the lab shows `_start` itself does not), and musl's start code runs `_dlstart_c`, each processing the binary's own relative relocations (`R_X86_64_RELATIVE`) from its embedded `DT_RELA` table (the lab shows the symbol is called from `__libc_start_main`, which `objdump` names `__libc_start_main_impl`).
 
 Handle the Glibc Name Service Switch (NSS) constraint:
 - If your application calls `getaddrinfo()`, `gethostbyname()`, or `getpwuid()`, the static link prints `warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking` (glibc 2.39, Ubuntu 24.04 container).
@@ -262,21 +264,32 @@ Handle the Glibc Name Service Switch (NSS) constraint:
 
 **Verification:**
 The lab `code/00-Program-Execution/execution_decision_checks/` builds a static PIE, a static non-PIE, and a dynamic PIE from one source and checks the facts above.
-Its output on linux-aarch64 (`expected/linux-aarch64.txt`, GCC 13.3 and glibc 2.39 in the pinned Ubuntu 24.04 image) is, from the `_dl_relocate_static_pie` caller through the NSS checks:
+Its ADR-001 output on linux-aarch64 (`expected/linux-aarch64.txt`, GCC 13.3 and glibc 2.39 in the pinned Ubuntu 24.04 image) is:
 
 ```text
-caller of _dl_relocate_static_pie: __libc_start_main
+== ADR-001: static PIE
+static-pie: ELF type DYN (Position-Independent Executable file); PT_INTERP headers 0
+static-nopie: ELF type EXEC (Executable file); PT_INTERP headers 0
+dynamic-pie: ELF type DYN (Position-Independent Executable file); PT_INTERP headers 1
+ok   static-pie ELF type is DYN (PIE)
+ok   static non-PIE ELF type is EXEC
+ok   dynamic PIE ELF type is DYN (PIE)
+ok   static-pie has no PT_INTERP
+ok   static-pie keeps PT_DYNAMIC
+ok   dynamic PIE has one PT_INTERP
+caller of _dl_relocate_static_pie: __libc_start_main_impl
 ok   _dl_relocate_static_pie is called from __libc_start_main
 ok   _start itself does not call _dl_relocate_static_pie
 ok   static-pie has relative relocations
 -- ldd
-ldd static-pie: statically linked
+ldd static-pie: statically linked; exit 0
 ok   ldd static-pie exit status
 ok   ldd static-pie says statically linked
-ldd static non-PIE: not a dynamic executable
+ldd static non-PIE: not a dynamic executable; exit 1
 ok   ldd static non-PIE exit status
 ok   ldd dynamic PIE lists libc.so.6
 -- NSS: the files and dns services are built into libc since glibc 2.34
+hosts line: hosts: files dns
 link warning: Using 'getaddrinfo' in statically linked applications requires at runtime the shared libraries from the glibc version used for linking
 ok   static getaddrinfo link warning
 static-pie run: getaddrinfo: resolved;libnss objects mapped: 0;
@@ -286,7 +299,7 @@ dynamic run: getaddrinfo: resolved;libnss objects mapped: 0;
 ok   dynamic PIE maps no libnss object
 ```
 
-The `ok` lines for `ELF type` assert that `readelf -h` prints `DYN (Position-Independent Executable file)` for the static PIE and the dynamic PIE and `EXEC (Executable file)` for the static non-PIE.
+The `ELF type` checks assert the exact `readelf -h` text: `DYN (Position-Independent Executable file)` for the static PIE and the dynamic PIE, and `EXEC (Executable file)` for the static non-PIE.
 `file order_matcher_static` is not part of the lab (the pinned image has no `file`); in a separate Ubuntu 24.04 arm64 run it outputs `ELF 64-bit LSB pie executable, ..., static-pie linked` (`file` on Ubuntu 24.04 arm64, for both GCC 13.3 and Clang 18 with `-fuse-ld=lld`).
 `readelf -l order_matcher_static | grep INTERP` outputs nothing, proving `PT_INTERP` is absent.
 `ldd order_matcher_static` outputs `statically linked` and exits 0 (glibc 2.39).
@@ -315,9 +328,9 @@ objdump -d --no-show-raw-insn order_matcher | grep -A 5 "<_Z14compute_enginev>:"
 # objdump -d --no-show-raw-insn order_matcher | grep -A 5 "<_Z14compute_enginev>:"
 ```
 
-On x86-64 the frame setup is `push %rbp` followed by `mov %rsp,%rbp`; on AArch64 it is `stp x29, x30, [sp, ...]` and an `add` or `mov` that sets `x29` (the lab matches those instructions in `leaf_stack`, a leaf that needs stack memory).
+On x86-64 the frame setup is `push %rbp` followed by `mov %rsp,%rbp`; on AArch64 it is `stp x29, x30, [sp, ...]` and an `add` or `mov` that sets `x29` (the lab matches those instructions in `nonleaf`, which calls out, and in `leaf_stack`, a leaf that needs stack memory, only when `-mno-omit-leaf-frame-pointer` is also passed).
 For the stackless `leaf` function (`return x * 3 + 1`), the lab prints the disassembly under three flag sets.
-On linux-aarch64 (`expected/linux-aarch64.txt`, GCC 13.3):
+On linux-aarch64 (`expected/linux-aarch64.txt`, GCC 13.3; every build passes `-fno-stack-protector`, because Ubuntu's default stack protector makes `leaf_stack` call `__stack_chk_fail`, so it stops being a leaf):
 
 ```text
 == ADR-002: leaf frame pointers
@@ -340,39 +353,20 @@ ldp x29, x30, [sp], #16
 ret
 ok   leaf frame with -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 -- leaf_stack, -fno-omit-frame-pointer (frame setup instructions)
-stp x29, x30, [sp, #32]
-add x29, sp, #0x20
-ok   leaf_stack frame with -fno-omit-frame-pointer
-```
-
-On linux-amd64 (`expected/linux-amd64.txt`, GCC 13.3 in an unpinned Ubuntu 24.04 amd64 image, recorded under emulation):
-
-```text
-== ADR-002: leaf frame pointers
--- leaf, -fomit-frame-pointer
-endbr64
-lea    0x1(%rdi,%rdi,2),%eax
-ret
-ok   leaf frame with -fomit-frame-pointer
--- leaf, -fno-omit-frame-pointer
-endbr64
-lea    0x1(%rdi,%rdi,2),%eax
-ret
-ok   leaf frame with -fno-omit-frame-pointer
--- leaf, -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
-endbr64
-lea    0x1(%rdi,%rdi,2),%eax
-ret
-ok   leaf frame with -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
--- leaf_stack, -fno-omit-frame-pointer (frame setup instructions)
-push   %rbp
-mov    %rsp,%rbp
-ok   leaf_stack frame with -fno-omit-frame-pointer
+ok   leaf_stack frame setup with -fno-omit-frame-pointer
+-- leaf_stack, -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer (frame setup instructions)
+stp x29, x30, [sp, #-48]!
+mov x29, sp
+ok   leaf_stack frame setup with -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+-- nonleaf, -fno-omit-frame-pointer (frame setup instructions)
+stp x29, x30, [sp, #-32]!
+mov x29, sp
+ok   nonleaf frame setup with -fno-omit-frame-pointer
 ```
 
 Audit leaf functions specifically:
 - A leaf function makes no outgoing function calls.
-- Behavior differs by compiler and target (local `-O2 -S` test of a stackless leaf, Ubuntu 24.04 container): Clang 18 on x86-64 keeps `push %rbp; mov %rsp,%rbp` with `-fno-omit-frame-pointer` alone (not in the lab, which has no Clang); GCC 13.3 on AArch64 omits the leaf frame unless `-mno-omit-leaf-frame-pointer` is also passed (lab); GCC 13.3 on x86-64 emits no frame setup in a stackless leaf even with both flags (lab), while a leaf that needs stack memory does get `push %rbp` (lab); GCC 16.2 on x86-64 behaved like 13.3 in a separate run.
+- Behavior differs by compiler and target (local `-O2 -S` test of a stackless leaf, Ubuntu 24.04 container): Clang 18 on x86-64 keeps `push %rbp; mov %rsp,%rbp` with `-fno-omit-frame-pointer` alone (not in the lab, which has no Clang); GCC 13.3 on AArch64 omits the frame record in every leaf, including one that needs stack memory, unless `-mno-omit-leaf-frame-pointer` is also passed, and always builds it in a function that calls out (lab); GCC 13.3 on x86-64 emitted no frame setup in a stackless leaf even with both flags (separate Ubuntu 24.04 amd64 run under emulation, not in the lab), and GCC 16.2 on x86-64 behaved the same in another separate run.
 - Pass both flags anyway, as Fedora's default flags do, and check the disassembly rather than assuming every function has a frame.
 - Omitting leaf frame pointers breaks in-kernel eBPF unwinding whenever the CPU is sampled inside tight mathematical loops or leaf data parsing routines.
 
@@ -657,7 +651,7 @@ To operationalize feedback-directed optimization without manual engineering inte
 > > - `readelf -l worker_service | grep INTERP` prints nothing and grep exits 1.
 > > - `ldd worker_service` prints `statically linked` and exits 0.
 > > 
-> > The lab (`code/00-Program-Execution/execution_decision_checks/`, GCC 13.3, glibc 2.39, linux-aarch64 and linux-amd64) asserts exactly these three facts for a `-static-pie` build: the `Type:` text, a `PT_INTERP` count of 0, and `ldd` printing `statically linked` with exit status 0.
+> > The lab (`code/00-Program-Execution/execution_decision_checks/`, GCC 13.3, glibc 2.39, linux-aarch64) asserts exactly these three facts for a `-static-pie` build: the `Type:` text, a `PT_INTERP` count of 0, and `ldd` printing `statically linked` with exit status 0.
 > > `file` on the same binary prints `pie executable` and `static-pie linked` (Ubuntu 24.04 arm64 run, not in the lab).
 > > 
 > > Mechanism:

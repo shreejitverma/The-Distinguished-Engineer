@@ -6,6 +6,13 @@ set -euo pipefail
 # as a PLT call. Another compiler may inline compute_hash and hide the bug, so CC is not overridable.
 CC=gcc
 
+# Build in a private directory so a native Linux run leaves no .so or ELF files in the source tree.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BUILD_DIR="$(mktemp -d)"
+trap 'rm -rf "${BUILD_DIR}"' EXIT
+cp "${SCRIPT_DIR}"/*.c "${SCRIPT_DIR}"/*.h "${SCRIPT_DIR}/version_script.map" "${BUILD_DIR}/"
+cd "${BUILD_DIR}"
+
 # host_app exits 0 for the expected hash, 3 for the interposed value, 4 for anything else.
 # launch <label> <success|mismatch> runs it and aborts the lab if the outcome is not the one the stage teaches.
 launch() {
@@ -43,9 +50,6 @@ show_exports() {
 host_bindings() {
     host_trace bindings | awk '/binding file .* to \.\/host_app/ && /compute_hash/ {n++} END {print n + 0}'
 }
-
-# Clean previous build artifacts
-rm -rf plugins host_app
 
 mkdir -p plugins/lib
 

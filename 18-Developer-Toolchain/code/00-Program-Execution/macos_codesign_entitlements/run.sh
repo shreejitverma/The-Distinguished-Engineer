@@ -126,6 +126,19 @@ codesign -s - -f --options runtime --entitlements "${SCRIPT_DIR}/entitlements_dy
 
 oneline() { tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g'; }
 
+# DYLD_PRINT_LIBRARIES makes dyld list every image it maps on stderr, so silence means dyld dropped the DYLD_* variables.
+dyld_env_honored() {
+    if DYLD_PRINT_LIBRARIES=1 "$1" 2>&1 > /dev/null | grep -q '^dyld\['; then echo YES; else echo NO; fi
+}
+# With DYLD_* honored, the inserted dylib is missing from that list only if dyld refused to map it.
+hook_mapped() {
+    if DYLD_PRINT_LIBRARIES=1 DYLD_INSERT_LIBRARIES="${WORK_DIR}/libhook.dylib" "$1" 2>&1 > /dev/null | grep -q '/libhook\.dylib$'; then
+        echo YES
+    else
+        echo NO
+    fi
+}
+
 # Interpose on standard ad-hoc binary
 OUT1=$(DYLD_INSERT_LIBRARIES="${WORK_DIR}/libhook.dylib" "${WORK_DIR}/app_adhoc" 2>/dev/null)
 echo "ADHOC_DYLD_INSERT: $(echo "${OUT1}" | oneline)"
@@ -133,14 +146,18 @@ echo "ADHOC_DYLD_INSERT: $(echo "${OUT1}" | oneline)"
 # Interpose on Hardened Runtime binary (dyld strips DYLD_INSERT_LIBRARIES)
 OUT2=$(DYLD_INSERT_LIBRARIES="${WORK_DIR}/libhook.dylib" "${WORK_DIR}/app_hardened" 2>/dev/null)
 echo "HARDENED_DYLD_INSERT: $(echo "${OUT2}" | oneline)"
+echo "HARDENED_DYLD_ENV_HONORED: $(dyld_env_honored "${WORK_DIR}/app_hardened")"
 
 # Hardened Runtime plus only allow-dyld-environment-variables: dyld keeps the variable, library validation rejects the dylib
 OUT_ENV=$(DYLD_INSERT_LIBRARIES="${WORK_DIR}/libhook.dylib" "${WORK_DIR}/app_hardened_env_only" 2>/dev/null)
 echo "ENV_ONLY_HARDENED_DYLD_INSERT: $(echo "${OUT_ENV}" | oneline)"
+echo "ENV_ONLY_DYLD_ENV_HONORED: $(dyld_env_honored "${WORK_DIR}/app_hardened_env_only")"
+echo "ENV_ONLY_HOOK_MAPPED: $(hook_mapped "${WORK_DIR}/app_hardened_env_only")"
 
 # Interpose on Hardened Runtime binary with allow-dyld-env and disable-library-validation entitlements
 OUT3=$(DYLD_INSERT_LIBRARIES="${WORK_DIR}/libhook.dylib" "${WORK_DIR}/app_hardened_entitled" 2>/dev/null)
 echo "ENTITLED_HARDENED_DYLD_INSERT: $(echo "${OUT3}" | oneline)"
+echo "ENTITLED_HOOK_MAPPED: $(hook_mapped "${WORK_DIR}/app_hardened_entitled")"
 
 # Step 5: two-level namespace vs __DATA,__interpose vs -flat_namespace (does getppid() return the fake 4242?)
 "${CC}" "${SCRIPT_DIR}/ppid_app.c" -o "${WORK_DIR}/ppid_app"

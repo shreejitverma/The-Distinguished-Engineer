@@ -117,7 +117,7 @@ $CC -shared -fPIC -o lib/libengine.so libengine.c -Llib -lcore -Wl,-rpath,'$ORIG
 $CC -o app_lazy engine_main.c -Llib -lengine -Wl,-rpath,'$ORIGIN/lib' -Wl,--enable-new-dtags -Wl,--allow-shlib-undefined -Wl,-z,lazy
 
 echo "=== Stage 2: Undefined Symbols and Immediate Binding ==="
-echo "--- Step 2.1: Default lazy binding deferred abort ---"
+echo "--- Step 2.1: Lazy binding (-z lazy) deferred abort ---"
 show ./app_lazy
 
 echo "--- Step 2.2: Immediate binding via LD_BIND_NOW=1 ---"
