@@ -333,8 +333,8 @@ One thread keeps the delta search, and therefore the pack bytes, reproducible.
 
 `run.sh` then runs `faults.py`, which prints nothing and fails the lab if any defence above stops firing.
 It breaks one rule at a time in a copy of the lab's pack (each trailer, the fanout order, the pack object count, one index CRC32) and asserts the specific error for each.
-It also parses hand-built packs: a REF_DELTA cycle, a chain of 4,098 deltas, an entry whose header size lies about its inflated length, and an index whose offsets sit in the large-offset table (which `git cat-file` must also read).
-A fifth pack holds 1,200 similar blobs repacked with `repack.useDeltaBaseOffset=false`, so it contains only REF_DELTA entries and its biggest first-byte bucket holds at least 8 names, which makes the name lookup run a real binary search; the lab's own 21 objects rarely put two names in one bucket.
+It also parses hand-built packs: a REF_DELTA cycle, a chain of 4,098 deltas, the same chain with a mid-chain object sorted first so half of it is already cached when the deepest object is walked (the cap counts the cached depth too), an entry whose header size lies about its inflated length, and an index whose offsets sit in the large-offset table (which `git cat-file` must also read).
+A sixth pack holds 1,200 similar blobs repacked with `repack.useDeltaBaseOffset=false`, so it contains only REF_DELTA entries and its biggest first-byte bucket holds at least 8 names, which makes the name lookup run a real binary search; the lab's own 21 objects rarely put two names in one bucket.
 The silent checks add no lines to the output below.
 
 ```bash
