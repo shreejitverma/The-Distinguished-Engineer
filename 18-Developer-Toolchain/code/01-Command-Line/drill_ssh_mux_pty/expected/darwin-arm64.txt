@@ -1,0 +1,70 @@
+=== Stage 1: OpenSSH ControlMaster Lockup and Multiplex Diagnostics ===
+--- 1.1 Dead Master Socket Detection ---
+Control socket connect(<stage>/dead_control.sock): Connection refused
+Dead master check exit code: 255 (Connection refused)
+Orphan socket inode still on disk: yes
+
+--- 1.2 Stopped Master Socket Stall & Recovery ---
+Master process state: T (stopped by SIGSTOP)
+Stopped master alive check: TIMED OUT after 0.5s (multiplex client wedged), status 124
+After kill -TERM: state T (SIGTERM stays pending while the process is stopped)
+After kill -KILL: process gone: yes
+Orphan socket inode after the kill: yes
+Alive check after the kill: exit 255 (Connection refused)
+
+--- 1.3 Active OpenSSH PROTOCOL.mux Communication ---
+Master running (pid=PID)
+Reported pid equals the master process pid: yes
+Exit request sent.
+Master process gone after -O exit: yes
+Control socket removed after -O exit: yes
+
+--- 1.4 Stop Listening Versus Exit ---
+Stop listening request sent.
+Control socket removed after -O stop: yes
+Master process still running after -O stop: yes
+
+=== Stage 2: Stale SSH_AUTH_SOCK in Reattached tmux Session ===
+--- 1. Initial Remote Session and tmux Pane Initialization ---
+Pane SSH_AUTH_SOCK is agent 1: yes
+Pane ssh-add -l before disconnect: exit 0, key listed: yes
+
+--- 2. Client Disconnect and Stale Socket Drift ---
+Agent 1 socket after disconnect: exists=no
+tmux session environment after real tmux attach is agent 2: yes
+Pane shell still holds agent 1 path: yes
+Pane ssh-add -l with stale variable (exit 2):
+Error connecting to agent: No such file or directory
+Long-running background job status: alive
+
+--- 3. In-Place Environment Repair Without Terminating Pane ---
+Pane ssh-add -l after exporting from tmux show-environment: exit 0, key listed: yes
+
+--- 4. Architectural Paved Road: Persistent Symlink Bridge ---
+Pane ssh-add -l via bridge to agent 2: exit 0
+Pane ssh-add -l via bridge after agent 2 died, before ~/.ssh/rc ran (exit 2):
+Error connecting to agent: No such file or directory
+~/.ssh/rc repointed the bridge at agent 3: yes
+Pane ssh-add -l via bridge after re-attach, no export in the pane: exit 0
+
+=== Stage 3: Corrupted PTY Line Discipline and Blind Recovery ===
+--- 1. Baseline Canonical Terminal Discipline ---
+Baseline flags: ECHO=1 ICANON=1 ISIG=1 ONLCR=1 ICRNL=1 OPOST=1
+Baseline output mapping (NL -> CR+NL active): True
+Baseline input mapping (Enter \r translated to NL): True
+Baseline echo of typed input: 'deploy\r\n'
+
+--- 2. Corrupted Raw Mode Discipline ---
+Corrupted flags: ECHO=0 ICANON=0 ISIG=0 ONLCR=0 ICRNL=0 OPOST=0
+Corrupted output raw bytes: 'step1\nstep2\nstep3\n'
+Staircase symptom present (raw NL without CR): True
+Corrupted input with Enter key (\r): b'ls\r'
+Corrupted input with Ctrl+J (\n): b'ls\n'
+Typed input echoed back to the terminal: False
+Reader still waiting after Enter (\r): True
+Reader result after Ctrl+J (\n): 'LEN=3\n'
+
+--- 3. Terminal Line Discipline Recovery ---
+Recovered flags (stty sane): ECHO=1 ICANON=1 ISIG=1 ONLCR=1 ICRNL=1 OPOST=1
+Recovered output formatting (CR+NL restored): True
+Recovered reader after Enter (\r): 'ls\r\nLEN=2\r\n'

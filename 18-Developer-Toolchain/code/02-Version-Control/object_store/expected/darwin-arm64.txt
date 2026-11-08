@@ -1,0 +1,58 @@
+=== Step 1: Loose Object Header Serialization and Hashing ===
+Empty blob SHA-1: e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+Empty tree SHA-1: 4b825dc642cb6eb9a060e54bf8d69288fbee4904
+'hello world\n' blob SHA-1: 3b18e512dba79e4c8300dd08aeb37f8e728b8dad (size 12 B)
+Loose object file permissions: 0o444 (read-only 0444)
+Read back object type: blob, payload: 'hello world'
+Loose object zlib header: 78 01 (level 1, Git's loose default)
+Publish over an existing object: kept the original, temp file removed
+
+=== Step 2: Binary Tree Serialization and Directory Sorting ===
+Canonical tree OID: 7745dcf2ea9c7eb3873ff968e954ee871f82250e
+Canonical tree entry order:
+  100644 blob 719b620a... bin-tool
+  100644 blob c272daba... bin.c
+  040000 tree 4b825dc6... bin
+  100644 blob 47d05ff6... bina
+Tree entries correctly ordered via implicit trailing slash rule.
+Naive sorted tree OID: a8a1fd83a21cf01d57338bc1dce35743bdcbc675 (differs from canonical)
+Strict parser caught unsorted tree: Tree entries out of canonical order: 'bin' >= 'bin-tool'
+
+=== Step 3: Full Merkle DAG Construction and Traversal ===
+Root Commit OID: 0e7cf235722c4ac815d7d45bdef5dd210ca93b89
+  Root Tree OID: 29d176f5dfd29c658a04490d886ddb46fff869b6
+  src/ Tree OID: f67bc41327fe605a56df4f06537f1f182637de86
+  README blob:   c1c760e86ab2b656c13f38d569c88387424e0ace
+Child Commit OID: 18f308bdba32d74e16e8ee30b23b4fabc5d0aa89
+  Parent Commit:  0e7cf235722c4ac815d7d45bdef5dd210ca93b89
+  Root Tree OID:  0abf0c95cdb925d6c4a9dd61be72a17bca26a05d (changed)
+  src/ Tree OID:  2469bd3cc0af44b6160f42a7f56be6621ad23fc2 (changed)
+  README blob:    c1c760e86ab2b656c13f38d569c88387424e0ace (deduplicated, unchanged)
+README.md entry OID is identical in both root trees: yes
+Annotated Tag OID: 899e7dcd118589134946823eb975a2016be20dfc
+  Points to: commit 18f308bdba32d74e16e8ee30b23b4fabc5d0aa89
+  Tag Name:  v2.0
+
+=== Step 4: Corruption and Tamper Detection ===
+Bit-flip caught by zlib decompress: error
+Content tampering caught by OID verification: hash mismatch
+Header size lie caught before hashing: size mismatch
+
+=== Step 5: Cryptographic Hash Transition: SHA-1 vs SHA-256 ===
+SHA-256 Empty blob: 473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813
+SHA-256 Empty tree: 6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321
+SHA-256 'hello world\n' blob: 0bd69098bd9b9cc5934a610ab65da429b525361147faa7b5b922919e9a23143d
+SHA-256 Tree OID: d699939c201274b35a5523e333ca3b0934339368fc805978f6dfd5e50ed3497a (size 49 B)
+  Entry: 100644 blob 0bd69098bd9b... hello.txt
+SHA-1 single-file tree size:   37 B (20 B OID)
+SHA-256 single-file tree size: 49 B (32 B OID, +12 B overhead)
+
+=== Step 6: Cross-check Against Real Git ===
+git fsck --strict on the SHA-1 store: clean
+git cat-file agrees on type and bytes for all 18 loose objects
+git hash-object and git mktree reproduce the lab's blob and canonical tree OIDs
+git fsck rejects the naive-sorted tree: treeNotSorted
+git cat-file rejects the bit-flip; git fsck reports hash-path mismatch for the other 2 damaged objects
+git fsck --strict on the SHA-256 store: clean, and hash-object agrees on the blob OID
+
+All object model and content addressing checks passed successfully.
