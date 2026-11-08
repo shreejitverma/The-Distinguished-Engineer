@@ -1,0 +1,6 @@
+INTERNAL_MATH_1.0 {
+    global:
+        internal_calc_checksum;
+    local:
+        *;
+};
