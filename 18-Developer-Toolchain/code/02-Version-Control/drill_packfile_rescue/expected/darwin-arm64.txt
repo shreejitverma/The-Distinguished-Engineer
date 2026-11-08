@@ -1,0 +1,169 @@
+=== 1. OBSERVED SYMPTOM: FAILED OBJECT READS AND TRAVERSAL ABORT ===
+[Command] git log -1
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+fatal: bad object HEAD
+Exit status: 128
+
+[Command] git checkout v2.4.0-rc1
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+fatal: unable to read tree (e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63)
+Exit status: 128
+
+[Command] git multi-pack-index verify
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+Exit status: 0
+
+=== 2. OBJECT STORE INSPECTION AND CORRUPTION ISOLATION ===
+--- Object Database Pack Directory Manifest ---
+  pack-5ae25318c7dac56e315d9bf20730117e28f9ee7e.idx                1184 bytes
+  pack-5ae25318c7dac56e315d9bf20730117e28f9ee7e.pack                537 bytes
+  pack-5ae25318c7dac56e315d9bf20730117e28f9ee7e.rev                  68 bytes
+  pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx                  16 bytes
+  pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.pack                626 bytes
+  pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.rev                  68 bytes
+  multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx      8 bytes
+  multi-pack-index.d/multi-pack-index-chain                          41 bytes
+--- Reference Pointers in .git/refs ---
+  main -> e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+  v1.0.0 -> 4f119367ec994640ed389af31600bd3df35e1113
+  v2.4.0-rc1 -> e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+--- Low-Level Consistency Audit (git fsck) ---
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: refs/heads/main: invalid sha1 pointer e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: refs/tags/v2.4.0-rc1: invalid sha1 pointer e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: HEAD: invalid sha1 pointer e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: packfile .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.pack index not opened
+error: HEAD: invalid reflog entry e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+error: refs/heads/main: invalid reflog entry e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: 41d0d0545af1c0114c732f23c4ab1788d8fb5350: invalid sha1 pointer in cache-tree of .git/index
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: unable to load rev-index for pack '.git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.pack'
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+error: index file .git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx is too small
+missing blob e27e0530652c52594973b3bfed836403ef161857
+missing blob 98800be700a8438ecab91bf3629c9d1c2adae1da
+error: multi-pack-index file .git/objects/pack/multi-pack-index.d/multi-pack-index-ba4c919eaebf6835308df0126cdeffc557d97f09.midx is too small
+warning: unable to find all multi-pack index files
+Exit status: 78
+
+=== 3. REMEDIATION STEP 1: PURGE CORRUPTED MIDX METADATA ===
+Removing broken multi-pack-index chain directory...
+MIDX metadata purged successfully.
+  [check] multi-pack-index.d is gone: ok
+  [check] monolithic multi-pack-index is absent: ok
+
+=== 4. REMEDIATION STEP 2: REGENERATE PACKFILE INDEXES VIA GIT INDEX-PACK ===
+Removing truncated index: pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx...
+Executing git index-pack on raw packfile: pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.pack...
+Regenerated pack checksum: 97b699b40b24f9e6e7d2c4fd8f2e5008c065f616
+Verifying restored index file size:
+  pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.idx                1184 bytes
+  [check] index-pack printed the checksum that names the pack: ok
+  [check] index has the v2 magic and version: ok
+  [check] index lists all 4 objects: ok
+  [check] index size is 8 + 1024 + 28 * objects + 40: ok
+  [check] index trailer carries the pack checksum: ok
+
+=== 5. REMEDIATION STEP 3: VERIFY PACKFILE INTEGRITY VIA GIT VERIFY-PACK ===
+4f119367ec994640ed389af31600bd3df35e1113 commit 232 159 12
+36055c08f9983740c5bda710ec899e4362c1ff1a tree   77 85 171
+b35e0fea85131a14a04a6fd5fa21308ca5d8c163 blob   124 117 256
+98873c843587c88b4ac890ede5bc9abba0e37253 blob   192 144 373
+non delta: 4 objects
+.git/objects/pack/pack-5ae25318c7dac56e315d9bf20730117e28f9ee7e.pack: ok
+e0c4c37f59a1fb7bd32a7e3011ff5c456bf9be63 commit 291 201 12
+41d0d0545af1c0114c732f23c4ab1788d8fb5350 tree   117 121 213
+e27e0530652c52594973b3bfed836403ef161857 blob   148 132 334
+98800be700a8438ecab91bf3629c9d1c2adae1da blob   149 140 466
+non delta: 4 objects
+.git/objects/pack/pack-97b699b40b24f9e6e7d2c4fd8f2e5008c065f616.pack: ok
+  [check] verify-pack reports both packs ok: ok
+
+=== 6. REMEDIATION STEP 4: RECONSTRUCT AND VERIFY MULTI-PACK-INDEX ===
+Rebuilding incremental multi-pack-index...
+Verifying rebuilt multi-pack-index...
+  [check] chain file exists: ok
+  [check] chain lists exactly one layer: ok
+  [check] layer file exists: ok
+  [check] layer has a valid MIDX header: ok
+  [check] layer names the base pack: ok
+  [check] layer names the rescued pack: ok
+
+=== 7. POST-RESCUE AUDIT AND DEPLOYMENT VALIDATION ===
+--- Repository Consistency Check (git fsck --full) ---
+git fsck exit status: 0
+  [check] fsck exits 0: ok
+  [check] fsck prints nothing: ok
+  [check] pack payloads are byte-identical to before the corruption: ok
+--- Commit Log Verification ---
+e0c4c37 fix(engine): zero-copy order matching for v2.4-rc1
+4f11936 feat(engine): initial trading core v1.0
+--- Working Tree Checkout for Release Deployment ---
+HEAD detached at: e0c4c37 (tag: v2.4.0-rc1)
+  [check] HEAD is the tagged commit: ok
+  [check] working tree is clean: ok
+--- Production Build Gate Verification ---
+Build verification: PASS (engine.o and order_book.o compiled cleanly)

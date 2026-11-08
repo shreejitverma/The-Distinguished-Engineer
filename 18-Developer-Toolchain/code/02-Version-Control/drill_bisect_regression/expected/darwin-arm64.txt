@@ -1,0 +1,27 @@
+=== DRILL: AUTOMATED BISECT ACROSS NON-LINEAR MERGE HISTORY ===
+Repository topology: 501 commits, 27 merge commits across 25 feature branches
+
+--- 1. Criss-Cross Merge Base Ambiguity Detection ---
+Common ancestors between feature_12 and feature_13: 2
+  ancestor: d53e4cb9cf (feat(13): worker commit 5)
+  ancestor: fb21e2426d (feat(12): worker commit 5)
+
+--- 2. Internal Graph Bisection Variables (v1.0.0..HEAD) ---
+bisect_rev='f779f8a4d1caae4ee42020dd13bc7224db02cb5c'
+bisect_nr=254
+bisect_good=254
+bisect_bad=244
+bisect_all=500
+bisect_steps=8
+
+--- 3. Naive Automated Bisect Run (Build Breakage Trap) ---
+Naive bisection culprit: 78cd8b9 wip(17): incomplete refactoring commit 8
+Status: FALSE POSITIVE (unbuildable intermediate commit accused instead of regression)
+
+--- 4. Robust Automated Bisect Run (Exit Code 125 Skipping) ---
+Robust bisection culprit: 28a3f78 feat(routing): switch order lookup to dynamic linked list
+Status: SUCCESS (exact regression commit pinpointed in 10 bisection steps)
+
+--- 5. Mainline Integration Bisect (--first-parent) ---
+First-parent mainline culprit: 7032045 merge feature_17 into main
+Status: SUCCESS (fast pull-request / merge-commit isolation in 5 steps)
