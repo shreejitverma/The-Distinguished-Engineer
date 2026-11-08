@@ -8,10 +8,16 @@ export TZ=UTC
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
 
-# Copy lab keys into working directory with strict permissions
-cp keys/* "$WORK_DIR/"
-chmod 600 "$WORK_DIR"/*_key
-chmod 644 "$WORK_DIR"/*.pub
+# Generate throwaway CA, host, and user keys for this run only
+for name in ca_key host_key user_key; do
+    ssh-keygen -q -t ed25519 -N "" -C "lab-$name" -f "$WORK_DIR/$name"
+done
+CA_FP=$(ssh-keygen -l -E sha256 -f "$WORK_DIR/ca_key.pub" | cut -d' ' -f2)
+
+# Fresh keys change every fingerprint per run: mask the CA's as one token and every other key's as another
+mask_fingerprints() {
+    sed -e "s|$CA_FP|SHA256:<ca-fingerprint>|g" -e 's|SHA256:[A-Za-z0-9+/]\{43\}|SHA256:<key-fingerprint>|g'
+}
 
 # Step 1: Mint user certificate (pinned UTC validity: 2026-11-01 to 2026-11-02, serial 42)
 ssh-keygen -s "$WORK_DIR/ca_key" \
@@ -31,11 +37,11 @@ ssh-keygen -s "$WORK_DIR/ca_key" \
     "$WORK_DIR/host_key.pub" >/dev/null 2>&1
 
 echo "=== 1. Minted User Certificate Metadata ==="
-ssh-keygen -L -f "$WORK_DIR/user_key-cert.pub" | tail -n +2
+ssh-keygen -L -f "$WORK_DIR/user_key-cert.pub" | tail -n +2 | mask_fingerprints
 
 echo ""
 echo "=== 2. Minted Host Certificate Metadata ==="
-ssh-keygen -L -f "$WORK_DIR/host_key-cert.pub" | tail -n +2
+ssh-keygen -L -f "$WORK_DIR/host_key-cert.pub" | tail -n +2 | mask_fingerprints
 
 echo ""
 python3 cert_validator.py wire "$WORK_DIR/user_key-cert.pub"

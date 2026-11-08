@@ -216,6 +216,8 @@ BASTION_LOG="${TMPDIR_LAB}/sshd_bastion.log"
 mkdir "${TMPDIR_LAB}/af"
 cat <<EOF > "${TMPDIR_LAB}/sshd_target_config"
 Port ${PORT_TARGET}
+ListenAddress 127.0.0.1
+AuthorizedKeysFile none
 HostKey ${TMPDIR_LAB}/target_host_key
 HostCertificate ${TMPDIR_LAB}/target_host_key-cert.pub
 PidFile ${TMPDIR_LAB}/sshd_target.pid
@@ -330,6 +332,8 @@ echo "=== Step 6: Bastion Architecture via ProxyJump (Zero Agent Forwarding) ===
 
 cat <<EOF > "${TMPDIR_LAB}/sshd_bastion_config"
 Port ${PORT_BASTION}
+ListenAddress 127.0.0.1
+AuthorizedKeysFile none
 HostKey ${TMPDIR_LAB}/bastion_host_key
 HostCertificate ${TMPDIR_LAB}/bastion_host_key-cert.pub
 PidFile ${TMPDIR_LAB}/sshd_bastion.pid

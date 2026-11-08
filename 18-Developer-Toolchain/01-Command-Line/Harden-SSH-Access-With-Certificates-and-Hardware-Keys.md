@@ -516,7 +516,8 @@ The lab in `code/01-Command-Line/ssh_fido2_krl/` executes this entire lifecycle 
    It enrolls a mock `ed25519-sk` keypair via `ssh-keygen -t ed25519-sk -w ...` without requiring physical USB tokens, checks that the public key is `sk-ssh-ed25519@openssh.com` and that `ssh-keygen -l` reports `ED25519-SK`, and signs it as a FIDO2 user certificate (serial 501).
    The mock's `sk_sign` always fails (it has the real `sk-api.h` prototype and returns `SSH_SK_ERR_GENERAL`), so this key is enrolled, certified, and revoked but never used to authenticate; `sshd` enforcement of the FIDO2 revocation is therefore not exercised.
 4. It compiles an initial binary Key Revocation List (`revoked.krl`) revoking serial 1001, updates it using `-u` to revoke the FIDO2 key by its SHA-256 fingerprint, validates the binary format using `lab_inspect.py`, and requires `ssh-keygen -Q` to exit 1 for the revoked certificates and 0 for Dave's.
-5. It starts an isolated `sshd` instance on an ephemeral unprivileged port configured with `TrustedUserCAKeys`, `AuthorizedPrincipalsFile`, `RevokedKeys`, and `HostCertificate`, logging at `LogLevel VERBOSE` to a file.
+5. It starts an isolated `sshd` instance on an ephemeral unprivileged port bound to loopback only (`ListenAddress 127.0.0.1`) and configured with `TrustedUserCAKeys`, `AuthorizedPrincipalsFile`, `RevokedKeys`, and `HostCertificate`, logging at `LogLevel VERBOSE` to a file.
+   `AuthorizedKeysFile none` disables plain public-key logins, so the lab never honors the running user's real `~/.ssh/authorized_keys` and certificates are the only way in.
    It executes client authentication probes, and each probe passes only if the client exit code, the remote command output, and the `sshd` log reason all match:
    - Dave (active cert matching authorized `admin` principal) succeeds with exit 0 and the log line `Accepted certificate ID "dave@corp.internal" (serial 1004)`.
    - Bob (cert with principal `developer` not matching `admin`) is denied with exit 255 and `Certificate does not contain an authorized principal`.
@@ -525,7 +526,7 @@ The lab in `code/01-Command-Line/ssh_fido2_krl/` executes this entire lifecycle 
    - Dave against a `known_hosts` that trusts a different CA is refused by the client with exit 255, which shows the host certificate is actually verified.
    The exit codes printed are the real ones, not literals.
    The target sets `PerSourcePenalties no` when the `sshd` knows it (OpenSSH 9.8 and later), because every probe comes from 127.0.0.1 and the penalty would drop later connections after the denied logins.
-6. It starts a second `sshd` instance acting as a Bastion (`AllowAgentForwarding no`) and connects to the target through it via `ProxyJump`.
+6. It starts a second loopback-only `sshd` instance with the same `AuthorizedKeysFile none` acting as a Bastion (`AllowAgentForwarding no`) and connects to the target through it via `ProxyJump`.
    The tunnel passes only if the command output arrives, the client's `ssh -v` log shows the implicit proxy command ending in `-W '[127.0.0.1]:<port>' bastion`, and the bastion log shows it authenticated Dave's certificate.
    The agent check loads Dave's key into a real `ssh-agent` and connects with `ForwardAgent yes`: the target (`AllowAgentForwarding yes`) is the control and must report a forwarded `SSH_AUTH_SOCK`, the bastion must report none.
 

@@ -172,7 +172,7 @@ decoded_streams_identical: yes
 ```
 
 `serial_fallback` counts the `Input not in pzstd format, falling back to serial decompression` line that `pzstd -vvv` logs for the plain archive and not for the `pzstd`-written one.
-The lab establishes the precondition for parallel decoding and identical output, not a speedup; the timings in this step come from a separate 1.01 GiB measurement.
+The lab establishes the precondition for parallel decoding and identical output, not a speedup; the timings in this step come from the separate 522 MiB measurement above, not from the lab.
 
 ### Step 2: Establish the Streaming Pipeline and Bypass Multibyte Locale
 

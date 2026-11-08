@@ -1,7 +1,7 @@
 === 1. Minted User Certificate Metadata ===
         Type: ssh-ed25519-cert-v01@openssh.com user certificate
-        Public key: ED25519-CERT SHA256:bt6XeViKKkXYEipAswCJwSzuIZy0A4P7RKGijhfvr5Y
-        Signing CA: ED25519 SHA256:Uz+tBan9lS/bydwt/RLec9t05kQj3EXtumu1PiydpZQ (using ssh-ed25519)
+        Public key: ED25519-CERT SHA256:<key-fingerprint>
+        Signing CA: ED25519 SHA256:<ca-fingerprint> (using ssh-ed25519)
         Key ID: "alice-corp-session-42"
         Serial: 42
         Valid: from 2026-11-01T00:00:00 to 2026-11-02T00:00:00
@@ -18,8 +18,8 @@
 
 === 2. Minted Host Certificate Metadata ===
         Type: ssh-ed25519-cert-v01@openssh.com host certificate
-        Public key: ED25519-CERT SHA256:p8qkPnqfnjS+IS6calMvg+cZ2k2FlkbBuTSipmKxFxo
-        Signing CA: ED25519 SHA256:Uz+tBan9lS/bydwt/RLec9t05kQj3EXtumu1PiydpZQ (using ssh-ed25519)
+        Public key: ED25519-CERT SHA256:<key-fingerprint>
+        Signing CA: ED25519 SHA256:<ca-fingerprint> (using ssh-ed25519)
         Key ID: "bastion-corp-host-101"
         Serial: 101
         Valid: from 2026-11-01T00:00:00 to 2027-11-01T00:00:00

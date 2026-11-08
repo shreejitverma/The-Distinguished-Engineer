@@ -518,7 +518,8 @@ Latest releases (as of 2026-11, PyPI and crates.io): Paramiko 5.1.0, AsyncSSH 2.
 ## Worked Lab Example
 
 The companion lab resides in `code/01-Command-Line/ssh_ca_minting/`.
-It uses a committed, fixed Certificate Authority key and mints a user and a host certificate with pinned UTC validity windows.
+It generates a throwaway Certificate Authority, host, and user key in a temporary directory on every run, so no private key is ever committed, and mints a user and a host certificate with pinned UTC validity windows.
+Fresh keys give fresh fingerprints, so `run.sh` masks the CA's fingerprint as `SHA256:<ca-fingerprint>` and every other key's as `SHA256:<key-fingerprint>`; both certificates showing the same CA token proves one CA signed both.
 A standalone Python tool parses the binary wire format and verifies the CA signature in pure Python.
 Principal, validity-window, and certificate-type enforcement is done by OpenSSH itself through `ssh-keygen -Y verify` with a pinned `-Overify-time` clock, which runs the same `sshkey_cert_check_authority()` logic that `sshd` uses (not `sshd` itself; no daemon is started).
 Key Revocation List (KRL) checks use `ssh-keygen -k` and `-Q`.
@@ -532,13 +533,13 @@ bash run.sh
 
 ### Verified Output
 
-Recorded on `darwin-arm64` (macOS, OpenSSH 10.6p2) on 2026-11-07; the block below is byte-identical to `expected/darwin-arm64.txt`:
+Recorded on `darwin-arm64` (macOS, OpenSSH 10.6p2) on 2026-11-08; the block below is byte-identical to `expected/darwin-arm64.txt`:
 
 ```text
 === 1. Minted User Certificate Metadata ===
         Type: ssh-ed25519-cert-v01@openssh.com user certificate
-        Public key: ED25519-CERT SHA256:bt6XeViKKkXYEipAswCJwSzuIZy0A4P7RKGijhfvr5Y
-        Signing CA: ED25519 SHA256:Uz+tBan9lS/bydwt/RLec9t05kQj3EXtumu1PiydpZQ (using ssh-ed25519)
+        Public key: ED25519-CERT SHA256:<key-fingerprint>
+        Signing CA: ED25519 SHA256:<ca-fingerprint> (using ssh-ed25519)
         Key ID: "alice-corp-session-42"
         Serial: 42
         Valid: from 2026-11-01T00:00:00 to 2026-11-02T00:00:00
@@ -555,8 +556,8 @@ Recorded on `darwin-arm64` (macOS, OpenSSH 10.6p2) on 2026-11-07; the block belo
 
 === 2. Minted Host Certificate Metadata ===
         Type: ssh-ed25519-cert-v01@openssh.com host certificate
-        Public key: ED25519-CERT SHA256:p8qkPnqfnjS+IS6calMvg+cZ2k2FlkbBuTSipmKxFxo
-        Signing CA: ED25519 SHA256:Uz+tBan9lS/bydwt/RLec9t05kQj3EXtumu1PiydpZQ (using ssh-ed25519)
+        Public key: ED25519-CERT SHA256:<key-fingerprint>
+        Signing CA: ED25519 SHA256:<ca-fingerprint> (using ssh-ed25519)
         Key ID: "bastion-corp-host-101"
         Serial: 101
         Valid: from 2026-11-01T00:00:00 to 2027-11-01T00:00:00
@@ -601,7 +602,7 @@ Query host certificate (serial 101): OK (exit 0)
 
 ### Reading the Result
 
-- The user certificate metadata confirms `SSH2_CERT_TYPE_USER` (Type 1), signed by the Ed25519 CA key with fingerprint `Uz+tBan9...`.
+- The user certificate metadata confirms `SSH2_CERT_TYPE_USER` (Type 1), signed by the run's Ed25519 CA key (`SHA256:<ca-fingerprint>`).
   The 24-hour validity window spans from epoch `1793491200` to `1793577600`.
 - The host certificate has no critical options: critical options are defined only for user certificates, so the lab mints it without any.
 - The wire format parser unpacks the exact binary fields defined in `PROTOCOL.certkeys` (now draft-miller-ssh-cert).

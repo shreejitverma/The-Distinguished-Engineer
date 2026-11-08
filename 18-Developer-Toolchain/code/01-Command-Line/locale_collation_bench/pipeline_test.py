@@ -96,8 +96,8 @@ def test_pipeline():
         check(comm.returncode == 0, "BSD comm no longer exits 0 on unsorted input")
 
         print("\n=== 8. Filesystem Unicode Normalization (macOS APFS) ===")
-        nfc_rel = "item_é.txt"  # U+00E9 precomposed
-        nfd_rel = "item_é.txt"  # U+0065 U+0301 decomposed
+        nfc_rel = "item_\u00e9.txt"  # U+00E9 precomposed
+        nfd_rel = "item_e\u0301.txt"  # U+0065 U+0301 decomposed
         with open(os.path.join(td, nfc_rel), "w") as f:
             f.write("payload\n")
 
