@@ -1,0 +1,23 @@
+kernel_dup2_cloexec: old_fd_cloexec=1 target_fd_cloexec=0
+kernel_offset_sharing: dup_shared="AAAAABBBBB" independent_open="BBBBB"
+kernel_pipe_eof: with_leaked_writer=TIMEOUT closed_writer=EOF
+subshell_isolation: default_count=0
+subshell_lastpipe: lastpipe_count=1
+redir_order_correct: STDOUT STDERR
+redir_order_inverted_file: STDOUT
+redir_order_inverted_err: STDERR
+status_default: exit=0
+status_pipefail: exit=3
+pipestatus_array: 11 22 0
+heredoc_tab_stripped: "indented_with_tab"
+heredoc_space_preserved: "    indented_with_space"
+heredoc_small: seekable=0 errno=ESPIPE
+heredoc_65536_bytes: seekable=0 errno=ESPIPE
+heredoc_65537_bytes: seekable=1 offset=0
+herestring_65536_bytes: seekable=0 errno=ESPIPE
+herestring_65537_bytes: seekable=1 offset=0
+procsub: seekable=0 errno=ESPIPE
+procsub_sync_with_wait: before_gate=absent after_wait=done
+bare_wait_two_substitutions: last=done first=gave_up
+bare_wait_pipeline_stage: substitution=absent
+exec_fd_wait_pid_status: 7

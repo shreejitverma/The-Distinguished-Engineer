@@ -1,0 +1,139 @@
+=== 1. BUILD STRIPPED BINARY AND SPLIT DWARF PACKAGE ===
+Build ID: 11223344556677889900aabbccddeeff11223344
+--- Sections in stripped production binary ---
+.eh_frame
+.eh_frame_hdr
+.text
+--- Sections in detached Split DWARF package (.dwp) ---
+.debug_abbrev.dwo
+.debug_line.dwo
+.debug_loc.dwo
+.debug_str_offsets.dwo
+.debug_info.dwo
+.debug_str.dwo
+.debug_cu_index
+.debug_tu_index
+--- Sections in the .debug file (skeleton and .debug_addr) ---
+.debug_abbrev
+.debug_addr
+.debug_aranges
+.debug_gnu_pubnames
+.debug_gnu_pubtypes
+.debug_info
+.debug_line
+.debug_ranges
+.debug_str
+.symtab
+--- Section type of .text in the .debug file (NOBITS means code bytes were dropped) ---
+.text NOBITS
+
+=== 2. CRASH SYMPTOM ON STRIPPED BINARY ===
+Program received signal SIGSEGV, Segmentation fault.
+#0  0xADDR in ?? ()
+#1  0xADDR in ?? ()
+#2  0xADDR in ?? () from /lib/aarch64-linux-gnu/libc.so.6
+#3  0xADDR in __libc_start_main () from /lib/aarch64-linux-gnu/libc.so.6
+#4  0xADDR in ?? ()
+
+=== 3. PHYSICAL FRAME RECONSTRUCTION VIA .EH_FRAME ===
+--- FDE for main (pc=0000000000000600..) ---
+000000a4 000000000000001c 000000a8 FDE cie=00000000 pc=0000000000000600..0000000000000618
+  DW_CFA_advance_loc: 4 to 0000000000000604
+  DW_CFA_def_cfa_offset: 16
+  DW_CFA_offset: r29 (x29) at cfa-16
+  DW_CFA_offset: r30 (x30) at cfa-8
+  DW_CFA_advance_loc: 16 to 0000000000000614
+  DW_CFA_restore: r30 (x30)
+  DW_CFA_restore: r29 (x29)
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+--- FDE for physical_worker (pc=0000000000000760..) ---
+00000090 0000000000000010 00000094 FDE cie=00000000 pc=0000000000000760..000000000000076c
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+--- FDE for __do_global_dtors_aux (pc=0000000000000700..) ---
+00000050 0000000000000024 00000054 FDE cie=00000000 pc=0000000000000700..0000000000000750
+  DW_CFA_advance_loc: 4 to 0000000000000704
+  DW_CFA_AARCH64_negate_ra_state
+  DW_CFA_advance_loc: 4 to 0000000000000708
+  DW_CFA_def_cfa_offset: 32
+  DW_CFA_offset: r29 (x29) at cfa-32
+  DW_CFA_offset: r30 (x30) at cfa-24
+  DW_CFA_advance_loc: 8 to 0000000000000710
+  DW_CFA_offset: r19 (x19) at cfa-16
+  DW_CFA_advance_loc: 56 to 0000000000000748
+  DW_CFA_restore: r30 (x30)
+  DW_CFA_restore: r29 (x29)
+  DW_CFA_restore: r19 (x19)
+  DW_CFA_def_cfa_offset: 0
+  DW_CFA_advance_loc: 4 to 000000000000074c
+  DW_CFA_AARCH64_negate_ra_state
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+--- CIE shared by all FDEs ---
+00000000 0000000000000010 00000000 CIE
+  Version:               1
+  Augmentation:          "zR"
+  Code alignment factor: 4
+  Data alignment factor: -8
+  Return address column: 30
+  Augmentation data:     1b
+  DW_CFA_def_cfa: r31 (sp) ofs 0
+
+=== 4. SPLIT DWARF PACKAGE (.DWP) CU INDEX ===
+readelf exit status: 1
+  Version:                 2
+  Number of columns:       5
+  Number of used entries:  1
+  Number of slots:         16
+  Offset table
+  slot  dwo_id                 info   abbrev     line      loc  str_off
+  [  2] 0xADDR        0        0        0        0        0
+  Size table
+  slot  dwo_id                 info   abbrev     line      loc  str_off
+  [  2] 0xADDR     3004      829      452       88      568
+--- readelf stderr (unique) ---
+readelf: Warning: Section .debug_tu_index is too small to contain a CU/TU header
+
+=== 5. INLINED SUBROUTINE DIE RESOLUTION ===
+    <aeb>   DW_AT_abstract_origin: <0xafd>
+ <2><b20>: Abbrev Number: 47 (DW_TAG_inlined_subroutine)
+    <b21>   DW_AT_abstract_origin: <0xb7a>
+    <b31>   DW_AT_call_line   : 21
+    <b34>   DW_AT_abstract_origin: <0xb84>
+ <3><b40>: Abbrev Number: 49 (DW_TAG_inlined_subroutine)
+    <b41>   DW_AT_abstract_origin: <0xb91>
+    <b4c>   DW_AT_call_line   : 16
+    <b4f>   DW_AT_abstract_origin: <0xb9b>
+ <4><b5b>: Abbrev Number: 49 (DW_TAG_inlined_subroutine)
+    <b5c>   DW_AT_abstract_origin: <0xba8>
+    <b67>   DW_AT_call_line   : 11
+    <b6a>   DW_AT_abstract_origin: <0xbae>
+    <b7b>   DW_AT_name        : (indexed string: 0x64): level1_dispatch
+    <b92>   DW_AT_name        : (indexed string: 0x2c): level2_process
+    <ba9>   DW_AT_name        : (indexed string: 0x34): level3_leaf
+--- readelf stderr (unique) ---
+readelf: Warning: Cannot fetch indexed address: the .debug_addr section is missing
+readelf: Warning: Section .debug_tu_index is too small to contain a CU/TU header
+
+=== 6. DEBUGINFOD SYMBOL RETRIEVAL AND FULL STACK UNWINDING ===
+--- 6a. debuginfod serves the .debug file; crash_prog.dwp sits next to the executable ---
+crash_prog.dwp next to crash_prog: yes
+warning: Could not find DWO CU crash.dwo(0xADDR) referenced by CU at offset 0xADDR [in module DEBUGFILE]
+Program received signal SIGSEGV, Segmentation fault.
+#0  physical_worker(int volatile*) () at crash.cpp:6
+#1  0xADDR in main () at crash.cpp:26
+--- requests the debuginfod stand-in served ---
+[debuginfod] SERVE /buildid/11223344.../debuginfo (200 OK)
+--- 6b. the same .dwp copied next to the fetched debug file ---
+[dwarf-read] open_and_init_dwp_file: DWP file found: <fetched debug file dir>/crash_prog.dwp
+Program received signal SIGSEGV, Segmentation fault.
+#0  level3_leaf (ptr=0xADDR) at crash.cpp:6
+#1  level2_process (ptr=0xADDR) at crash.cpp:11
+#2  level1_dispatch (ptr=0xADDR) at crash.cpp:16
+#3  physical_worker (ptr=ptr@entry=0xADDR) at crash.cpp:21
+#4  0xADDR in main (argc=<optimized out>, argv=<optimized out>) at crash.cpp:26

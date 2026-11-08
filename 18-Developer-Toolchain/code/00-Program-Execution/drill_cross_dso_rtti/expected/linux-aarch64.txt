@@ -1,0 +1,66 @@
+=== Drill: Cross-DSO Exception and RTTI Failure ===
+--- 1. Reproduction: real libc++ with -fvisibility=hidden ---
+[libc++ fallback handler present]
+  addr_eq=0 op_eq=0 strcmp_eq=1
+  outcome=fell-back-to-std-exception
+  exit status 0
+[libc++ strict, RTLD_LOCAL]
+  addr_eq=0 op_eq=0 strcmp_eq=1
+  stderr: libc++abi: terminating due to uncaught exception of type PluginError: Cross-DSO PluginError: operation failed in worker thread
+  exit status 134
+[libc++ strict, RTLD_GLOBAL]
+  addr_eq=0 op_eq=0 strcmp_eq=1
+  stderr: libc++abi: terminating due to uncaught exception of type PluginError: Cross-DSO PluginError: operation failed in worker thread
+  exit status 134
+--- 2. Diagnosis: libstdc++ masks the same bug ---
+[libstdc++ fallback handler present]
+  addr_eq=0 op_eq=1 strcmp_eq=1
+  outcome=caught-PluginError
+  exit status 0
+[libstdc++ strict]
+  addr_eq=0 op_eq=1 strcmp_eq=1
+  outcome=caught-PluginError
+  exit status 0
+--- 3. Diagnosis: ELF symbol inspection ---
+dynamic RTTI symbols in libplugin_broken.so: 0
+libplugin_broken.so .symtab (bind visibility name):
+  LOCAL DEFAULT _ZTI11PluginError
+  LOCAL DEFAULT _ZTS11PluginError
+plugin.o _ZTI11PluginError, -fvisibility=hidden: WEAK HIDDEN
+plugin.o _ZTI11PluginError, default flags:       WEAK DEFAULT
+--- 4. Remediation A: visibility annotation plus --export-dynamic ---
+[A without --export-dynamic, RTLD_LOCAL (control)]
+  addr_eq=0 op_eq=0 strcmp_eq=1
+  stderr: libc++abi: terminating due to uncaught exception of type PluginError: Cross-DSO PluginError: operation failed in worker thread
+  exit status 134
+[A without --export-dynamic, RTLD_GLOBAL (control)]
+  addr_eq=0 op_eq=0 strcmp_eq=1
+  stderr: libc++abi: terminating due to uncaught exception of type PluginError: Cross-DSO PluginError: operation failed in worker thread
+  exit status 134
+[A with --export-dynamic]
+  addr_eq=1 op_eq=1 strcmp_eq=1
+  outcome=caught-PluginError
+  exit status 0
+--- 5. Remediation B: version script that lists the RTTI symbols ---
+[B map lists _ZTI/_ZTS]
+  addr_eq=1 op_eq=1 strcmp_eq=1
+  outcome=caught-PluginError
+  exit status 0
+[B map omits _ZTI/_ZTS (control)]
+  addr_eq=0 op_eq=0 strcmp_eq=1
+  stderr: libc++abi: terminating due to uncaught exception of type PluginError: Cross-DSO PluginError: operation failed in worker thread
+  exit status 134
+dynamic RTTI symbols, annotated plugin, map lists them: 2
+dynamic RTTI symbols, annotated plugin, map omits them: 0
+dynamic RTTI symbols, hidden plugin, map lists them:    0
+--- 6. Remediation C: key function in a common shared library ---
+[C key function in libcommon.so, host not exporting]
+  addr_eq=1 op_eq=1 strcmp_eq=1
+  outcome=caught-PluginError
+  exit status 0
+libcommon.so defines _ZTI11PluginError: 1
+host_common relocations against _ZTI11PluginError: R_AARCH64_ABS64,R_AARCH64_GLOB_DAT
+host_common defines _ZTI11PluginError itself: 0
+libplugin_common.so relocations against _ZTI11PluginError: R_AARCH64_GLOB_DAT
+libplugin_common.so defines _ZTI11PluginError itself: 0
+=== All drill checks passed ===

@@ -1,0 +1,111 @@
+=== SHELL PLATFORM IDENTIFICATION ===
+Host OS: Darwin
+Host Arch: arm64
+bash major version >= 5: yes
+zsh major version >= 5: yes
+fish major version >= 4: yes
+
+=== PART 1: STARTUP FILE EXECUTION CASCADES ===
+--- 1.1 Bash Execution Modes ---
+Mode A: Interactive with explicit --rcfile (--noprofile)
+  [bash] sourced the --rcfile file (not ~/.bashrc)
+Mode B: Login (via HOME .bash_profile)
+  [bash] sourced ~/.bash_profile (login)
+Mode C: Non-login Interactive
+  [bash] sourced ~/.bashrc (interactive)
+Mode D: Non-login Non-interactive (with BASH_ENV)
+  [bash] sourced BASH_ENV file (non-interactive)
+Mode E: Non-login Non-interactive (default: no startup files)
+--- 1.1b Bash Remote Shell Rule (stdin kind) ---
+Mode F: stdin is a socket (like sshd)
+  [bash] sourced ~/.bashrc (remote non-interactive rule)
+Mode G: stdin is a socket, with --norc
+Mode H: stdin is a pipe (no network connection)
+Mode I: stdin is a socket, invoked as sh
+
+--- 1.2 Zsh Execution Modes ---
+Mode A: Login + Interactive
+  [zsh] sourced ~/.zshenv (all invocations)
+  [zsh] sourced ~/.zprofile (login before zshrc)
+  [zsh] sourced ~/.zshrc (interactive)
+  [zsh] sourced ~/.zlogin (login after zshrc)
+Mode B: Login + Non-interactive
+  [zsh] sourced ~/.zshenv (all invocations)
+  [zsh] sourced ~/.zprofile (login before zshrc)
+  [zsh] sourced ~/.zlogin (login after zshrc)
+Mode C: Non-login Interactive
+  [zsh] sourced ~/.zshenv (all invocations)
+  [zsh] sourced ~/.zshrc (interactive)
+Mode D: Non-login Non-interactive (script execution)
+  [zsh] sourced ~/.zshenv (all invocations)
+Mode E: Explicit Bypass (-f / NO_RCS)
+
+--- 1.3 Fish Execution Modes ---
+Mode A: Interactive Non-login
+  [fish] sourced conf.d/01_snippet.fish
+  [fish] sourced config.fish
+  [fish] branch evaluated: status is-interactive
+Mode B: Non-interactive Non-login (script)
+  [fish] sourced conf.d/01_snippet.fish
+  [fish] sourced config.fish
+Mode C: Login Non-interactive
+  [fish] sourced conf.d/01_snippet.fish
+  [fish] sourced config.fish
+  [fish] branch evaluated: status is-login
+
+--- 1.4 POSIX sh / Dash Execution Modes ---
+Mode A: Login Shell
+  [dash/posix] sourced ~/.profile (login)
+Mode B: Interactive Non-login with ENV
+  [dash/posix] sourced $ENV (interactive)
+Mode C: Non-interactive Script (ignores ENV and .profile)
+
+=== PART 2: ARRAY INDEXING AND SLICING DIVERGENCE ===
+Bash base index 0       : elem0
+Bash index 1            : elem1
+Bash array length       : 4
+Bash slice offset:len   : elem1 elem2
+Zsh default base index 1: elem1
+Zsh index 0 (empty)     : 
+Zsh array length        : 4
+Zsh slice [start,end]   : elem1 elem2
+Zsh with KSH_ARRAYS [0] : elem1
+Zsh with KSH_ARRAYS bare: elem1
+Fish base index 1       : elem1
+Fish index 2            : elem2
+Fish array count        : 4
+Fish slice [start..end] : elem2 elem3
+Dash positional param $1: elem1
+Dash positional param $2: elem2
+Dash positional count $#: 4
+
+=== PART 3: WORD SPLITTING AND GLOB EXPANSION ===
+  bash arguments received: 3
+  bash arguments received: 2
+  zsh default arguments received: 1
+  zsh default arguments received: 1
+  zsh SH_WORD_SPLIT arguments received: 3
+  fish arguments received: 1
+  fish arguments received: 1
+  dash arguments received: 3
+  dash arguments received: 2
+
+=== PART 4: ZSH GLOB QUALIFIERS ===
+Zsh plain files *(.)    :  empty_file.txt regular_file.txt
+Zsh directories *(/)    :  sub_dir
+Zsh symlinks *(@)       :  symlink.txt
+Zsh zero-length *(L0)   :  empty_file.txt
+
+=== PART 5: PROGRAMMABLE COMPLETION PARADIGMS ===
+Bash compgen matching:
+build
+bench
+bundle
+Fish complete query matching:
+bench	Execute benchmarks
+build	Compile binary target
+
+=== PART 6: BASHISM REJECTION IN DASH ===
+Test 1: Array syntax in Dash -> dash: 1: Syntax error: "(" unexpected 
+Test 2: Double brackets [[ in Dash -> dash: 1: [[: not found 
+Test 3: Process substitution <() in Dash -> dash: 1: Syntax error: "(" unexpected 

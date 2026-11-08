@@ -77,6 +77,7 @@ Re-run the script after every structural change; this file is its output and sho
 - **interview**: `13-Agentic-AI/Agentic-Harness/interview`, `14-Low-Latency-Systems/Interview`
 - **appendice**: `13-Agentic-AI/Agentic_AI_Zero_to_Godhood/Appendices`, `17-Cloud-AI-Engineering/Appendices`
 - **execution program**: `18-Developer-Toolchain/00-Program-Execution`, `18-Developer-Toolchain/code/00-Program-Execution`
+- **command line**: `18-Developer-Toolchain/01-Command-Line`, `18-Developer-Toolchain/code/01-Command-Line`
 - **control version**: `18-Developer-Toolchain/02-Version-Control`, `18-Developer-Toolchain/code/02-Version-Control`
 - **packaging release**: `18-Developer-Toolchain/07-Packaging-and-Release`, `18-Developer-Toolchain/code/07-Packaging-and-Release`
 
