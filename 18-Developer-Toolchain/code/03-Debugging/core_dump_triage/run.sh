@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # requires: linux
+# Native Linux hosts also need gcc, gdb (with Python), elfutils (eu-readelf, eu-unstrip) and binutils (objcopy, strip);
+# the pinned container image (_harness/linux-labs.Dockerfile) has them. The checks below fail with a message if one is missing.
+
+for tool in gcc gdb eu-readelf eu-unstrip objcopy strip; do
+    command -v "$tool" >/dev/null || { echo "missing required tool: $tool" >&2; exit 1; }
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKDIR="$(mktemp -d)"
@@ -13,6 +19,10 @@ cp "$SCRIPT_DIR/crash.c" "$SCRIPT_DIR/triage.py" .
 gcc -O2 -g -fno-optimize-sibling-calls -Wl,--build-id -fdebug-prefix-map="$WORKDIR"=. crash.c -o app
 
 BUILD_ID="$(eu-readelf -n app | awk '/Build ID:/ {print $3}')"
+if [ -z "$BUILD_ID" ]; then
+    echo "app has no GNU Build ID, so no core or debug file can be matched to it" >&2
+    exit 1
+fi
 
 # Release split: debug info to a side file, then strip everything (including .symtab).
 objcopy --only-keep-debug app app.debug
@@ -51,10 +61,18 @@ if [ -z "$CORE" ] || [ ! -s "$CORE" ]; then
     exit 1
 fi
 
+# The Core source line goes to stderr, not into the compared output, so the recorded stdout is the same
+# whether the kernel or the gdb fallback produced the core; the harness shows stderr only when the lab fails.
+echo "Core source: $CORE_SOURCE" >&2
+if ! eu-readelf -h "$CORE" | grep -q 'Type:.*CORE'; then
+    echo "$CORE is not an ELF core file" >&2
+    exit 1
+fi
+
 # The core records the Build ID of every mapped ELF; it must match the binary we hold.
 CORE_BUILD_ID="$(eu-unstrip -n --core="$CORE" | awk '$NF ~ /app$/ || $NF == "-" && NR == 1 {print $2; exit}' | cut -d@ -f1)"
 if [ "$BUILD_ID" = "$CORE_BUILD_ID" ]; then BUILD_ID_EQUAL=yes; else BUILD_ID_EQUAL=no; fi
-export BUILD_ID_EQUAL CORE_SOURCE
+export BUILD_ID_EQUAL
 
 # Pass 1: no debug info reachable, so the stripped binary yields no names or lines.
 export TRIAGE_PASS=without-debug-info
