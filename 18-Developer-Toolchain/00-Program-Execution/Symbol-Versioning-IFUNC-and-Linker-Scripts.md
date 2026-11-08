@@ -34,7 +34,7 @@ sources:
 
 > [!summary] Claim:
 > GNU symbol versioning records version nodes in `.gnu.version`, `.gnu.version_d`, and `.gnu.version_r`, allowing a shared object to export multiple ABI implementations of the same symbol name while the dynamic loader enforces forward and backward binding compatibility.
-> GNU indirect functions (`STT_GNU_IFUNC`) delegate runtime dispatch to early relocation resolvers invoked via `R_*_IRELATIVE` relocations before constructors run, requiring resolvers to avoid un-relocated dynamic state, external procedure linkage, and compiler instrumentation.
+> GNU indirect functions (`STT_GNU_IFUNC`) delegate runtime dispatch to resolvers that the dynamic linker calls while relocating, through an `R_*_IRELATIVE` relocation for a non-preemptible IFUNC or through an ordinary symbol relocation for an exported one, requiring resolvers to avoid un-relocated dynamic state, external procedure linkage, and compiler instrumentation.
 > Linker scripts govern output section placement, program header mappings, and memory bank topology, while compiler section partitioning enables mark-and-sweep garbage collection (`--gc-sections`) and Identical Code Folding (`--icf`) to eliminate dead code and redundant templates.
 
 ```mermaid
@@ -82,7 +82,7 @@ flowchart TD
 [[Dynamic-Linking-PLT-GOT-and-Loaders]] establishes how dynamic linkers load shared libraries, resolve external symbol references, and manage Global Offset Table (GOT) slots.
 Static linkers and dynamic loaders augment raw symbol names with three distinct mechanisms to maintain binary compatibility, optimize execution paths, and control binary layout:
 1. GNU Symbol Versioning, which tags symbol strings with version nodes in dedicated ELF sections.
-2. GNU Indirect Functions (`STT_GNU_IFUNC`), which evaluate runtime hardware capabilities during process startup to populate GOT entries directly.
+2. GNU Indirect Functions (`STT_GNU_IFUNC`), which evaluate runtime hardware capabilities during relocation processing to populate GOT entries directly.
 3. Linker Script architecture, which orchestrates section placement, segment generation, section-level dead code elimination (`--gc-sections`), and Identical Code Folding (`--icf`).
 
 ### 1. GNU Symbol Versioning Mechanics and ELF Layout
@@ -217,16 +217,19 @@ However, when a library contains multiple optimized variants of a function (for 
 This prologue branch wastes CPU cycles and pollutes branch predictor state in latency-critical loops.
 
 The `STT_GNU_IFUNC` (symbol type `10`) extension eliminates this runtime overhead.
-An IFUNC symbol redirects its resolution to a user-defined *resolver function* executed by the dynamic linker during binary startup.
+An IFUNC symbol redirects its resolution to a user-defined *resolver function* that the dynamic linker executes when it resolves a relocation against the symbol: at startup for an `R_*_IRELATIVE` relocation or under `BIND_NOW`, and at the first call for a lazily bound `JUMP_SLOT`.
 The resolver evaluates CPU features and returns the direct memory address of the optimal target function.
 The dynamic linker writes this returned address directly into the binary's GOT slot.
 Subsequent calls through the PLT reach the target implementation with no per-call feature check; the remaining cost is the PLT's indirect jump.
 
 #### IFUNC Dynamic Relocations (`R_*_IRELATIVE`)
 
-When an executable or DSO contains an IFUNC symbol, the static linker generates an indirect relocation:
+When a reference to an IFUNC symbol binds within the same module, because the symbol is non-preemptible (defined in an executable, hidden, or bound with `-Bsymbolic`), the static linker generates an indirect relocation:
 - On x86-64: `R_X86_64_IRELATIVE` (relocation type 37, `0x25`).
 - On AArch64: `R_AARCH64_IRELATIVE` (relocation type 1032, `0x408`).
+
+An exported, preemptible IFUNC in a shared object gets no `IRELATIVE` relocation.
+Other modules, and the defining library itself, reference it through ordinary `GLOB_DAT` or `JUMP_SLOT` relocations, and `ld.so` calls the resolver when symbol lookup returns the `STT_GNU_IFUNC` definition, which happens at the first call under lazy binding.
 
 Unlike standard symbol relocations that reference a symbol table index (`r_info >> 32`), an `IRELATIVE` relocation operates without a symbol index (`ELF64_R_SYM(r_info) == 0`).
 The relocation structure contains:
@@ -390,8 +393,8 @@ Every entry in the reference table below captures operational defaults, flags, a
 | Dynamic Relocation | `R_AARCH64_IRELATIVE`| `1032` (`0x408`) | Linux | Dynamic relocation invoking AArch64 IFUNC resolver with HWCAPs (as of 2026-11) |
 | Linker Option | `-Wl,--version-script`| Path to script | Linux | Binds symbol version definitions and scopes to shared object (as of 2026-11) |
 | Linker Option | `-Wl,--gc-sections` | Disabled by default| Linux | Discards unreferenced input sections during link-time graph sweep; macOS `ld` rejects it ("unknown options: --gc-sections") and uses `-dead_strip` instead (as of 2026-11) |
-| Compiler Option | `-ffunction-sections` | Disabled by default| Both | Emits each function into isolated `.text.func` section for GC (as of 2026-11) |
-| Compiler Option | `-fdata-sections` | Disabled by default| Both | Emits each global into isolated `.data.var` section for GC (as of 2026-11) |
+| Compiler Option | `-ffunction-sections` | Disabled by default| Linux | Emits each ELF function into isolated `.text.func` section for GC; Mach-O needs no equivalent, because `.subsections_via_symbols` lets `ld -dead_strip` drop each unreferenced symbol (as of 2026-11) |
+| Compiler Option | `-fdata-sections` | Disabled by default| Linux | Emits each ELF global into isolated `.data.var` section for GC; Mach-O dead-strips data per symbol in the same way (as of 2026-11) |
 | Linker Option (gold/lld) | `-Wl,--icf=safe` | Disabled by default| Linux | Folds identical code while preserving addresses of address-taken functions (as of 2026-11) |
 | Linker Option (gold/lld) | `-Wl,--icf=all` | Disabled by default| Linux | Aggressively folds identical code; breaks strict C/C++ pointer equality (as of 2026-11) |
 | Linker Script Command| `KEEP(*(.section))` | Linker directive | Linux | Protects matching sections from being discarded by `--gc-sections`; macOS `ld` has no linker scripts (as of 2026-11) |
@@ -415,7 +418,7 @@ The companion lab located at `code/00-Program-Execution/ifunc_resolver/` compile
 1. A versioned shared library `libcrypto.so` providing `CRYPTO_1.0` (32-bit sum) and `CRYPTO_2.0` (64-bit FNV-1a hash).
 2. Two separate clients (`client_v1` and `client_v2`) run one after the other against the same `libcrypto.so` file.
 3. An `STT_GNU_IFUNC` resolver that tests `HWCAP_ASIMD` in its `x0` argument and populates an `R_AARCH64_IRELATIVE` relocation slot.
-4. Section garbage collection (`--gc-sections`) stripping dead code while preserving custom `.registry` sections via `KEEP()`.
+4. Three links of one source (no `--gc-sections`, `--gc-sections`, and `--gc-sections` with the `augment.ld` `KEEP()` script), each reporting whether `dead_code_function` and the `.registry` section survive.
 5. Identical Code Folding under `ld.gold`, comparing `--icf=none`, `--icf=all`, and `--icf=safe` on address-taken functions and on direct-call-only twins.
 
 ### 1. GNU Symbol Versioning Execution and Inspection
@@ -480,14 +483,13 @@ The dynamic linker invokes the resolver function directly from the relocation ta
 
 ### 3. Linker Dead Code Elimination and Identical Code Folding
 
-The lab links `sections_demo.c` with `-ffunction-sections -fdata-sections -Wl,--gc-sections`:
+The lab links `sections_demo.c` with `-ffunction-sections -fdata-sections` three times: without `--gc-sections`, with `-Wl,--gc-sections`, and with `-Wl,-T,augment.ld -Wl,--gc-sections`:
 
 ```text
 === 5. Linker Dead Code Elimination and KEEP() ===
-dead_code_function without --gc-sections: retained
-dead_code_function: discarded by --gc-sections
-.registry without KEEP: discarded by --gc-sections
-.registry with KEEP: preserved in output ELF
+without --gc-sections: dead_code_function retained, .registry retained
+with --gc-sections: dead_code_function discarded, .registry discarded
+with --gc-sections and augment.ld KEEP(): dead_code_function discarded, .registry retained
 === 6. Identical Code Folding (ICF) Pointer Identity ===
 gold --icf=none: Pointers are distinct (safe)
 gold --icf=all: Pointers are identical (folded)
@@ -497,9 +499,9 @@ gold --icf=all direct-call-only twins: folded to one address
 gold --icf=safe direct-call-only twins: folded to one address
 ```
 
-The first line is the control: without `--gc-sections` the symbol `dead_code_function` stays in the output, so its absence in the next line is the linker's doing.
+The first line is the control: without `--gc-sections` both `dead_code_function` and `.registry` are in the output, so their absence in the second line is the linker's doing.
 Without `KEEP()`, the unreferenced `.registry` section is swept and discarded by `--gc-sections`.
-With `augment.ld` using `KEEP(*(.registry))`, the section is retained in the output binary.
+With `augment.ld` using `KEEP(*(.registry))`, the section is retained while `dead_code_function` is still discarded, so `KEEP()` protects only the sections it names.
 The `--icf=none` build is the control: nothing is folded, so any folding below comes from the linker.
 Under `ld.gold --icf=all`, `algo_a` and `algo_b` share the identical virtual address.
 Under `ld.gold --icf=safe`, the linker detects that function pointers were taken and preserves distinct addresses.

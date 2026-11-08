@@ -2,17 +2,19 @@
 # requires: linux
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+cd "${WORK_DIR}"
+
 CC="${CC:-gcc}"
 
-# Clean any previous artifacts
-rm -rf lib_rpath lib_env *.so test_got app_rpath app_runpath app_default app_lazy app_defaulttag
-
 # 1. Compile base library and interposer
-"$CC" -shared -fPIC -o libmath.so libmath.c
-"$CC" -shared -fPIC -o libinterpose.so interposer.c -ldl
+"$CC" -shared -fPIC -o libmath.so "${SCRIPT_DIR}/libmath.c"
+"$CC" -shared -fPIC -o libinterpose.so "${SCRIPT_DIR}/interposer.c" -ldl
 
 # 2. Compile test executable with lazy binding
-"$CC" -fPIE -pie -Wl,-z,lazy -o test_got test_got.c -L. -lmath -ldl -Wl,-rpath,'$ORIGIN'
+"$CC" -fPIE -pie -Wl,-z,lazy -o test_got "${SCRIPT_DIR}/test_got.c" -L. -lmath -ldl -Wl,-rpath,'$ORIGIN'
 
 echo "=== 1. Lazy Binding Mechanics ==="
 ./test_got
@@ -27,16 +29,16 @@ LD_PRELOAD=./libinterpose.so ./test_got
 
 # 4. Search Path Order: DT_RPATH vs DT_RUNPATH vs LD_LIBRARY_PATH
 mkdir -p lib_rpath lib_env
-"$CC" -shared -fPIC -o lib_rpath/libgreeting.so greeting_rpath.c
-"$CC" -shared -fPIC -o lib_env/libgreeting.so greeting_env.c
+"$CC" -shared -fPIC -o lib_rpath/libgreeting.so "${SCRIPT_DIR}/greeting_rpath.c"
+"$CC" -shared -fPIC -o lib_env/libgreeting.so "${SCRIPT_DIR}/greeting_env.c"
 
 # app_rpath uses DT_RPATH (--disable-new-dtags)
 "$CC" -fPIE -pie -Wl,--disable-new-dtags -Wl,-rpath,'$ORIGIN/lib_rpath' \
-    -o app_rpath app_greeting.c -Llib_rpath -lgreeting
+    -o app_rpath "${SCRIPT_DIR}/app_greeting.c" -Llib_rpath -lgreeting
 
 # app_runpath uses DT_RUNPATH (--enable-new-dtags)
 "$CC" -fPIE -pie -Wl,--enable-new-dtags -Wl,-rpath,'$ORIGIN/lib_rpath' \
-    -o app_runpath app_greeting.c -Llib_rpath -lgreeting
+    -o app_runpath "${SCRIPT_DIR}/app_greeting.c" -Llib_rpath -lgreeting
 
 echo ""
 echo "=== 4. Search Path Precedence (RPATH vs RUNPATH) ==="
@@ -58,12 +60,12 @@ echo "app_runpath dynamic tags:"
 readelf -d app_runpath | grep -E '(RPATH|RUNPATH|NEEDED)' | sed -e 's/^[ \t]*//'
 
 # 6. Linker defaults on this toolchain: binding mode, RELRO, rpath tag, -Bsymbolic
-"$CC" -fPIE -pie -o app_default app_greeting.c -Llib_rpath -lgreeting
-"$CC" -fPIE -pie -Wl,-z,lazy -o app_lazy app_greeting.c -Llib_rpath -lgreeting
-"$CC" -fPIE -pie -Wl,-rpath,'$ORIGIN/lib_rpath' -o app_defaulttag app_greeting.c -Llib_rpath -lgreeting
-"$CC" -shared -fPIC -o libsym_plain.so libmath.c
-"$CC" -shared -fPIC -Wl,-Bsymbolic -o libsym_full.so libmath.c
-"$CC" -shared -fPIC -Wl,-Bsymbolic-functions -o libsym_funcs.so libmath.c
+"$CC" -fPIE -pie -o app_default "${SCRIPT_DIR}/app_greeting.c" -Llib_rpath -lgreeting
+"$CC" -fPIE -pie -Wl,-z,lazy -o app_lazy "${SCRIPT_DIR}/app_greeting.c" -Llib_rpath -lgreeting
+"$CC" -fPIE -pie -Wl,-rpath,'$ORIGIN/lib_rpath' -o app_defaulttag "${SCRIPT_DIR}/app_greeting.c" -Llib_rpath -lgreeting
+"$CC" -shared -fPIC -o libsym_plain.so "${SCRIPT_DIR}/libmath.c"
+"$CC" -shared -fPIC -Wl,-Bsymbolic -o libsym_full.so "${SCRIPT_DIR}/libmath.c"
+"$CC" -shared -fPIC -Wl,-Bsymbolic-functions -o libsym_funcs.so "${SCRIPT_DIR}/libmath.c"
 
 echo ""
 echo "=== 6. Linker Defaults (readelf) ==="

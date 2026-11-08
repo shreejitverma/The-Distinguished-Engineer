@@ -25,10 +25,9 @@ scalar reference: 0000000000007c42
 IFUNC GLOBAL compute_digest
 R_AARCH64_IRELATIVE
 === 5. Linker Dead Code Elimination and KEEP() ===
-dead_code_function without --gc-sections: retained
-dead_code_function: discarded by --gc-sections
-.registry without KEEP: discarded by --gc-sections
-.registry with KEEP: preserved in output ELF
+without --gc-sections: dead_code_function retained, .registry retained
+with --gc-sections: dead_code_function discarded, .registry discarded
+with --gc-sections and augment.ld KEEP(): dead_code_function discarded, .registry retained
 === 6. Identical Code Folding (ICF) Pointer Identity ===
 gold --icf=none: Pointers are distinct (safe)
 gold --icf=all: Pointers are identical (folded)

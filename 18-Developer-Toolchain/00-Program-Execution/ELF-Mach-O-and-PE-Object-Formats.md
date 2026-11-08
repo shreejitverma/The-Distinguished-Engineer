@@ -159,7 +159,8 @@ typedef struct {
 } Elf64_Phdr;
 ```
 
-In 64-bit ELF, `p_flags` is placed immediately after `p_type` to avoid 4-byte structure padding that existed in the 32-bit specification.
+In 64-bit ELF, `p_flags` is placed immediately after `p_type` so the two 32-bit fields fill one 8-byte slot and every following 64-bit field is naturally aligned without padding.
+`Elf32_Phdr`, whose fields are all 4 bytes, needs no such packing and places `p_flags` after `p_memsz`.
 Standard segment types include:
 - `PT_LOAD` (`1`): Loadable segment mapped directly into virtual memory.
 - `PT_DYNAMIC` (`2`): Dynamic linking tables (`.dynamic`), detailed in [[Dynamic-Linking-PLT-GOT-and-Loaders]].
@@ -288,7 +289,7 @@ struct fat_arch_64 {     /* 32 bytes, used when magic == FAT_MAGIC_64 (0xcafebab
 ```
 
 An essential invariant: **All Fat headers are encoded strictly in big-endian byte order (`FAT_MAGIC = 0xCAFEBABE`)**, even on little-endian architectures like x86-64 and Apple Silicon.
-When the kernel's `execve` handler parses a binary in `bsd/kern/mach_loader.c`, it swaps the big-endian integer fields, inspects the host CPU architecture, finds the matching slice via `cputype` and `cpusubtype`, and redirects parsing to the inner Mach-O file located at `fat_arch.offset`.
+When XNU's `execve` path meets a fat binary, `exec_fat_imgact()` in `bsd/kern/kern_exec.c` handles it: `fatfile_getbestarch()` in `bsd/kern/mach_fat.c` swaps the big-endian integer fields, matches the host CPU against each slice's `cputype` and `cpusubtype`, and returns the best slice, and exec then re-parses the inner Mach-O file located at `fat_arch.offset`.
 
 #### Mach-O 64-bit Header (`mach_header_64`)
 
@@ -491,7 +492,7 @@ $$\text{FileOffset} = \text{RVA} - \text{VirtualAddress} + \text{PointerToRawDat
 | Architectural Dimension | System V ELF (Linux/BSD) | Apple Mach-O (macOS/iOS) | Microsoft PE/COFF (Windows) |
 | :--- | :--- | :--- | :--- |
 | **Primary Specification** | System V gABI & psABI Supplements | OS X ABI Mach-O File Format Reference | Microsoft PE and COFF Specification |
-| **Multi-Arch Packaging** | None (separate files per arch) | Universal Fat Binary (`fat_header`) | None (separate PE32+ binaries per arch) |
+| **Multi-Arch Packaging** | None (separate files per arch) | Universal Fat Binary (`fat_header`) | Usually separate PE32+ binaries per arch; a Windows 11 ARM64X image holds native ARM64 and ARM64EC/x64-compatible code in one PE file |
 | **Header Endianness** | Declared in `e_ident[EI_DATA]` | Fat headers always Big-Endian; slices Little-Endian | Always Little-Endian |
 | **Top-Level Structural View** | Dual: `Elf64_Phdr` (exec) & `Elf64_Shdr` (link) | Flat array of variable `load_command` structs | Flat array of `IMAGE_SECTION_HEADER` structs |
 | **Paging Alignment Rule** | `p_vaddr % p_align == p_offset % p_align` | Page-aligned `fileoff` and `vmaddr` per segment | Separate `SectionAlignment` vs `FileAlignment` |
@@ -549,13 +550,11 @@ It covers ELF only; the Mach-O and PE layouts in this note were checked against 
 
 ### 1. Building and Running the Parser
 
-We compile the parser and a test binary containing initialized globals, uninitialized arrays (`.bss`), and read-only strings:
+`run.sh` compiles the parser, writes a test program `target.c` containing initialized globals, uninitialized arrays (`.bss`), and read-only strings into a `mktemp -d` directory, builds it with `gcc -O2 -Wl,--build-id=none target.c -o target`, and runs `./elf_parser target`:
 
 ```bash
 cd code/00-Program-Execution/elf_section_parser
-gcc -O2 -Wall -Wextra -Werror -pedantic elf_parser.c -o elf_parser
-gcc -O2 -Wl,--build-id=none target.c -o target
-./elf_parser target
+bash run.sh
 ```
 
 ### 2. Verified Lab Output
@@ -896,7 +895,8 @@ cd / && rm -rf "$WORK_DIR"
 > > During program loading, the kernel maps the `PT_GNU_RELRO` region as writable (`PF_R | PF_W`) because it resides inside a writable `PT_LOAD` segment.
 > > The dynamic linker (`ld.so`) writes resolved relocation pointers into the GOT and relocates internal data.
 > > Once all relocations are complete, but before user code in `main` or constructors executes, `ld.so` invokes the `mprotect(addr, len, PROT_READ)` system call on the memory span specified by `PT_GNU_RELRO`.
-> > Because the hardware MMU only modifies access permissions on whole page boundaries, the start address and end address of the RELRO segment must align with the system page size; otherwise, `mprotect` would either fail or unintentionally make adjacent writable data (like `.data` or `.bss`) read-only, causing runtime crashes when variables are mutated.
+> > Because the MMU changes permissions only on whole pages, glibc's `_dl_protect_relro` rounds both the start and the end of the region down to a page boundary and calls `mprotect` only on the full pages between them, so `PT_GNU_RELRO` itself need not be page-aligned (the lab's segment reports `align=0x1`).
+> > The linker places `PT_GNU_RELRO` at the start of the writable `PT_LOAD` segment and pads its end to a page boundary, so the rounding neither makes `.data` or `.bss` read-only nor leaves the tail of the GOT writable; if the end is not page-aligned for the running kernel's page size, the last partial page stays writable.
 
 > [!question] L8+: Android 15 and modern enterprise Linux kernels require support for 16 KiB and 64 KiB page sizes; explain the structural impact of increasing `p_align` on binary size on disk vs memory footprint, how the GNU linker's `-z max-page-size` and `-z common-page-size` flags mitigate disk bloat, and how to architect a fleet-wide migration across 20,000 services without regressing startup latency.
 >
@@ -920,7 +920,7 @@ cd / && rm -rf "$WORK_DIR"
 > > [!success]- Answer
 > > A robust in-memory parser must treat all header fields as untrusted inputs and enforce strict mathematical boundaries before performing any memory reads or allocations:
 > > 1. **Integer Overflow in Table Boundaries:**
-> >    *Attack:* An attacker sets `e_phoff = 0xFFFFFFFFFFFFFF00` and `e_phnum = 10`, causing `e_phoff + e_phnum * sizeof(Elf64_Phdr)` to wrap around to zero, bypassing buffer length checks.
+> >    *Attack:* An attacker sets `e_phoff = 0xFFFFFFFFFFFFFF00` and `e_phnum = 10`, causing `e_phoff + e_phnum * sizeof(Elf64_Phdr)` (`0xFFFFFFFFFFFFFF00 + 0x230`) to wrap around to `0x130`, bypassing buffer length checks.
 > >    *Defense:* Enforce safe checked arithmetic: verify `e_phnum < MAX_SEGMENTS` (e.g., 1024), and assert `e_phoff <= buffer_size && (buffer_size - e_phoff) / sizeof(Elf64_Phdr) >= e_phnum`.
 > > 2. **Out-of-Bounds String Table Indexing:**
 > >    *Attack:* Setting `e_shstrndx >= e_shnum` or corrupting `sh_name` to an offset beyond `.shstrtab` length leads to out-of-bounds heap reads.

@@ -162,7 +162,9 @@ int main(int argc, char **argv) {
 
     /* 5. Validate AT_RANDOM: 16 readable bytes holding at least 8 distinct values
           (P(fewer than 8 distinct in 16 random bytes) is about 6e-13).
-          glibc 2.44 reseeds these bytes with getrandom, so they stay random on any glibc. */
+          glibc 2.44 refills these bytes with getrandom after deriving the guards and
+          leaves them zero if that refill fails; glibc 2.39 in the pinned container
+          leaves the kernel bytes in place. */
     const uint8_t *rand_bytes = (const uint8_t *)getauxval(AT_RANDOM);
     int distinct = 0;
     if (rand_bytes) {

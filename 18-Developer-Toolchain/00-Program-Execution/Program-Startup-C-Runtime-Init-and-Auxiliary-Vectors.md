@@ -64,11 +64,12 @@ flowchart TD
 
     subgraph DYN_LINKER["Dynamic Linker Bootstrap (ld.so)"]
         DL_START["_dl_start()<br/>Self-relocation (R_X86_64_RELATIVE or R_AARCH64_RELATIVE)"]
-        DL_TLS["_dl_allocate_tls() & security_init()<br/>Initialize TCB, Thread Pointer, & __stack_chk_guard"]
-        DL_SORT["DFS Topological Sort (glibc.rtld.dynamic_sort=2)<br/>Order DT_NEEDED shared libraries"]
+        DL_SORT["_dl_map_object_deps()<br/>Map DT_NEEDED libraries, DFS sort (glibc.rtld.dynamic_sort=2)"]
+        DL_TLS["init_tls() & security_init()<br/>Initialize TCB, Thread Pointer, & __stack_chk_guard"]
+        DL_RELOC["_dl_relocate_object()<br/>Apply GOT and PLT relocations, then RELRO"]
         DL_INIT["_dl_init()<br/>Run exe DT_PREINIT_ARRAY, then DSO DT_INIT / DT_INIT_ARRAY"]
         DL_JUMP["Jump to AT_ENTRY<br/>Pass rtld_fini pointer in %rdx / x0"]
-        DL_START --> DL_TLS --> DL_SORT --> DL_INIT --> DL_JUMP
+        DL_START --> DL_SORT --> DL_TLS --> DL_RELOC --> DL_INIT --> DL_JUMP
     end
 
     subgraph CRT["C Runtime & Executable Entry (crt1.o)"]
@@ -102,8 +103,8 @@ Unlike standard function calls governed by [[Calling-Conventions-System-V-AMD64-
 The stack grows downward from high virtual memory addresses toward lower addresses.
 The kernel populates the stack in the following sequence:
 
-1. **String Storage:** Null-terminated strings representing command-line arguments (`argv[0]`, `argv[1]`, ...) followed by environment variable strings (`"NAME=VALUE"`).
-2. **Padding and Auxiliary Payloads:** Architecture alignment padding, platform identifiers (e.g., `"x86_64"` or `"aarch64"`), execution path strings (`AT_EXECFN`), and a 16-byte cryptographically secure random byte buffer (`AT_RANDOM`).
+1. **String Storage:** `do_execveat_common()` in `fs/exec.c` copies the executable pathname string (the target of `AT_EXECFN`) first, so it sits highest, then the environment variable strings (`"NAME=VALUE"`), then the command-line argument strings (`argv[0]`, `argv[1]`, ...) below them.
+2. **Platform and Random Payloads:** `create_elf_tables()` then pushes the platform identifier string (`AT_PLATFORM`, e.g., `"x86_64"` or `"aarch64"`), the 16-byte random byte buffer (`AT_RANDOM`), and architecture alignment padding.
 3. **Auxiliary Vector (`auxv`):** An array of `Elf64_auxv_t` key-value structures terminated by an entry with `a_type == AT_NULL`.
 4. **Environment Pointer Array (`envp`):** A null-terminated sequence of 8-byte pointers referencing the environment variable strings.
 5. **Argument Pointer Array (`argv`):** A null-terminated sequence of 8-byte pointers referencing the command-line argument strings.
@@ -114,8 +115,8 @@ The System V AMD64 psABI mandates that `(%rsp + 8)` is a multiple of 16 at funct
 
 ```text
 High Address  +---------------------------------------------------+
-              | Argument strings, Environment strings             |
-              | 16-byte random entropy block (AT_RANDOM)          |
+              | AT_EXECFN string, Environment, Argument strings   |
+              | Platform string, 16-byte AT_RANDOM block          |
               +---------------------------------------------------+
               | AT_NULL (0)                 | 0x0                 |
               | AT_SYSINFO_EHDR (33)        | vDSO Base Address   |
@@ -138,7 +139,9 @@ Low Address   +---------------------------------------------------+
 ```
 
 The auxiliary-vector rows in the figure are representative keys.
-Linux 6.12 `create_elf_tables()` writes `AT_SYSINFO_EHDR` where the architecture defines it, then `AT_HWCAP`, `AT_PAGESZ`, `AT_CLKTCK`, `AT_PHDR`, `AT_PHENT`, `AT_PHNUM`, `AT_BASE`, `AT_FLAGS`, `AT_ENTRY`, the real and effective uid and gid entries, `AT_SECURE`, `AT_RANDOM`, the extra hardware-capability entries, `AT_EXECFN`, and `AT_PLATFORM`, and it terminates the vector with a full `AT_NULL` pair (`fs/binfmt_elf.c`, as of 2026-11).
+Linux 6.12 `create_elf_tables()` writes the architecture's `ARCH_DLINFO` entries first (`AT_SYSINFO_EHDR` and `AT_MINSIGSTKSZ` on x86-64 and AArch64), then `AT_HWCAP`, `AT_PAGESZ`, `AT_CLKTCK`, `AT_PHDR`, `AT_PHENT`, `AT_PHNUM`, `AT_BASE`, `AT_FLAGS`, `AT_ENTRY`, the real and effective uid and gid entries, `AT_SECURE`, `AT_RANDOM`, the extra hardware-capability entries, `AT_EXECFN`, and `AT_PLATFORM` (`fs/binfmt_elf.c`, as of 2026-11).
+After `AT_PLATFORM` it writes `AT_BASE_PLATFORM` where the architecture defines a base platform, `AT_EXECFD` when `binfmt_misc` passes an open file, and, with `CONFIG_RSEQ`, `AT_RSEQ_FEATURE_SIZE` and `AT_RSEQ_ALIGN`, so `AT_PLATFORM` is not the last entry.
+It terminates the vector with a full `AT_NULL` pair.
 `AT_PAGESZ` is 4096 on x86-64.
 On AArch64 the kernel is built with `CONFIG_ARM64_4K_PAGES`, `CONFIG_ARM64_16K_PAGES`, or `CONFIG_ARM64_64K_PAGES`, so the value is 4096, 16384, or 65536.
 
@@ -173,8 +176,9 @@ The primary auxiliary vector types defined by the System V ABI and Linux kernel 
   The dynamic linker resolves timekeeping symbols (e.g., `__vdso_clock_gettime`) against this header, allowing fast system calls to execute entirely in user space.
 - `AT_SECURE` (23): An integer flag set to 1 if the process is running in secure-execution mode.
   The kernel sets `AT_SECURE = 1` when the real and effective user or group IDs differ (setuid or setgid), when a binary confers capabilities, or when a Linux Security Module requests secure execution (`ld.so(8)`, man-pages 6.20).
-- `AT_HWCAP` (16) and `AT_HWCAP2` (26): Architecture-specific bitmasks indicating available CPU instruction set extensions (e.g., AVX-512, Neon, CRC32, AES).
-  These flags allow GNU Indirect Function (`IFUNC`) resolvers to select optimal vector routines without executing CPUID instructions, as examined in [[Symbol-Versioning-IFUNC-and-Linker-Scripts]].
+- `AT_HWCAP` (16) and `AT_HWCAP2` (26): Architecture-specific bitmasks indicating available CPU instruction set extensions (e.g., Neon, CRC32, AES on AArch64).
+  On AArch64 these flags let GNU Indirect Function (`IFUNC`) resolvers select vector routines without reading the CPU ID registers, as examined in [[Symbol-Versioning-IFUNC-and-Linker-Scripts]].
+  On x86-64, `AT_HWCAP` carries only the CPUID leaf 1 `EDX` feature bits, which do not include AVX or AVX-512, so glibc's x86 IFUNC resolvers use the `cpu_features` data that glibc fills from `CPUID` at startup instead.
 
 User space applications query the auxiliary vector via `getauxval(3)` (declared in `<sys/auxv.h>`):
 
@@ -196,22 +200,21 @@ Instead of jumping to `AT_ENTRY`, the kernel sets the instruction pointer to the
 The dynamic linker bootstrap sequence operates under extreme constraints: no external symbols are resolved, no global variables are initialized, and dynamic memory allocation (`malloc`) is unavailable.
 In glibc (`elf/rtld.c`), the bootstrap proceeds as follows:
 
-1. **Self-Relocation:** The dynamic linker reads its own `DT_DYNAMIC` array and processes its own relative relocations (`R_X86_64_RELATIVE` or `R_AARCH64_RELATIVE`).
-   It computes absolute target addresses by adding its load base (`AT_BASE`) to each relocation offset.
-2. **Initial Thread-Local Storage (TLS) and Stack Guard:** The dynamic linker allocates the initial Thread Control Block (TCB) and reserves space for static TLS blocks (`_dl_allocate_tls`).
+1. **Self-Relocation:** `_dl_start()` locates its own dynamic section (the `_DYNAMIC` symbol, which the `PT_DYNAMIC` segment covers) and processes its own relative relocations (`R_X86_64_RELATIVE` or `R_AARCH64_RELATIVE`).
+   It computes absolute target addresses by adding its load base to each relocation offset; `elf_machine_load_address()` computes that base PC-relatively rather than reading `AT_BASE`.
+2. **Dependency Loading and Sorting:** `dl_main()` then calls `_dl_map_object_deps()`, which parses the binary's `DT_NEEDED` dynamic tags, maps all required shared libraries into memory, and sorts the loaded objects into dependency order for initialization.
+   Since glibc 2.35 the default `glibc.rtld.dynamic_sort` value `2` selects a depth-first topological sort.
+   The value `1` selects the algorithm used in glibc 2.33 and earlier.
+   The glibc 2.35 NEWS text says the new sort addresses performance issues on particular circular dependency cases.
+3. **Initial Thread-Local Storage (TLS) and Stack Guard:** Once every initial module, and therefore every static TLS block, is known, `init_tls()` allocates the initial Thread Control Block (TCB) and reserves space for the static TLS blocks.
    It configures the architecture thread pointer (the x86-64 FS base via `arch_prctl(ARCH_SET_FS)`, `TPIDR_EL0` on AArch64), establishing the runtime environment required for [[Thread-Local-Storage-Models-and-ELF-Relocations]].
    Immediately after TLS setup, `security_init()` seeds the stack canary (`__stack_chk_guard` and the TCB stack guard) from `_dl_random` (`AT_RANDOM`) via `_dl_setup_stack_chk_guard()`, masking the least-significant byte to zero so a string overflow stops on a zero byte.
    Current glibc copies that value from `AT_RANDOM`.
    Since glibc 2.44, `_dl_reseed_random` then scrubs those 16 bytes and refills them with `getrandom` (`GRND_NONBLOCK`) before any ELF constructor runs, in `security_init` for a dynamic process and in `__libc_start_main` for a static one.
    The 2.44 commit leaves the bytes zero when that refill is not available (BZ 34197, commit 337e18d).
-3. **Dependency Loading and Relocation:** The dynamic linker parses the binary's `DT_NEEDED` dynamic tags and maps all required shared libraries into memory.
-   It resolves symbol references and applies GOT and PLT relocations.
+4. **Relocation:** After `security_init()`, the dynamic linker relocates every loaded object: it resolves symbol references and applies GOT and PLT relocations.
    Partial RELRO then marks the `PT_GNU_RELRO` segment read-only with `mprotect`.
    Full RELRO also links with `BIND_NOW`, so the GOT is resolved at startup and then made read-only.
-4. **DSO Dependency Sorting:** Before executing shared library constructors, the linker sorts all loaded shared objects into dependency order.
-   Since glibc 2.35 the default `glibc.rtld.dynamic_sort` value `2` selects a depth-first topological sort.
-   The value `1` selects the algorithm used in glibc 2.33 and earlier.
-   The glibc 2.35 NEWS text says the new sort addresses performance issues on particular circular dependency cases.
 5. **Preinit and DSO Constructor Execution (`_dl_init`):** Inside `elf/dl-init.c`, `_dl_init()` first executes the main executable's `DT_PREINIT_ARRAY` (`.preinit_array`) if present, and then invokes `DT_INIT` and `DT_INIT_ARRAY` constructors for all loaded shared libraries in dependency order.
    Shared library constructors run before the main executable's `.init_array` constructors.
 6. **Handoff to Executable:** The dynamic linker places a pointer to its shared object finalization routine (`_dl_fini`) into register `%rdx` (on x86-64) or `x0` (on AArch64).
@@ -315,7 +318,8 @@ When `main()` returns or calls `exit(3)`, glibc 2.40 runs `__run_exit_handlers` 
 1. Thread-local destructors for the exiting thread (`__call_tls_dtors`, which serves C++ `thread_local` objects).
 2. Handlers registered via `atexit(3)` / `__cxa_atexit` during `main()` and during constructors, in strict LIFO order.
 3. For a dynamically linked program, `_dl_fini`.
-   `__libc_start_main` registers it with `__cxa_atexit` before any constructor runs, so it is the oldest entry and runs last in the list (`csu/libc-start.c`).
+   `__libc_start_main` registers it with `__cxa_atexit` before it calls the executable's constructors, so it runs after every handler registered by an executable constructor or by `main()` (`csu/libc-start.c`).
+   Shared-library constructors have already run by then, inside `_dl_init` in the dynamic linker, so the registration is not earlier than those constructors.
    It runs the `.fini_array` and `DT_FINI` routines of every loaded object, the main executable included, with each array in reverse order.
    The objects are sorted so that a module's destructors run before those of its dependencies (`elf/dl-fini.c`).
    A statically linked program registers `call_fini` instead, which runs the executable's `.fini_array`.
@@ -327,14 +331,14 @@ When `main()` returns or calls `exit(3)`, glibc 2.40 runs `__run_exit_handlers` 
 When a process executes with elevated privileges (setuid, setgid, file capabilities, or an LSM request), the kernel sets `AT_SECURE = 1`.
 `ld.so` then runs in secure-execution mode (man-pages 6.20, as of 2026-11):
 
-- The linker strips or ignores `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`, `LD_DEBUG`, `LD_DYNAMIC_WEAK`, and `LD_SHOW_AUXV`, among others.
+- The linker ignores `LD_LIBRARY_PATH`, `LD_DEBUG`, `LD_DYNAMIC_WEAK`, and `LD_SHOW_AUXV`, among others.
+  It still honors `LD_PRELOAD` and `LD_AUDIT`, with the restrictions below.
   `LD_DEBUG` has been ignored in this mode since glibc 2.3.4 unless `/etc/suid-debug` exists.
   `LD_SHOW_AUXV` has been ignored since glibc 2.3.4.
 - A `LD_PRELOAD` pathname that contains a slash is ignored.
   A preload is accepted only from the standard search directories, and only when the object has the set-user-ID mode bit set.
   Those directories are `/lib` and `/usr/lib`, or `/lib64` and `/usr/lib64` on some 64-bit architectures (`ld.so --help` prints the paths in use).
-- `LD_AUDIT` is ignored in secure-execution mode.
-  Since glibc 2.13, an audit name that contains a slash is ignored, and only a set-user-ID object in the standard search directories is loaded.
+- Since glibc 2.13, an `LD_AUDIT` name that contains a slash is ignored, and only a set-user-ID object in the standard search directories is loaded.
 - `LD_ORIGIN_PATH` is ignored since glibc 2.4.
   Under `__libc_enable_secure`, `$ORIGIN` expansion in an rpath is an empty string when the loader treats the token as untrusted (BZ 22625).
 - The loader still parses `GLIBC_TUNABLES` while starting a secure process and applies each tunable's own security level.
@@ -486,11 +490,11 @@ auxv AT_SECURE record present in /proc/self/auxv: true (value: 0)
 > 3. **Assuming Destructor Priority Follows Constructor Priority:** Destructor priority runs in **reverse**.
 >    Writing cleanup code assuming `__attribute__((destructor(101)))` executes before `__attribute__((destructor(200)))` leads to use-after-free bugs.
 >    Priority 101 is the last destructor to execute.
-> 4. **Calling `setenv(3)` or `putenv(3)` in Early Constructors:** The `envp` pointer passed to `main()` points to the kernel's initial stack frame.
->    If a constructor invokes `setenv(3)`, the C runtime allocates a new environment table on the heap, reassigning the global `environ` pointer.
->    Code inside `main()` that reads from the `char **envp` parameter rather than the global `environ` variable will observe stale or missing environment variables.
+> 4. **Reading `envp` After Changing the Environment in `main()`:** glibc's `__libc_start_call_main` passes the current value of `__environ` as `main`'s third argument, after every constructor has run, so a constructor's `setenv(3)` is already visible through `envp`.
+>    Once `main()` is running, `setenv(3)` that adds a variable can allocate a new environment table on the heap and reassign the global `environ` pointer, while the `envp` parameter keeps pointing at the old table.
+>    Code that reads `char **envp` after such a call, rather than the global `environ` or `getenv(3)`, observes stale or missing environment variables.
 > 5. **Expecting `LD_PRELOAD` to Work on Elevated Binaries:** If an executable has setuid/setgid bits enabled or carries POSIX file capabilities, the kernel sets `AT_SECURE = 1`.
->    The dynamic linker silently discards `LD_PRELOAD`, `LD_LIBRARY_PATH`, and `LD_DEBUG`.
+>    The dynamic linker ignores `LD_LIBRARY_PATH` and `LD_DEBUG`, and it ignores any `LD_PRELOAD` entry that contains a slash; it preloads only set-user-ID objects from the standard search directories.
 >    Developers debugging setuid test binaries will find their custom preloads ignored unless permissions are normalized.
 
 ## At Scale
@@ -657,11 +661,11 @@ A build gate has to measure a field this output actually contains, such as reloc
 > > 2. The process gained POSIX file capabilities (e.g., via `setcap`).
 > > 3. A Linux Security Module (LSM, such as SELinux or AppArmor) explicitly requests secure execution.
 > > When `AT_SECURE == 1`, `ld.so` enforces strict defenses:
-> > - It strips or ignores `LD_PRELOAD`, `LD_LIBRARY_PATH`, `LD_AUDIT`, `LD_DEBUG`, `LD_DYNAMIC_WEAK`, and `LD_SHOW_AUXV` (`ld.so(8)`).
+> > - It ignores `LD_LIBRARY_PATH`, `LD_DEBUG`, `LD_DYNAMIC_WEAK`, and `LD_SHOW_AUXV`, and it restricts `LD_PRELOAD` and `LD_AUDIT` as described below (`ld.so(8)`).
 > > - It still parses `GLIBC_TUNABLES` and applies each tunable's security level.
 > >   CVE-2023-4911 is a buffer overflow in that parser.
 > >   On the affected glibc versions it let a local user run code with the privileges of a setuid binary (published 2023-10-03).
-> > - A preload pathname that contains a slash is ignored.
+> > - A preload or audit pathname that contains a slash is ignored.
 > >   An object is preloaded only from the standard search directories (`/lib` then `/usr/lib`, or `/lib64` then `/usr/lib64` on some 64-bit architectures) and only if it has the set-user-ID mode bit set.
 > > - `LD_ORIGIN_PATH` is ignored.
 > >   `$ORIGIN` in an rpath expands empty under `__libc_enable_secure` in the BZ 22625 behavior.
@@ -690,7 +694,7 @@ A build gate has to measure a field this output actually contains, such as reloc
 > >      Current glibc does not print an `.init_array` cycle count.
 > >    - Deploy glibc 2.35 or later fleet-wide so `glibc.rtld.dynamic_sort` stays at its default `2`.
 > >      That default is the DFS sort the 2.35 NEWS entry describes for particular circular dependencies.
-> >    - Transition performance-critical microservices and serverless binaries to static PIE with ThinLTO and BOLT, flattening relocations and eliminating dynamic linker startup overhead entirely.
+> >    - Transition performance-critical microservices and serverless binaries to static PIE with ThinLTO and BOLT, removing shared-object loading and symbol lookup; a static PIE still applies its own relative relocations at startup.
 
 ## Further Reading
 

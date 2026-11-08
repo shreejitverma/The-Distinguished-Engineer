@@ -3,7 +3,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "${WORK_DIR}"' EXIT
+cd "${WORK_DIR}"
 
 CC="${CC:-gcc}"
 
@@ -14,9 +16,9 @@ if ! command -v ld.gold >/dev/null 2>&1; then
 fi
 
 # 1. GNU Symbol Versioning Execution and Inspection
-"${CC}" -shared -fPIC -Wl,--version-script,libcrypto.map libcrypto.c -o libcrypto.so
-"${CC}" client_v1.c -L. -lcrypto -Wl,-rpath,. -o client_v1
-"${CC}" client_v2.c -L. -lcrypto -Wl,-rpath,. -o client_v2
+"${CC}" -shared -fPIC -Wl,--version-script,"${SCRIPT_DIR}/libcrypto.map" "${SCRIPT_DIR}/libcrypto.c" -o libcrypto.so
+"${CC}" "${SCRIPT_DIR}/client_v1.c" -L. -lcrypto -Wl,-rpath,'$ORIGIN' -o client_v1
+"${CC}" "${SCRIPT_DIR}/client_v2.c" -L. -lcrypto -Wl,-rpath,'$ORIGIN' -o client_v2
 
 echo "=== 1. GNU Symbol Versioning Execution ==="
 ./client_v1
@@ -34,7 +36,7 @@ echo "--- client_v2 ---"
 readelf -V client_v2 | grep -A 1 "libcrypto.so" | sed "s/^[ \t]*//"
 
 # 2. STT_GNU_IFUNC Execution and Inspection
-"${CC}" -O2 -fPIC -pie ifunc_demo.c -o ifunc_demo
+"${CC}" -O2 -fPIC -pie "${SCRIPT_DIR}/ifunc_demo.c" -o ifunc_demo
 
 echo "=== 4. STT_GNU_IFUNC Execution and Relocation ==="
 ./ifunc_demo
@@ -42,39 +44,26 @@ readelf -s -W ifunc_demo | grep compute_digest | awk '{print $4, $5, $8}'
 readelf -r -W ifunc_demo | grep IRELATIVE | awk '{print $3}'
 
 # 3. Linker Scripts, --gc-sections, and KEEP()
-"${CC}" -ffunction-sections -fdata-sections sections_demo.c -o demo_nogc
-"${CC}" -ffunction-sections -fdata-sections -Wl,--gc-sections sections_demo.c -o demo_nogc_script
-"${CC}" -ffunction-sections -fdata-sections -Wl,-T,augment.ld -Wl,--gc-sections sections_demo.c -o demo_keep
+"${CC}" -ffunction-sections -fdata-sections "${SCRIPT_DIR}/sections_demo.c" -o demo_nogc
+"${CC}" -ffunction-sections -fdata-sections -Wl,--gc-sections "${SCRIPT_DIR}/sections_demo.c" -o demo_nogc_script
+"${CC}" -ffunction-sections -fdata-sections -Wl,-T,"${SCRIPT_DIR}/augment.ld" -Wl,--gc-sections "${SCRIPT_DIR}/sections_demo.c" -o demo_keep
 
 echo "=== 5. Linker Dead Code Elimination and KEEP() ==="
-if readelf -s demo_nogc | grep -q dead_code_function; then
-    echo "dead_code_function without --gc-sections: retained"
-else
-    echo "dead_code_function without --gc-sections: discarded"
-fi
-
-if readelf -s demo_keep | grep -q dead_code_function; then
-    echo "dead_code_function: retained"
-else
-    echo "dead_code_function: discarded by --gc-sections"
-fi
-
-if readelf -S demo_nogc_script | grep -q "\.registry"; then
-    echo ".registry without KEEP: retained"
-else
-    echo ".registry without KEEP: discarded by --gc-sections"
-fi
-
-if readelf -S demo_keep | grep -q "\.registry"; then
-    echo ".registry with KEEP: preserved in output ELF"
-else
-    echo ".registry with KEEP: discarded"
-fi
+# Each build is reported for both the function and the section, so every "discarded" line has a "retained" control.
+has_symbol() { readelf -s -W "$1" | awk '$8 == "dead_code_function" {f = 1} END {exit !f}'; }
+has_section() { readelf -S -W "$1" | awk '$2 == ".registry" || $3 == ".registry" {f = 1} END {exit !f}'; }
+for build in "demo_nogc:without --gc-sections" "demo_nogc_script:with --gc-sections" "demo_keep:with --gc-sections and augment.ld KEEP()"; do
+    exe="${build%%:*}"
+    label="${build#*:}"
+    if has_symbol "${exe}"; then fn=retained; else fn=discarded; fi
+    if has_section "${exe}"; then sec=retained; else sec=discarded; fi
+    echo "${label}: dead_code_function ${fn}, .registry ${sec}"
+done
 
 # 4. Identical Code Folding (ICF) Pointer Identity
 # The --icf=none build is the control: if the compiler had folded the twins, it would show here too.
 for mode in none all safe; do
-    "${CC}" -O2 -ffunction-sections -fuse-ld=gold -Wl,--icf="${mode}" icf_demo.c -o "icf_${mode}"
+    "${CC}" -O2 -ffunction-sections -fuse-ld=gold -Wl,--icf="${mode}" "${SCRIPT_DIR}/icf_demo.c" -o "icf_${mode}"
 done
 
 addr_of() { nm "$1" | awk -v s="$2" '$3 == s {print $1}'; }

@@ -467,7 +467,7 @@ Dynamic linking semantics influence language runtime initialization, foreign fun
 
 | Concern | C++ (Ubuntu 24.04 gcc 13.3; Clang not rechecked) | Python (CPython public ABI) | Rust (Rust Reference, 2026-10) |
 | :--- | :--- | :--- | :--- |
-| Default PIC model | `gcc -c` on the lab image emitted non-PIC relocs (`R_AARCH64_ADR_PREL`, `R_AARCH64_ADD_ABS`); shared libraries still need `-fPIC` (as of 2026-11) | Extension modules (`.so`) are built with `-fPIC` by the usual build backends | `rustc 1.99.0` reports `position-independent-executables: true` for `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; `-C relocation-model=pic` is the default for most targets, and `pie` code cannot be linked into a shared library (rustc book, as of 2026-11) |
+| Default PIC model | `gcc -c` on the lab image defaults to `-fPIE`: a global defined in the same file gets PC-relative relocs (`R_AARCH64_ADR_PREL_PG_HI21`, `R_AARCH64_ADD_ABS_LO12_NC`) and an extern one goes through the GOT (`R_AARCH64_ADR_GOT_PAGE`, `R_AARCH64_LD64_GOT_LO12_NC`); shared libraries still need `-fPIC`, which also routes the preemptible defined global through the GOT (as of 2026-11) | Extension modules (`.so`) are built with `-fPIC` by the usual build backends | `rustc 1.99.0` reports `position-independent-executables: true` for `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`; `-C relocation-model=pic` is the default for most targets, and `pie` code cannot be linked into a shared library (rustc book, as of 2026-11) |
 | Symbol visibility | Default visibility exports; `-fvisibility=hidden` hides | `PyInit_<name>` is the module initializer; CPython exports a large public C API and is not internally hidden | Hidden by default; `pub extern "C"` does not export an unmangled symbol; `no_mangle` does |
 | Symbol preemption | Non-hidden global symbols are preemptible; `-Bsymbolic` binds that object's references locally | `LD_PRELOAD` of a symbol such as `malloc` affects the interpreter; the core is not protected from interposition | A `no_mangle` export is preemptible; hiding the symbol is what stops preemption |
 | Dynamic loading API | Standard POSIX `<dlfcn.h>`: `dlopen()`, `dlsym()`, `dlclose()` | `ctypes.CDLL()` is the public API | Ecosystem crate `libloading` wrapping `dlopen` and `LoadLibrary` |
@@ -494,7 +494,7 @@ The test executable performs internal reflection on its ELF headers:
 7. It repeats the test under `LD_BIND_NOW=1` to demonstrate that immediate binding resolves the slot before the first call.
 8. It runs under `LD_PRELOAD=./libinterpose.so` to demonstrate symbol preemption and forwarding via `dlsym(RTLD_NEXT)`.
 9. It tests search path precedence by executing `app_rpath` and `app_runpath` with and without `LD_LIBRARY_PATH`.
-10. It links the same source with default flags, with `-z lazy`, with a bare `-rpath`, and with the two `-Bsymbolic` spellings, then prints the dynamic tags with `readelf`.
+10. It links `app_greeting.c` with default flags, with `-z lazy`, and with a bare `-rpath`, links `libmath.c` into shared libraries without `-Bsymbolic` and with the two `-Bsymbolic` spellings, then prints the dynamic tags with `readelf`.
     The lab assumes ELFCLASS64 and stops at compile time otherwise.
 
 ```bash
@@ -680,12 +680,12 @@ Architectural records evaluating linking models across platforms are documented 
 ## Practice Drill
 
 > [!tip] Practice Drill:
-> Write a script that compiles an application and a shared library under two different configurations: lazy binding and Full RELRO.
-> Use `readelf` and `objdump` to look for the word `BIND_NOW` on `DT_FLAGS` or `DT_FLAGS_1`, for `PT_GNU_RELRO`, and for the disassembled `.plt`.
+> Write a script that builds a shared library `libtarget.so` and links one application against it twice: with lazy binding (`-z lazy`) and with Full RELRO (`-z relro -z now`).
+> Use `readelf -d` to look for the word `BIND_NOW` on `DT_FLAGS` or `DT_FLAGS_1`.
 > GNU ld 2.42 with `-z now` does not emit legacy tag 24.
-> Run the application under GDB in batch mode, set breakpoints before and after the first call to the library function, and print the memory content of the function's GOT slot to observe the in-place address update.
-> Next, construct a minimal interposer shared library that hooks `puts()` using `dlsym(RTLD_NEXT, "puts")`.
-> Execute the binary with `LD_PRELOAD` to observe message interception, then attach file capabilities using `setcap cap_net_raw+ep` on the test binary and verify that `ld.so` silences the preload due to `AT_SECURE`.
+> Next, construct a minimal interposer shared library that defines `target_fn` and forwards to the real one through `dlsym(RTLD_NEXT, "target_fn")`, and run the lazy binary with `LD_PRELOAD` to observe the interception.
+> The reference script below performs exactly these steps.
+> As an extension the script does not cover, run the lazy binary under GDB in batch mode and print the GOT slot of `target_fn` before and after the first call, or give the binary file capabilities with `setcap cap_net_raw+ep` (needs root) and confirm that `ld.so` ignores the `LD_PRELOAD` path, which contains a slash, under `AT_SECURE`.
 
 ```bash
 #!/usr/bin/env bash
