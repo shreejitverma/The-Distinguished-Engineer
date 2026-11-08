@@ -60,7 +60,7 @@ flowchart TD
 
 ## The Mechanism
 
-[[Shell-Parsing-Tokenization-and-Expansion-Order]] owns the tokenization grammar and the seven-stage expansion sequence that precedes execution.
+[[Shell-Parsing-Tokenization-and-Expansion-Order]] owns the tokenization grammar and the five-phase word expansion order that precedes execution.
 Once command words and redirection operators are parsed, the shell transitions from language interpretation to POSIX process orchestration.
 Every pipeline, subshell, redirection, and process substitution relies on three kernel abstractions: the process file descriptor table, the system-wide open file table, and the virtual file system (VFS) pipe subsystem.
 

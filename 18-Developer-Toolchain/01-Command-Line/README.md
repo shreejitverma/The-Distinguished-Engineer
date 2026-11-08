@@ -42,7 +42,7 @@ flowchart TD
 
 1. [[Command-Line-Topic-Inventory]] - Authoritative specification inventory and coverage matrix.
 2. [[Command-Line-Skill-Ladder]] - Observable behavioral milestones from L4 to L8+.
-3. [[Shell-Parsing-Tokenization-and-Expansion-Order]] - POSIX grammar, lexing, and the exact seven-stage word expansion sequence.
+3. [[Shell-Parsing-Tokenization-and-Expansion-Order]] - POSIX grammar, lexing, and the five-phase word expansion order.
 4. [[Pipelines-Subshells-Redirection-and-Process-Substitution]] - Kernel pipelines, file descriptors, subshells, and process substitutions.
 5. [[Pipe-Buffering-and-Stdbuf]] - Kernel pipe buffers vs stdio line and block buffering, latency lag, and stdbuf.
 6. [[POSIX-sh-Bash-Zsh-and-Fish-Compared]] - Architectural and language divergences across sh, bash, zsh, and fish.
