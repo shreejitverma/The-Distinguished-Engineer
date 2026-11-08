@@ -7,9 +7,11 @@
  * 2. Paul Flo Williams' DEC VT500 Parser State Machine (ECMA-48 / ANSI X3.64).
  * 3. Extended Grapheme Cluster Segmentation and Width versus POSIX wcwidth.
  * 4. Dual Screen Buffer Switching (DECSET / DECRST 1049).
- * 5. Bracketed Paste Mode (DECSET / DECRST 2004) and Shell Command Isolation.
- * 6. Terminal Query-Response Loop and Escape Injection Sanitization.
+ * 5. Bracketed Paste Mode (DECSET / DECRST 2004) observed against a real zsh line editor over a PTY.
  */
+
+#define _GNU_SOURCE
+#define _DARWIN_C_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +20,16 @@
 #include <stdbool.h>
 #include <locale.h>
 #include <wchar.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <time.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+
+extern char **environ;
 
 /* ========================================================================= */
 /* 1. UTF-8 DFA Decoder (Bjoern Hoehrmann)                                    */
@@ -533,7 +545,7 @@ static int segment_graphemes(const uint32_t *codepoints, int count, grapheme_clu
         prev = cp;
     }
 
-    /* Assign true display width per cluster */
+    /* Assign the cluster width: two cells if any member is wide, as grapheme-aware terminals render it */
     for (int i = 0; i < cluster_count; i++) {
         grapheme_cluster_t *c = &clusters[i];
         if (c->codepoint_count == 0) continue;
@@ -560,54 +572,161 @@ static int segment_graphemes(const uint32_t *codepoints, int count, grapheme_clu
 }
 
 /* ========================================================================= */
-/* 4. Bracketed Paste and Shell Injection Defense Simulator                  */
+/* 4. Bracketed Paste Against a Real Line Editor (zsh ZLE over a PTY)        */
 /* ========================================================================= */
 
-typedef struct {
-    char clean_buffer[1024];
-    int clean_len;
-    bool in_paste;
-    int blocked_newlines_in_paste;
-    int unbracketed_executed_commands;
-} shell_simulator_t;
+#define PTY_TIMEOUT_MS 10000
 
-static void shell_simulator_init(shell_simulator_t *sim) {
-    memset(sim, 0, sizeof(*sim));
+typedef struct {
+    int master;
+    pid_t pid;
+    char out[65536];
+    size_t len;
+} shell_pty_t;
+
+static void die(const char *what) {
+    perror(what);
+    exit(1);
 }
 
-static void shell_simulator_feed(shell_simulator_t *sim, const char *input, size_t len, bool bracketed_paste_enabled) {
-    size_t i = 0;
-    while (i < len) {
-        /* Check for Bracketed Paste markers: \x1b[200~ and \x1b[201~ */
-        if (bracketed_paste_enabled && i + 6 <= len && memcmp(&input[i], "\x1b[200~", 6) == 0) {
-            sim->in_paste = true;
-            i += 6;
-            continue;
-        }
-        if (bracketed_paste_enabled && i + 6 <= len && memcmp(&input[i], "\x1b[201~", 6) == 0) {
-            sim->in_paste = false;
-            i += 6;
-            continue;
-        }
+static long now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long)ts.tv_sec * 1000L + ts.tv_nsec / 1000000L;
+}
 
-        char ch = input[i++];
-        if (sim->in_paste) {
-            if (ch == '\n' || ch == '\r') {
-                sim->blocked_newlines_in_paste++;
-            }
-            if (sim->clean_len < (int)sizeof(sim->clean_buffer) - 1) {
-                sim->clean_buffer[sim->clean_len++] = ch;
-            }
-        } else {
-            if (ch == '\n' || ch == '\r') {
-                sim->unbracketed_executed_commands++;
-            } else {
-                if (sim->clean_len < (int)sizeof(sim->clean_buffer) - 1) {
-                    sim->clean_buffer[sim->clean_len++] = ch;
-                }
-            }
-        }
+/* Start zsh with no startup files as the session leader on a fresh pseudoterminal. */
+static void shell_pty_spawn(shell_pty_t *sh) {
+    sh->len = 0;
+    sh->master = posix_openpt(O_RDWR | O_NOCTTY);
+    if (sh->master < 0) die("posix_openpt");
+    if (grantpt(sh->master) < 0 || unlockpt(sh->master) < 0) die("grantpt/unlockpt");
+    const char *name = ptsname(sh->master);
+    if (name == NULL) die("ptsname");
+    char slave_path[128];
+    snprintf(slave_path, sizeof(slave_path), "%s", name);
+
+    sh->pid = fork();
+    if (sh->pid < 0) die("fork");
+    if (sh->pid == 0) {
+        close(sh->master);
+        if (setsid() < 0) _exit(126);
+        int slave = open(slave_path, O_RDWR);
+        if (slave < 0) _exit(126);
+        ioctl(slave, TIOCSCTTY, 0);
+        struct winsize ws = {24, 200, 0, 0};
+        ioctl(slave, TIOCSWINSZ, &ws);
+        dup2(slave, STDIN_FILENO);
+        dup2(slave, STDOUT_FILENO);
+        dup2(slave, STDERR_FILENO);
+        if (slave > STDERR_FILENO) close(slave);
+        char *envp[] = {"TERM=xterm-256color", "PATH=/bin:/usr/bin", NULL};
+        char *argv[] = {"zsh", "-f", "-i", NULL};
+        environ = envp;
+        execvp("zsh", argv);
+        _exit(127);
     }
+}
+
+static void shell_pty_close(shell_pty_t *sh) {
+    kill(sh->pid, SIGKILL);
+    waitpid(sh->pid, NULL, 0);
+    close(sh->master);
+}
+
+static void pty_write(shell_pty_t *sh, const char *s, size_t n) {
+    while (n > 0) {
+        ssize_t w = write(sh->master, s, n);
+        if (w < 0 && errno == EINTR) continue;
+        if (w < 0) die("write to pty master");
+        s += w;
+        n -= (size_t)w;
+    }
+}
+
+/* Read shell output until needle appears at or after offset from; returns the offset of the match. */
+static size_t pty_read_until(shell_pty_t *sh, size_t from, const char *needle) {
+    long deadline = now_ms() + PTY_TIMEOUT_MS;
+    for (;;) {
+        sh->out[sh->len] = '\0';
+        const char *hit = strstr(sh->out + from, needle);
+        if (hit != NULL) return (size_t)(hit - sh->out);
+        long left = deadline - now_ms();
+        if (left <= 0) {
+            fprintf(stderr, "timed out waiting for the shell to print \"%s\"\n", needle);
+            exit(1);
+        }
+        struct pollfd pfd = {sh->master, POLLIN, 0};
+        int r = poll(&pfd, 1, (int)left);
+        if (r < 0 && errno == EINTR) continue;
+        if (r < 0) die("poll");
+        if (r == 0) continue;
+        if (sh->len >= sizeof(sh->out) - 1) {
+            fprintf(stderr, "shell output exceeded %zu bytes\n", sizeof(sh->out) - 1);
+            exit(1);
+        }
+        ssize_t n = read(sh->master, sh->out + sh->len, sizeof(sh->out) - 1 - sh->len);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) {
+            fprintf(stderr, "shell closed the terminal before printing \"%s\"\n", needle);
+            exit(1);
+        }
+        sh->len += (size_t)n;
+    }
+}
+
+static int count_occurrences(const char *hay, const char *needle) {
+    int count = 0;
+    for (const char *p = strstr(hay, needle); p != NULL; p = strstr(p + 1, needle)) count++;
+    return count;
+}
+
+/* Two commands separated by CR, as a terminal sends pasted lines; only their output contains A_42 or B_42. */
+static const char PASTE_PAYLOAD[] = "print -r -- A_$((40+2))\rprint -r -- B_$((40+2))\r";
+
+typedef struct {
+    int executed;
+    bool wrapped;
+    bool mode_at_prompt;
+    bool mode_while_running;
+} paste_result_t;
+
+/*
+ * Act as the terminal: a terminal that supports bracketed paste wraps the paste in ESC[200~ ... ESC[201~
+ * only while the parser has seen the shell enable DECSET 2004. Paste the payload, optionally press Enter,
+ * then press ^G (send-break, which discards an unfinished
+ * line without running it) and run a sync command. The tty delivers every byte in order, so once
+ * DONE_2 appears the shell has finished acting on the paste.
+ */
+static paste_result_t run_paste_scenario(bool terminal_supports_mode, bool press_enter) {
+    static shell_pty_t sh;
+    paste_result_t res;
+    shell_pty_spawn(&sh);
+
+    size_t prompt = pty_read_until(&sh, 0, "\x1b[?2004h") + 8;
+    vt_parser_t parser;
+    vt_parser_init(&parser);
+    vt_parser_feed_string(&parser, sh.out, prompt);
+    res.mode_at_prompt = parser.bracketed_paste_active;
+
+    res.wrapped = terminal_supports_mode && parser.bracketed_paste_active;
+    if (res.wrapped) pty_write(&sh, "\x1b[200~", 6);
+    pty_write(&sh, PASTE_PAYLOAD, sizeof(PASTE_PAYLOAD) - 1);
+    if (res.wrapped) pty_write(&sh, "\x1b[201~", 6);
+    if (press_enter) pty_write(&sh, "\r", 1);
+    const char sync[] = "\x07print -r -- DONE_$((1+1))\r";
+    pty_write(&sh, sync, sizeof(sync) - 1);
+    size_t done = pty_read_until(&sh, prompt, "DONE_2");
+
+    sh.out[done] = '\0';
+    res.executed = count_occurrences(sh.out + prompt, "A_42") + count_occurrences(sh.out + prompt, "B_42");
+
+    /* Everything the shell printed before the sync command's output, including its mode switches. */
+    vt_parser_feed_string(&parser, sh.out + prompt, done - prompt);
+    res.mode_while_running = parser.bracketed_paste_active;
+
+    shell_pty_close(&sh);
+    return res;
 }
 
 /* ========================================================================= */
@@ -715,6 +834,24 @@ static void test_vt_parser(void) {
     printf("    Restored cursor position: row=%d, col=%d\n", parser.cursor_row, parser.cursor_col);
 }
 
+/* Independent segmentation oracle: Perl's \X matches one UAX #29 extended grapheme cluster. */
+static int perl_grapheme_count(const uint32_t *codepoints, int count) {
+    char cmd[256];
+    int n = snprintf(cmd, sizeof(cmd), "perl -e 'print scalar(() = pack(\"U*\", map { hex } @ARGV) =~ /\\X/g)'");
+    for (int i = 0; i < count; i++) {
+        n += snprintf(cmd + n, sizeof(cmd) - (size_t)n, " %X", (unsigned)codepoints[i]);
+    }
+    FILE *p = popen(cmd, "r");
+    if (p == NULL) die("popen perl");
+    int result = -1;
+    if (fscanf(p, "%d", &result) != 1) result = -1;
+    if (pclose(p) != 0 || result < 0) {
+        fprintf(stderr, "perl grapheme oracle failed: %s\n", cmd);
+        exit(1);
+    }
+    return result;
+}
+
 static void test_unicode_width_and_graphemes(void) {
     printf("\n=== Section 3: Character Width and Grapheme Segmentation ===\n");
 
@@ -755,73 +892,46 @@ static void test_unicode_width_and_graphemes(void) {
         }
 
         printf("Case %d [%s]:\n", i + 1, cases[i].description);
-        printf("  Codepoint count: %d, Grapheme cluster count: %d\n", cases[i].count, num_clusters);
+        printf("  Codepoint count: %d, Grapheme cluster count: %d (Perl \\X oracle: %d)\n",
+               cases[i].count, num_clusters, perl_grapheme_count(cases[i].codepoints, cases[i].count));
         printf("  Naive codepoint wcwidth sum (lab table): %d\n", total_naive_width);
         printf("  Naive codepoint wcwidth sum (libc wcwidth): %d\n", libc_sum);
-        printf("  True terminal display width: %d\n", total_display_width);
+        printf("  Cluster width (2 cells if any member is wide): %d\n", total_display_width);
         if (total_naive_width != total_display_width) {
             printf("  DISCREPANCY: Naive wcwidth over-allocates by %d column(s)!\n",
                    total_naive_width - total_display_width);
         } else {
-            printf("  Match: wcwidth aligns with terminal grid.\n");
+            printf("  Match: naive sum equals the cluster width.\n");
         }
     }
 }
 
 static void test_bracketed_paste_and_injection(void) {
-    printf("\n=== Section 4: Bracketed Paste Mode and Injection Defense ===\n");
-
-    /* Attack payload simulating a user pasting multi-line text into a shell prompt:
-     * "git status\nrm -rf ./scratch\n"
-     */
-    const char malicious_payload[] = "git status\nrm -rf ./scratch\n";
-    size_t payload_len = strlen(malicious_payload);
-
-    /* The terminal-side mode comes from the parser: DECSET 2004 sets it, DECRST 2004 clears it */
-    vt_parser_t mode_parser;
-    vt_parser_init(&mode_parser);
-    bool mode_before = mode_parser.bracketed_paste_active;
-    vt_parser_feed_string(&mode_parser, "\x1b[?2004h", 8);
-    bool mode_after_set = mode_parser.bracketed_paste_active;
-    vt_parser_feed_string(&mode_parser, "\x1b[?2004l", 8);
-    bool mode_after_reset = mode_parser.bracketed_paste_active;
-    vt_parser_feed_string(&mode_parser, "\x1b[?2004h", 8);
-    printf("DECSET/DECRST 2004 parser state: initial=%s, after set=%s, after reset=%s\n",
-           mode_before ? "on" : "off", mode_after_set ? "on" : "off", mode_after_reset ? "on" : "off");
-
-    /* Scenario A: Bracketed paste DISABLED */
-    bool scenario_a_mode = mode_before;
-    shell_simulator_t sim_unprotected;
-    shell_simulator_init(&sim_unprotected);
-    shell_simulator_feed(&sim_unprotected, malicious_payload, payload_len, scenario_a_mode);
-
-    printf("Scenario A (Bracketed Paste DISABLED):\n");
-    printf("  Parser mode flag handed to the shell: %s\n", scenario_a_mode ? "on" : "off");
-    printf("  Commands executed immediately: %d\n", sim_unprotected.unbracketed_executed_commands);
-    printf("  Blocked newlines: %d\n", sim_unprotected.blocked_newlines_in_paste);
-
-    /* Scenario B: Bracketed paste ENABLED */
-    /* Terminal emulator wraps the paste between \x1b[200~ and \x1b[201~ */
-    char wrapped_payload[256];
-    int wrapped_len = snprintf(wrapped_payload, sizeof(wrapped_payload),
-                              "\x1b[200~%s\x1b[201~", malicious_payload);
-
-    shell_simulator_t sim_protected;
-    shell_simulator_init(&sim_protected);
-    shell_simulator_feed(&sim_protected, wrapped_payload, (size_t)wrapped_len, mode_parser.bracketed_paste_active);
-
-    printf("Scenario B (Bracketed Paste ENABLED via DECSET 2004):\n");
-    printf("  Parser mode flag handed to the shell: %s\n", mode_parser.bracketed_paste_active ? "on" : "off");
-    printf("  Commands executed immediately: %d\n", sim_protected.unbracketed_executed_commands);
-    printf("  Blocked newlines (buffered safely): %d\n", sim_protected.blocked_newlines_in_paste);
-    printf("  Buffered literal text: \"");
-    for (int i = 0; i < sim_protected.clean_len; i++) {
-        char c = sim_protected.clean_buffer[i];
-        if (c == '\n') printf("\\n");
-        else if (c == '\r') printf("\\r");
-        else putchar(c);
+    printf("\n=== Section 4: Bracketed Paste Against a Real Line Editor (zsh over a PTY) ===\n");
+    printf("Shell: zsh -f -i on a pseudoterminal; the pasted text holds two commands separated by CR:\n");
+    printf("  \"");
+    for (const char *c = PASTE_PAYLOAD; *c != '\0'; c++) {
+        if (*c == '\r') printf("\\r");
+        else putchar(*c);
     }
     printf("\"\n");
+
+    paste_result_t raw = run_paste_scenario(false, false);
+    paste_result_t wrapped = run_paste_scenario(true, false);
+    paste_result_t wrapped_enter = run_paste_scenario(true, true);
+
+    printf("Lab parser fed the shell's own output:\n");
+    printf("  At the prompt: bracketed_paste_active=%s\n", raw.mode_at_prompt ? "on" : "off");
+    printf("  When a command prints: bracketed_paste_active=%s\n", raw.mode_while_running ? "on" : "off");
+    printf("Scenario A (terminal without bracketed paste support):\n");
+    printf("  Paste wrapped in ESC[200~ ... ESC[201~: %s\n", raw.wrapped ? "yes" : "no");
+    printf("  Pasted commands executed without pressing Enter: %d\n", raw.executed);
+    printf("Scenario B (terminal honors the shell's DECSET 2004):\n");
+    printf("  Paste wrapped in ESC[200~ ... ESC[201~: %s\n", wrapped.wrapped ? "yes" : "no");
+    printf("  Pasted commands executed without pressing Enter: %d\n", wrapped.executed);
+    printf("Scenario C (as B, then the user presses Enter):\n");
+    printf("  Paste wrapped in ESC[200~ ... ESC[201~: %s\n", wrapped_enter.wrapped ? "yes" : "no");
+    printf("  Pasted commands executed: %d\n", wrapped_enter.executed);
 }
 
 int main(void) {

@@ -9,7 +9,7 @@ child read 4 bytes: "0123"
 parent f_pos after child read: 4 (shared open file description)
 
 === 3. Descriptor Inheritance Across execve() and FD_CLOEXEC ===
-[execve helper] fd 3 (O_CLOEXEC): CLOSED (EBADF) (errno=9)
+[execve helper] fd 3 (FD_CLOEXEC): CLOSED (EBADF) (errno=9)
 [execve helper] fd 4 (inherited): OPEN, read 4 bytes: "4567"
 
 === 4. Multithreaded Fork Lock Contention / Deadlock Hazard ===
@@ -28,5 +28,5 @@ child pthread_mutex_timedlock on mutex held by other thread: ETIMEDOUT (blocks)
 
 === 6. Safe Spawning with posix_spawn() and File Actions ===
 posix_spawn status: 0, captured child stdout:
-  [execve helper] fd 3 (O_CLOEXEC): CLOSED (EBADF) (errno=9)
+  [execve helper] fd 3 (FD_CLOEXEC): CLOSED (EBADF) (errno=9)
 [execve helper] fd 4 (inherited): OPEN, read 4 bytes: "89AB"

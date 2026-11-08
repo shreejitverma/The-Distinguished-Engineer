@@ -3,11 +3,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN="${SCRIPT_DIR}/fork_exec_fd"
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
 
-trap 'rm -f "${BIN}"' EXIT
+"${CC:-cc}" -O2 -Wall -Wextra -pthread -o "${WORKDIR}/fork_exec_fd" "${SCRIPT_DIR}/fork_exec_fd.c"
 
-"${CC:-cc}" -O2 -Wall -Wextra -pthread -o "${BIN}" "${SCRIPT_DIR}/fork_exec_fd.c"
-
-cd "${SCRIPT_DIR}"
-exec "${BIN}"
+cd "${WORKDIR}"
+"${WORKDIR}/fork_exec_fd"

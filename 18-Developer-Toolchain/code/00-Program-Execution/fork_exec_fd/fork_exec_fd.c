@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
         int f4 = fcntl(fd_inherited, F_GETFD);
         char buf[5] = {0};
         ssize_t n = read(fd_inherited, buf, 4);
-        printf("[execve helper] fd 3 (O_CLOEXEC): %s (errno=%d)\n",
+        printf("[execve helper] fd 3 (FD_CLOEXEC): %s (errno=%d)\n",
                (f3 == -1 && e3 == EBADF) ? "CLOSED (EBADF)" : "OPEN", e3);
         printf("[execve helper] fd 4 (inherited): %s, read %zd bytes: \"%s\"\n",
                (f4 != -1) ? "OPEN" : "CLOSED", n, buf);

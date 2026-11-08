@@ -2,12 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${SCRIPT_DIR}"
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
 
-CC="${CC:-cc}"
-BIN="./terminal_engine"
-
-trap 'rm -f "${BIN}"' EXIT
-
-"${CC}" -O2 -Wall -Wextra -pedantic -std=c99 terminal_engine.c -o "${BIN}"
-"${BIN}"
+"${CC:-cc}" -O2 -Wall -Wextra -pedantic -std=c99 "${SCRIPT_DIR}/terminal_engine.c" -o "${WORKDIR}/terminal_engine"
+"${WORKDIR}/terminal_engine"

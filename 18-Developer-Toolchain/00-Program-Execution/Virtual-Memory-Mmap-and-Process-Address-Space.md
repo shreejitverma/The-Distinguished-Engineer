@@ -481,8 +481,9 @@ File-backed semantics verified: MAP_SHARED mutates the file; MAP_PRIVATE isolate
 
 > [!warning] Pitfall: SIGBUS crashes caused by file truncation
 > When mapping a file with `mmap`, the VMA bounds are rounded up to the nearest page size.
-> If a process accesses an offset within the mapped page that extends beyond the underlying file's actual byte length, the MMU triggers a bus error (`SIGBUS` with `BUS_OBJERR`).
-> Similarly, if another process truncates a memory-mapped file while your process is actively reading or writing it, subsequent memory accesses instantly abort with `SIGBUS`.
+> Bytes in the final partial page past end-of-file read as zeros, and writes there are never written back to the file (`mmap(2)`).
+> An access to a page that lies entirely beyond end-of-file raises a bus error (`SIGBUS` with `BUS_ADRERR`), which happens when the mapping is longer than the file.
+> Similarly, if another process truncates a memory-mapped file while your process is actively reading or writing it, subsequent accesses to the now-vanished pages abort with `SIGBUS`.
 > Resilient memory-mapped file engines must install a `SIGBUS` signal handler or validate file size invariants before reading.
 
 > [!warning] Pitfall: Exhausting vm.max_map_count under high thread counts or memory-mapped stores
@@ -492,9 +493,10 @@ File-backed semantics verified: MAP_SHARED mutates the file; MAP_PRIVATE isolate
 > Production database nodes and Java services must explicitly tune `vm.max_map_count=1048576`.
 
 > [!warning] Pitfall: Massive mmap_lock contention stalling concurrent multithreaded allocations
-> The kernel protects a process's VMA tree with `mm->mmap_lock`.
-> Page faults acquire `mmap_lock` in read mode (`down_read`), whereas `mmap`, `munmap`, `mprotect`, and `brk` acquire it in exclusive write mode (`down_write`).
-> In high-throughput multithreaded services, threads concurrently allocating memory via `mmap` block all other threads from resolving minor page faults.
+> The kernel protects a process's VMA tree with `mm->mmap_lock`; `mmap`, `munmap`, `mprotect`, and `brk` acquire it in exclusive write mode (`down_write`).
+> Before Linux 6.4, every page fault took `mmap_lock` in read mode, so one thread's `mmap` blocked all other threads from resolving minor faults.
+> Since 6.4, most faults first try a per-VMA lock (`lock_vma_under_rcu()`) and touch `mmap_lock` only when that fails, so a writer stalls faults only on the VMA it is modifying, or on fault paths not yet converted.
+> On older kernels, and for faults that fall back, threads concurrently allocating memory via `mmap` still block other threads' faults.
 > This creates severe multi-millisecond tail latency spikes; production systems resolve this by utilizing jemalloc or TCMalloc with large pre-allocated memory arenas.
 
 > [!warning] Pitfall: Fork latency and memory exhaustion in massive in-memory databases
@@ -699,10 +701,10 @@ rm -f vma_drill vma_drill.c
 >
 > > [!success]- Answer
 > > In Linux, all VMAs belonging to an `mm_struct` are protected by a single read-write semaphore: `mmap_lock`.
-> > Resolving page faults (demand paging, COW) takes `mmap_lock` in shared read mode (`down_read`).
-> > However, any system call that creates, destroys, resizes, or reprotects VMAs (`mmap`, `munmap`, `mprotect`, `brk`, `mremap`) must acquire `mmap_lock` in exclusive write mode (`down_write`).
-> > If a background thread calls `mmap` or `munmap`, or if the heap expands, the writer requests exclusive access, blocking all subsequent readers.
-> > Worker threads handling market data that touch newly allocated memory become blocked waiting for `down_read(&mm->mmap_lock)`, stalling the trading pipeline for milliseconds.
+> > Any system call that creates, destroys, resizes, or reprotects VMAs (`mmap`, `munmap`, `mprotect`, `brk`, `mremap`) must acquire `mmap_lock` in exclusive write mode (`down_write`), and write-locks each VMA it changes.
+> > Before Linux 6.4, resolving page faults (demand paging, COW) always took `mmap_lock` in shared read mode (`down_read`), so a background `mmap`, `munmap`, or heap expansion blocked every subsequent fault in the process.
+> > Since 6.4, most faults first take only the faulting VMA's per-VMA lock under RCU (`lock_vma_under_rcu()`), so a writer stalls faults on the VMAs it is modifying and on fault paths that fall back to `mmap_lock`, not all faults.
+> > The spike remains on older kernels, and on current ones when worker threads touch memory in the very VMA the allocator is growing or splitting (glibc heap expansion with `brk`, or `munmap` and `mprotect` on a shared arena), where they wait on the VMA lock or `down_read(&mm->mmap_lock)` for milliseconds.
 > > **Mitigations:**
 > > 1. Use pre-allocated memory pools and ring buffers created at process initialization.
 > > 2. Pre-fault all memory during startup using `MAP_POPULATE` and lock it into RAM with `mlockall(MCL_CURRENT | MCL_FUTURE)`.
@@ -720,7 +722,7 @@ rm -f vma_drill vma_drill.c
 > > If the child or parent subsequently modifies memory (e.g. during background disk persistence), the subsequent write faults trigger 131 million COW duplications, rapidly exceeding physical RAM and provoking the OOM killer.
 > > **Mitigations:**
 > > 1. Use Transparent Huge Pages (2 MiB) or HugeTLB (1 GiB): reduces the total PTE count from 131 million to 256,000, shrinking page table copy time to under 2 milliseconds.
-> > 2. Avoid `fork()` entirely for process spawning: use `posix_spawn()` with `POSIX_SPAWN_USEVFORK`, or `vfork()`, which avoids page table duplication by suspending the parent until `execve()`.
+> > 2. Avoid `fork()` entirely for process spawning: use `posix_spawn()` (on glibc 2.24 and later it always uses `CLONE_VM | CLONE_VFORK`, so `POSIX_SPAWN_USEVFORK` has no effect) or `vfork()`, which avoids page table duplication by suspending the parent until `execve()`.
 > > 3. For persistence snapshots, utilize modern user-space asynchronous I/O (`io_uring`) or file system snapshotting rather than `fork`-based background dumping.
 
 > [!question] L7+: A high-throughput database engine maps a 2 TiB data file with `mmap(MAP_SHARED)`.

@@ -80,8 +80,8 @@ The filesystem has no backing block storage; directory nodes and file content ar
 Every task in the Linux kernel is represented by a `struct task_struct` defined in `include/linux/sched.h`.
 Process identity and security privileges are encapsulated in a dedicated structure, `struct cred`, defined in `include/linux/cred.h`.
 The task structure maintains two distinct pointers to credentials:
-The `real_cred` pointer identifies the subjective credentials of the entity that created the task, which are consulted for signal delivery permissions, process accounting, and audit logging.
-The `cred` pointer identifies the objective credentials currently in effect for resource access control, VFS filesystem operations, and capability evaluation.
+The `real_cred` pointer holds the task's own objective and real subjective credentials (`include/linux/sched.h`): the objective context is consulted when the task is acted upon, for example as the target of a signal or `ptrace`, and for process accounting and audit.
+The `cred` pointer holds the effective, overridable subjective credentials used when the task itself acts: resource access control, VFS filesystem operations, and capability evaluation.
 Both pointers frequently point to the same shared, reference-counted `struct cred` instance.
 
 The `struct cred` layout in modern Linux kernels consists of:
@@ -226,9 +226,9 @@ address           perms offset   dev   inode       pathname
 - `offset`: File offset if the mapping is file-backed, or `0` for anonymous mappings.
 - `dev`: Device major and minor numbers in hexadecimal (`major:minor`).
 - `inode`: Filesystem inode number on the backing device.
-- `pathname`: File path, or synthetic labels such as `[heap]`, `[stack]`, `[stack:TID]`, `[vdso]`, `[vvar]`, or `[anon_shmem]`.
+- `pathname`: File path, or synthetic labels such as `[heap]`, `[stack]`, `[vdso]`, `[vvar]`, or `[anon_shmem]`.
 
-While `/proc/[pid]/smaps` prints detailed memory breakdowns per VMA, reading `smaps` for a process with 10,000 VMAs generates hundreds of thousands of lines of text and requires holding the process `mmap_lock` (formerly `mmap_sem`) in read mode across the entire traversal.
+While `/proc/[pid]/smaps` prints detailed memory breakdowns per VMA, reading `smaps` for a process with 10,000 VMAs generates hundreds of thousands of lines of text and takes the process `mmap_lock` (formerly `mmap_sem`) in read mode again for every `seq_file` buffer fill, dropping it between `read()` calls.
 In Linux 4.14, Daniel Colascione introduced `/proc/[pid]/smaps_rollup`.
 The `smaps_rollup` file walks the entire VMA list while holding `mmap_lock` once, aggregates all resident, shared, private, and swap metrics, and outputs a single ~23-line consolidated summary block.
 Key metrics in `smaps_rollup` include:
@@ -276,7 +276,7 @@ The companion directory `/proc/[pid]/fdinfo/N` provides metadata regarding descr
 
 - `pos`: Current file seek offset in decimal bytes.
 - `flags`: Open flags in octal representation (e.g., `02` for `O_RDWR`, `02000000` for `O_CLOEXEC`).
-- `mnt_id`: The mount namespace identifier for the filesystem hosting the file.
+- `mnt_id`: The mount ID of the mount hosting the file, matching the first field of `/proc/[pid]/mountinfo`.
 - Subsystem-specific lines: for instance, epoll fdinfo lists monitored target descriptors (`tfd`), event masks, and user data.
 
 #### /proc/[pid]/auxv and the ELF Auxiliary Vector
@@ -311,10 +311,12 @@ It exposes credentials and capabilities:
 #### /proc/[pid]/oom_score_adj and the OOM Killer Heuristic
 
 Under severe memory exhaustion, the kernel Out-Of-Memory (OOM) killer invokes `oom_badness()` in `mm/oom_kill.c` to select a victim process to terminate with `SIGKILL`.
-The score ranges from 0 to 1000, representing the fraction of allowed RAM consumed.
+`oom_badness()` returns a page count (resident memory, swap entries, and page tables) plus `oom_score_adj * totalpages / 1000`.
+`proc_oom_score()` in `fs/proc/base.c` scales that into the `0` to `2000` range that `/proc/[pid]/oom_score` has always exported, so the adjustment can move a score by up to the full span of RAM in either direction.
+On current kernels the export is `(1000 + badness * 1000 / totalpages) * 2 / 3`, so a small process with `oom_score_adj = 0` reads about `666` (read from `/proc/self/oom_score` in the pinned lab container, 2026-11).
 The `/proc/[pid]/oom_score_adj` pseudofile (introduced in Linux 2.6.36 to replace the legacy `/proc/[pid]/oom_adj`) allows user-space orchestration engines to bias this calculation.
 Permitted values range from `-1000` (`OOM_SCORE_ADJ_MIN`) to `+1000` (`OOM_SCORE_ADJ_MAX`).
-Setting `-1000` completely immunizes the process from the OOM killer (`oom_badness()` returns 0).
+Setting `-1000` completely immunizes the process from the OOM killer (`oom_badness()` returns `LONG_MIN`, and the task is never selected).
 Setting `+1000` makes the process the first candidate for termination.
 
 The kernel mutation logic in `__set_oom_adj()` (`fs/proc/base.c`) enforces a strict asymmetric security rule:
@@ -401,7 +403,7 @@ Every entry in this reference table represents authoritative kernel parameters, 
 | Mechanism / Parameter | Constant / Path / Formula | Platform | Meaning and Range (as of 2026-11) |
 | :--- | :--- | :--- | :--- |
 | OOM killer score adjustment | `/proc/[pid]/oom_score_adj` | Linux | Integer range `-1000` to `+1000`; `-1000` disables OOM kill, `+1000` prioritizes kill. |
-| OOM killer score read | `/proc/[pid]/oom_score` | Linux | Unsigned integer `0` to `1000` calculated dynamically by `oom_badness()`. |
+| OOM killer score read | `/proc/[pid]/oom_score` | Linux | Unsigned integer `0` to `2000`, scaled from `oom_badness()` by `proc_oom_score()`. |
 | Memory rollup aggregation | `/proc/[pid]/smaps_rollup` | Linux | Single-pass VMA summary; eliminates `mmap_lock` read contention introduced in Linux 4.14. |
 | Pagemap binary record size | `sizeof(uint64_t) == 8` B | Linux | 8 bytes per virtual page; byte offset equals `(vaddr / pagesize) * 8`. |
 | Pagemap present bit | Bit 63 (`1ULL << 63`) | Linux | Set when page resides in physical RAM; valid for unprivileged callers. |
@@ -504,7 +506,7 @@ In Stage 7, `prctl(PR_SET_DUMPABLE)` toggles dumpable state to 0 and cleanly res
 > Unprivileged code must only inspect status bits 63 (present), 62 (swapped), and 56 (exclusive).
 
 > [!warning] Pitfall: Polling /proc/[pid]/smaps causing mmap_lock storms
-> Monitoring agents that periodically read `/proc/[pid]/smaps` on large production database or JVM workloads acquire `mmap_lock` in read mode for each VMA formatted.
+> Monitoring agents that periodically read `/proc/[pid]/smaps` on large production database or JVM workloads acquire `mmap_lock` in read mode again for every `seq_file` buffer fill, and each hold walks and formats VMAs (including their page tables) until the buffer is full.
 > In workloads with tens of thousands of VMAs and heavy thread contention, high-frequency `smaps` reads starve write lockers (threads executing `mmap`, `munmap`, or `brk`), leading to catastrophic multi-second application pauses.
 > Production telemetry daemons must query `/proc/[pid]/smaps_rollup` instead of `smaps`.
 

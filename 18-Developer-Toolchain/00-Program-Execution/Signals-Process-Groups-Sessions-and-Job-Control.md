@@ -272,7 +272,9 @@ When a terminal disconnection occurs (such as closing a virtual terminal window,
 1. The kernel terminal driver generates `SIGHUP` to the session leader (`tty->ctrl.session`).
 2. The session leader (the login shell) receives `SIGHUP`.
 3. The shell forwards `SIGHUP` to all child process groups registered in its active job table.
-4. If the session leader terminates, the controlling terminal is disassociated (`tty->ctrl.session = NULL`), and any subsequent terminal read or write operations by remaining processes fail with `EIO`.
+4. If the session leader terminates, `disassociate_ctty(1)` in `drivers/tty/tty_jobctrl.c` clears `tty->ctrl.session` and `tty->ctrl.pgrp` and detaches every member of the session from the terminal.
+   On a PTY slave it only sends `SIGHUP` to the foreground process group; remaining processes keep working descriptors, and their reads and writes are no longer subject to job control.
+   On any other terminal it calls `tty_vhangup_session()`, after which `read()` on the hung-up descriptor returns 0 (end of file) and `write()` fails with `EIO`.
 
 ## Commands and Numbers to Know
 

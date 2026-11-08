@@ -23,50 +23,54 @@ Parser metrics:
 === Section 3: Character Width and Grapheme Segmentation ===
 libc LC_CTYPE: en_US.UTF-8
 Case 1 [ASCII 'A']:
-  Codepoint count: 1, Grapheme cluster count: 1
+  Codepoint count: 1, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 1
   Naive codepoint wcwidth sum (libc wcwidth): 1
-  True terminal display width: 1
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 1
+  Match: naive sum equals the cluster width.
 Case 2 [CJK Hanzi U+4E2D]:
-  Codepoint count: 1, Grapheme cluster count: 1
+  Codepoint count: 1, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 2
   Naive codepoint wcwidth sum (libc wcwidth): 2
-  True terminal display width: 2
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 2
+  Match: naive sum equals the cluster width.
 Case 3 [Combining acute 'e' + U+0301]:
-  Codepoint count: 2, Grapheme cluster count: 1
+  Codepoint count: 2, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 1
   Naive codepoint wcwidth sum (libc wcwidth): 1
-  True terminal display width: 1
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 1
+  Match: naive sum equals the cluster width.
 Case 4 [Emoji skin tone: Waving hand + Medium-Dark tone]:
-  Codepoint count: 2, Grapheme cluster count: 1
+  Codepoint count: 2, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 4
   Naive codepoint wcwidth sum (libc wcwidth): 4
-  True terminal display width: 2
+  Cluster width (2 cells if any member is wide): 2
   DISCREPANCY: Naive wcwidth over-allocates by 2 column(s)!
 Case 5 [Emoji ZWJ: Man + ZWJ + Laptop (Technologist)]:
-  Codepoint count: 3, Grapheme cluster count: 1
+  Codepoint count: 3, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 4
   Naive codepoint wcwidth sum (libc wcwidth): 4
-  True terminal display width: 2
+  Cluster width (2 cells if any member is wide): 2
   DISCREPANCY: Naive wcwidth over-allocates by 2 column(s)!
 Case 6 [Flag sequence: US Flag (Regional U + Regional S)]:
-  Codepoint count: 2, Grapheme cluster count: 1
+  Codepoint count: 2, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 2
   Naive codepoint wcwidth sum (libc wcwidth): 2
-  True terminal display width: 2
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 2
+  Match: naive sum equals the cluster width.
 
-=== Section 4: Bracketed Paste Mode and Injection Defense ===
-DECSET/DECRST 2004 parser state: initial=off, after set=on, after reset=off
-Scenario A (Bracketed Paste DISABLED):
-  Parser mode flag handed to the shell: off
-  Commands executed immediately: 2
-  Blocked newlines: 0
-Scenario B (Bracketed Paste ENABLED via DECSET 2004):
-  Parser mode flag handed to the shell: on
-  Commands executed immediately: 0
-  Blocked newlines (buffered safely): 2
-  Buffered literal text: "git status\nrm -rf ./scratch\n"
+=== Section 4: Bracketed Paste Against a Real Line Editor (zsh over a PTY) ===
+Shell: zsh -f -i on a pseudoterminal; the pasted text holds two commands separated by CR:
+  "print -r -- A_$((40+2))\rprint -r -- B_$((40+2))\r"
+Lab parser fed the shell's own output:
+  At the prompt: bracketed_paste_active=on
+  When a command prints: bracketed_paste_active=off
+Scenario A (terminal without bracketed paste support):
+  Paste wrapped in ESC[200~ ... ESC[201~: no
+  Pasted commands executed without pressing Enter: 2
+Scenario B (terminal honors the shell's DECSET 2004):
+  Paste wrapped in ESC[200~ ... ESC[201~: yes
+  Pasted commands executed without pressing Enter: 0
+Scenario C (as B, then the user presses Enter):
+  Paste wrapped in ESC[200~ ... ESC[201~: yes
+  Pasted commands executed: 2

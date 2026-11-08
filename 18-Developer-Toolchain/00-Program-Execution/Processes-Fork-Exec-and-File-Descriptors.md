@@ -26,7 +26,7 @@ sources:
 > [!summary] Claim:
 > A Unix process creation splits process duplication (`fork`), image replacement (`execve`), and descriptor coordination into distinct kernel operations.
 > `fork()` clones the calling thread into a new address space using Copy-on-Write (COW) page tables, sharing physical frames until a write fault allocates private memory.
-> In multithreaded runtimes, `fork()` leaves all sibling threads dead and their acquired mutexes permanently locked, making non-async-signal-safe routines like `malloc()` catastrophic deadlock hazards.
+> In multithreaded runtimes, `fork()` leaves all sibling threads dead and every mutex they held permanently locked, so any non-async-signal-safe call in the child that touches such a lock (an application or third-party library mutex, a stdio stream, an OpenMP or CUDA runtime) can deadlock forever.
 > File descriptors index a per-process table pointing to system-wide Open File Descriptions (OFDs), which maintain shared offsets across `fork()` and persist across `execve()` unless stripped by `FD_CLOEXEC`.
 > Modern high-throughput platforms bypass `fork()` entirely via `posix_spawn()` or `clone3()` with `CLONE_VM | CLONE_VFORK`, eliminating page table duplication latency and out-of-memory allocation failures.
 
@@ -228,12 +228,17 @@ Linux implements virtual memory overcommit, governed by `/proc/sys/vm/overcommit
   $$\text{CommitLimit} = \text{SwapTotal} + (\text{MemTotal} \times \frac{\text{vm.overcommit\_ratio}}{100})$$
 
 Under `overcommit_memory = 2`, `fork()` checks whether the system has sufficient committed address space to accommodate the child's entire address space duplication.
-If an application occupies 50 GiB on a 64 GiB machine with no swap, `fork()` immediately fails with `ENOMEM` (errno 12: Cannot allocate memory), even if the application intended to call `execve()` one microsecond later.
+With the default `vm.overcommit_ratio = 50` and no swap, a 64 GiB machine has a `CommitLimit` of only 32 GiB, so raise the ratio to make the arithmetic concrete: at `vm.overcommit_ratio = 100` the limit is 64 GiB.
+An application holding 40 GiB of committed private writable memory then cannot fork, because `dup_mmap()` charges the child's copy of those mappings and `Committed_AS` would reach 80 GiB.
+`fork()` fails immediately with `ENOMEM` (errno 12: Cannot allocate memory), even if the application intended to call `execve()` one microsecond later.
 
 To mitigate page table bloat and COW tracking overhead, applications use `madvise(addr, len, MADV_DONTFORK)`.
 This sets the `VM_DONTFORK` flag on the specified VMA.
 During `dup_mmap()`, the kernel skips VMAs marked with `VM_DONTFORK`, omitting them from the child's address space.
-This primitive is essential for High-Frequency Trading (HFT) and InfiniBand / RDMA architectures, where physical memory pages are pinned in hardware by kernel drivers (`ibv_reg_mr`); forking pinned RDMA pages leads to memory corruption or hardware bus faults.
+This primitive matters for High-Frequency Trading (HFT) and InfiniBand / RDMA architectures, where physical memory pages are pinned for device DMA by kernel drivers (`ibv_reg_mr`).
+Before Linux 5.9, a fork left the pinned pages shared copy-on-write, and the parent's next write moved its page to a new frame while the adapter kept DMAing into the old one, silently corrupting data; `ibv_fork_init()` applied `MADV_DONTFORK` to every registered region to prevent this.
+Since the early-COW change in Linux 5.9 ("mm: do early cow for pinned pages during fork() for ptes"), `copy_present_page()` copies `FOLL_PIN`-pinned anonymous pages into the child at fork time, so the parent's registered pages stay in place, and rdma-core's `ibv_is_fork_initialized()` reports `IBV_FORK_UNNEEDED` on kernels that advertise this.
+The remaining cost is that every pinned page is copied eagerly at fork, which `MADV_DONTFORK` still avoids.
 Further exploration of address space structures and VMA management is detailed in [[Virtual-Memory-Mmap-and-Process-Address-Space]].
 
 ### 4. File Descriptor Lifecycle: Inheritance, Races, and FD_CLOEXEC
@@ -294,8 +299,9 @@ The execution flow within `fs/exec.c` proceeds through well-defined phases:
 #### Kernel Shebang (`#!`) Parsing Semantics
 When `fs/binfmt_script.c` encounters a shebang line, it applies strict kernel parsing rules:
 
-- Buffer boundary: The shebang line cannot exceed `BINPRM_BUF_SIZE - 1` (255 bytes).
-  Any interpreter path or argument extending past byte 255 is truncated.
+- Buffer boundary: The kernel examines only the first `BINPRM_BUF_SIZE - 1` (255) bytes of the shebang line.
+  Since Linux 5.0 (the fix "exec: load_script: Do not exec truncated interpreter path" in `fs/binfmt_script.c`), `load_script()` returns `ENOEXEC` when the interpreter path does not end inside that window.
+  Only the optional argument can be cut silently at the boundary; the interpreter can re-read the script if it needs the rest.
 - Argument splitting: The kernel parses the interpreter path up to the first whitespace character (space or tab).
   If additional non-whitespace characters exist prior to the newline, the kernel extracts the entire remainder of the string as a single optional argument (`i_arg`).
   The Linux kernel does not split multiple options on whitespace.
@@ -307,7 +313,7 @@ When `fs/binfmt_script.c` encounters a shebang line, it applies strict kernel pa
   To pass multiple options across Linux shebang lines, developers must invoke the GNU coreutils `env` split-string option: `#!/usr/bin/env -S python3 -u`.
 - `argv` array rewriting:
   The kernel transforms the process argument vector:
-  - `argv[0]` becomes the absolute path to the interpreter binary.
+  - `argv[0]` becomes the interpreter path exactly as written in the shebang line (`i_name`), which need not be absolute.
   - `argv[1]` becomes the optional argument extracted from the shebang (if present).
   - `argv[2]` becomes the pathname of the executed script.
   - `argv[3...]` receive the original arguments passed by the caller (`argv[1...]`).
@@ -327,24 +333,26 @@ They run no destructors, execute no thread-cleanup handlers, and release no acqu
 
 ```text
 Parent Process (3 Threads):
-Thread 1 (Worker):    Acquires ptmalloc arena mutex ------------> [MUTEX LOCKED]
+Thread 1 (Worker):    Acquires the logger's pthread mutex ------> [MUTEX LOCKED]
 Thread 2 (Caller):    Calls fork() -----------------------------+
 Thread 3 (I/O):       Waiting on network socket                 |
                                                                 |
                                                                 v
 Child Process (1 Thread Only!):
 Thread 2 Clone:       Inherits memory space.
-                      The ptmalloc arena mutex is copied as LOCKED.
+                      The logger mutex is copied as LOCKED.
                       Thread 1 DOES NOT EXIST in the child.
-                      Thread 2 calls malloc() -> tries to acquire arena mutex -> DEADLOCK!
+                      Thread 2 calls log() -> tries to acquire logger mutex -> DEADLOCK!
 ```
 
 This architecture produces critical failure modes:
 
 1. Internal Mutex Deadlocks:
-   If Thread 1 held a mutex inside `malloc()` (such as a glibc `ptmalloc` arena lock), the dynamic loader lock (`ld.so`), or a logging library when Thread 2 invoked `fork()`, that mutex is marked as locked in the child's address space.
+   If Thread 1 held an application mutex, a third-party library lock (a logger, an OpenMP or CUDA runtime), or a stdio `FILE` lock when Thread 2 invoked `fork()`, that mutex is marked as locked in the child's address space.
    Because Thread 1 does not exist in the child process, no thread will ever unlock that mutex.
-   If the child process invokes `malloc()`, `free()`, `printf()`, `dlopen()`, or any routine that acquires the locked mutex, the child process deadlocks permanently.
+   If the child process invokes any routine that acquires the locked mutex, the child process deadlocks permanently.
+   glibc itself protects its own internal locks: its `fork()` takes every malloc arena lock and the stdio list lock before cloning (`__malloc_fork_lock_parent`, `_IO_list_lock`), reinitializes them in the child (`__malloc_fork_unlock_child`, `_IO_list_resetlock`), and resets the loader lock `GL(dl_load_lock)`, so `malloc()` in a glibc child does not deadlock on an arena.
+   That is a glibc implementation detail, not a POSIX guarantee: other libcs, replacement allocators without fork handlers, and per-stream `FILE` locks have no such reset.
 2. POSIX Async-Signal Safety Restriction:
    Under POSIX.1-2008 / POSIX.1-2024, after a multithreaded process calls `fork()`, the child process is permitted to call only async-signal-safe functions until it invokes an `exec` family function or `_exit(2)`.
    Routines that allocate heap memory (`malloc`, `new`), format strings (`sprintf`), flush streams (`exit`), or interact with the runtime loader are strictly prohibited.
@@ -467,7 +475,7 @@ child read 4 bytes: "0123"
 parent f_pos after child read: 4 (shared open file description)
 
 === 3. Descriptor Inheritance Across execve() and FD_CLOEXEC ===
-[execve helper] fd 3 (O_CLOEXEC): CLOSED (EBADF) (errno=9)
+[execve helper] fd 3 (FD_CLOEXEC): CLOSED (EBADF) (errno=9)
 [execve helper] fd 4 (inherited): OPEN, read 4 bytes: "4567"
 
 === 4. Multithreaded Fork Lock Contention / Deadlock Hazard ===
@@ -486,7 +494,7 @@ child pthread_mutex_timedlock on mutex held by other thread: ETIMEDOUT (blocks)
 
 === 6. Safe Spawning with posix_spawn() and File Actions ===
 posix_spawn status: 0, captured child stdout:
-  [execve helper] fd 3 (O_CLOEXEC): CLOSED (EBADF) (errno=9)
+  [execve helper] fd 3 (FD_CLOEXEC): CLOSED (EBADF) (errno=9)
 [execve helper] fd 4 (inherited): OPEN, read 4 bytes: "89AB"
 ```
 
@@ -518,8 +526,9 @@ posix_spawn status: 0, captured child stdout:
 > Always invoke `fflush(NULL)` to flush all standard I/O streams before calling `fork()`.
 
 > [!warning] Pitfall: Memory allocation or runtime locking in a multithreaded child
-> Calling `malloc()`, `free()`, `new`, `dlopen()`, or C++ logging libraries inside a child process between `fork()` and `execve()` in a multithreaded binary invites intermittent deadlocks.
-> If any background thread held a ptmalloc arena lock or runtime loader lock when the fork occurred, the child will hang indefinitely upon acquiring that lock.
+> Calling C++ logging libraries, `printf()` on a shared stream, OpenMP or CUDA routines, or any code that takes an application mutex inside a child process between `fork()` and `execve()` in a multithreaded binary invites intermittent deadlocks.
+> If any background thread held that lock when the fork occurred, the child will hang indefinitely upon acquiring it.
+> glibc resets its own malloc arena and loader locks in the child, but no libc resets locks it does not own, and POSIX permits only async-signal-safe calls there.
 > Restrict child execution strictly to async-signal-safe routines, or transition process launching to `posix_spawn()`.
 
 > [!warning] Pitfall: Multi-argument shebang execution without env -S
@@ -534,8 +543,8 @@ posix_spawn status: 0, captured child stdout:
 > Always pass `O_CLOEXEC` to `open()`, `SOCK_CLOEXEC` to `socket()`, or use `pipe2()` and `accept4()`.
 
 > [!warning] Pitfall: Forking massive in-memory processes under strict overcommit
-> When `vm.overcommit_memory = 2`, the kernel refuses memory allocations if committed address space exceeds `SwapTotal + MemTotal * ratio`.
-> Forking a 40 GiB database process on a 64 GiB machine with no swap fails immediately with `ENOMEM`, even if the child only calls `execve("hostname", ...)`.
+> When `vm.overcommit_memory = 2`, the kernel refuses memory allocations if committed address space exceeds `SwapTotal + MemTotal * vm.overcommit_ratio / 100`.
+> With `vm.overcommit_ratio = 100` on a 64 GiB machine with no swap, forking a database process holding 40 GiB of private writable memory fails immediately with `ENOMEM` (40 GiB plus the child's 40 GiB exceeds 64 GiB), even if the child only calls `execve("hostname", ...)`.
 > Use `posix_spawn()` or `vfork()` to avoid committing duplicate address space.
 
 > [!warning] Pitfall: Returning from the caller function inside a vfork child
@@ -582,11 +591,12 @@ Fleet Scale (1,000 to 50,000 Engineers, Distributed Datacenters):
    In Python environments running Python 3.14, maintain the default `forkserver` or `spawn` start methods.
    In C++ and Rust services, isolate child process creation behind process supervisor pools using `posix_spawn()`.
 3. High-Performance Build Systems:
-   In build tools (such as Bazel, Ninja, or custom compiler orchestrators) executing tens of thousands of subprocesses per minute, configure process creation through `posix_spawn()` with `POSIX_SPAWN_USEVFORK`.
+   In build tools (such as Bazel, Ninja, or custom compiler orchestrators) executing tens of thousands of subprocesses per minute, configure process creation through `posix_spawn()`, which on glibc 2.24 and later always uses `CLONE_VM | CLONE_VFORK` (the `POSIX_SPAWN_USEVFORK` flag has no effect there).
    Batch descriptor closures using `close_range()` rather than iterative `close()` loops.
 4. Latency-Sensitive Systems (HFT and RDMA Networks):
    In low-latency trading engines utilizing kernel bypass or InfiniBand RDMA, apply `madvise(..., MADV_DONTFORK)` to all pinned packet ring buffers.
-   Any invocation of `fork()` without `MADV_DONTFORK` causes InfiniBand queue-pair disassociation and catastrophic hardware transmission drops.
+   On kernels before 5.9 without `ibv_fork_init()`, a `fork()` followed by a parent write moves the parent's page away from the frame the adapter is DMAing into, silently corrupting received or transmitted data.
+   On current kernels fork is safe for registered memory, but it copies every pinned page into the child eagerly, which `MADV_DONTFORK` avoids.
 
 ## Practice Drill
 
@@ -595,7 +605,7 @@ Fleet Scale (1,000 to 50,000 Engineers, Distributed Datacenters):
 > In the main thread, repeatedly call `fork()`.
 > In the child process, immediately attempt to lock the same mutex and print a message using `printf()`.
 > Run the program under `strace -f` and watch the child process freeze on a futex system call (`FUTEX_WAIT`) when the fork lands while the background thread holds the mutex.
-> Inspect the stuck child with `gdb -p <child_pid>` and run `backtrace` to inspect the exact internal glibc lock where the child deadlocked.
+> Inspect the stuck child with `gdb -p <child_pid>` and run `backtrace` to confirm it is blocked in `pthread_mutex_lock()` (`__lll_lock_wait`) on the program's own mutex.
 > Then refactor the spawning routine to use `posix_spawn()` with `posix_spawn_file_actions_t` and verify that the deadlock disappears entirely.
 
 ```bash

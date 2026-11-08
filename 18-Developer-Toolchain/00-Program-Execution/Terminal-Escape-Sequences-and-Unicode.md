@@ -256,7 +256,7 @@ Applications query and enable features using a bitmask:
 
 | Bit | Value | Flag Name | Capability Granted |
 | :--- | :--- | :--- | :--- |
-| 0 | `1` | Disambiguate escape codes | Emits `CSI u` for ambiguous keys (`Tab` vs `Ctrl+I`, `Enter` vs `Shift+Enter`, `Esc`) |
+| 0 | `1` | Disambiguate escape codes | Emits `CSI u` for `Esc` and for modified keys that collide in legacy encoding (`Ctrl+I` vs `Tab`, `Shift+Enter` vs `Enter`); unmodified `Enter`, `Tab`, and `Backspace` keep their legacy bytes |
 | 1 | `2` | Report event types | Reports key press (1), key repeat (2), and key release (3) events |
 | 2 | `4` | Report alternate keys | Reports shifted key codepoint and physical base layout key |
 | 3 | `8` | Report all keys as escape codes | Forces even plain text keys (`a`, `1`) to arrive as structured `CSI u` sequences |
@@ -475,12 +475,14 @@ Terminal protocol parsing, Unicode decoding, and width calculation implementatio
 ## Worked Lab Example
 
 The companion lab is located in `code/00-Program-Execution/terminal_escape_unicode/`.
-It contains a self-contained, zero-dependency C test suite (`terminal_engine.c`) that implements:
+It contains a C test suite (`terminal_engine.c`) that implements:
 1. Bjoern Hoehrmann's branchless DFA UTF-8 decoder.
 2. Paul Flo Williams' DEC VT500 parser state machine with colon subparameter parsing.
-3. Extended Grapheme Cluster segmentation under UAX #29 and display width calculation under UAX #11, printed beside the sum that libc `wcwidth()` returns under an `en_US.UTF-8` locale.
+3. Extended Grapheme Cluster segmentation under a subset of UAX #29, checked case by case against Perl's `\X` (an independent UAX #29 implementation), with a cluster width rule printed beside the sum that libc `wcwidth()` returns under an `en_US.UTF-8` locale.
 4. Alternate screen buffer state tracking (`DECSET 1049`).
-5. Bracketed paste command isolation (`DECSET 2004`).
+5. Bracketed paste (`DECSET 2004`) observed against a real line editor: the lab starts `zsh -f -i` on a pseudoterminal, acts as the terminal, and counts which pasted commands the shell actually runs.
+
+It needs only a C compiler, `perl`, and `zsh`, all of which ship with macOS.
 
 To compile and verify the lab output natively:
 
@@ -519,53 +521,57 @@ Parser metrics:
 === Section 3: Character Width and Grapheme Segmentation ===
 libc LC_CTYPE: en_US.UTF-8
 Case 1 [ASCII 'A']:
-  Codepoint count: 1, Grapheme cluster count: 1
+  Codepoint count: 1, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 1
   Naive codepoint wcwidth sum (libc wcwidth): 1
-  True terminal display width: 1
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 1
+  Match: naive sum equals the cluster width.
 Case 2 [CJK Hanzi U+4E2D]:
-  Codepoint count: 1, Grapheme cluster count: 1
+  Codepoint count: 1, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 2
   Naive codepoint wcwidth sum (libc wcwidth): 2
-  True terminal display width: 2
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 2
+  Match: naive sum equals the cluster width.
 Case 3 [Combining acute 'e' + U+0301]:
-  Codepoint count: 2, Grapheme cluster count: 1
+  Codepoint count: 2, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 1
   Naive codepoint wcwidth sum (libc wcwidth): 1
-  True terminal display width: 1
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 1
+  Match: naive sum equals the cluster width.
 Case 4 [Emoji skin tone: Waving hand + Medium-Dark tone]:
-  Codepoint count: 2, Grapheme cluster count: 1
+  Codepoint count: 2, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 4
   Naive codepoint wcwidth sum (libc wcwidth): 4
-  True terminal display width: 2
+  Cluster width (2 cells if any member is wide): 2
   DISCREPANCY: Naive wcwidth over-allocates by 2 column(s)!
 Case 5 [Emoji ZWJ: Man + ZWJ + Laptop (Technologist)]:
-  Codepoint count: 3, Grapheme cluster count: 1
+  Codepoint count: 3, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 4
   Naive codepoint wcwidth sum (libc wcwidth): 4
-  True terminal display width: 2
+  Cluster width (2 cells if any member is wide): 2
   DISCREPANCY: Naive wcwidth over-allocates by 2 column(s)!
 Case 6 [Flag sequence: US Flag (Regional U + Regional S)]:
-  Codepoint count: 2, Grapheme cluster count: 1
+  Codepoint count: 2, Grapheme cluster count: 1 (Perl \X oracle: 1)
   Naive codepoint wcwidth sum (lab table): 2
   Naive codepoint wcwidth sum (libc wcwidth): 2
-  True terminal display width: 2
-  Match: wcwidth aligns with terminal grid.
+  Cluster width (2 cells if any member is wide): 2
+  Match: naive sum equals the cluster width.
 
-=== Section 4: Bracketed Paste Mode and Injection Defense ===
-DECSET/DECRST 2004 parser state: initial=off, after set=on, after reset=off
-Scenario A (Bracketed Paste DISABLED):
-  Parser mode flag handed to the shell: off
-  Commands executed immediately: 2
-  Blocked newlines: 0
-Scenario B (Bracketed Paste ENABLED via DECSET 2004):
-  Parser mode flag handed to the shell: on
-  Commands executed immediately: 0
-  Blocked newlines (buffered safely): 2
-  Buffered literal text: "git status\nrm -rf ./scratch\n"
+=== Section 4: Bracketed Paste Against a Real Line Editor (zsh over a PTY) ===
+Shell: zsh -f -i on a pseudoterminal; the pasted text holds two commands separated by CR:
+  "print -r -- A_$((40+2))\rprint -r -- B_$((40+2))\r"
+Lab parser fed the shell's own output:
+  At the prompt: bracketed_paste_active=on
+  When a command prints: bracketed_paste_active=off
+Scenario A (terminal without bracketed paste support):
+  Paste wrapped in ESC[200~ ... ESC[201~: no
+  Pasted commands executed without pressing Enter: 2
+Scenario B (terminal honors the shell's DECSET 2004):
+  Paste wrapped in ESC[200~ ... ESC[201~: yes
+  Pasted commands executed without pressing Enter: 0
+Scenario C (as B, then the user presses Enter):
+  Paste wrapped in ESC[200~ ... ESC[201~: yes
+  Pasted commands executed: 2
 ```
 
 ### Reading the Result
@@ -579,13 +585,16 @@ Scenario B (Bracketed Paste ENABLED via DECSET 2004):
   Upon receiving `\x1b[?1049h`, it saves the cursor and activates the alternate screen buffer.
   Upon receiving `\x1b[?1049l`, it restores the cursor to row 15, column 42 and deactivates the alternate screen.
 - In **Section 3**, Case 4 and Case 5 expose the fundamental flaw of scalar `wcwidth()`.
+  The lab's cluster count agrees with Perl's `\X` on all six cases, so the segmentation is checked against an implementation the lab does not contain.
   Two sums are printed per case: one from the lab's own width table and one from libc `wcwidth()` on the recording host (`darwin-arm64`, `en_US.UTF-8`); they agree on all six cases.
   For the Technologist emoji (`U+1F468 U+200D U+1F4BB`), naive summation produces 4 columns by both.
-  The grapheme engine identifies the Zero-Width Joiner (`U+200D`) and groups the sequence into a single grapheme cluster occupying 2 columns.
-  Naive `wcwidth()` over-allocates by 2 columns, which would cause an interactive CLI editor to misplace the cursor.
-- In **Section 4**, the parser's own mode flag starts off, turns on after `\x1b[?2004h`, and turns off after `\x1b[?2004l`; that flag is what the shell simulator is given.
-  Injecting a multiline payload with bracketed paste disabled immediately triggers 2 command executions in the shell simulator.
-  With bracketed paste enabled (`DECSET 2004`), framing markers isolate the payload, blocking 2 newlines from triggering execution and safely buffering the string for manual review.
+  The grapheme engine identifies the Zero-Width Joiner (`U+200D`) and groups the sequence into a single grapheme cluster.
+  The cluster width line applies the rule grapheme-aware terminals use (two cells if any member is wide); it is the lab's rule, not a measurement of a terminal, and under it naive `wcwidth()` over-allocates by 2 columns, which would cause an interactive CLI editor to misplace the cursor.
+- In **Section 4**, every number comes from a real zsh 5.9 line editor (ZLE) on a pseudoterminal.
+  The lab's parser, fed the shell's own output, sees zsh enable `DECSET 2004` at the prompt and disable it again before a command prints, so programs the shell runs get a terminal in normal paste mode.
+  A terminal without bracketed paste sends the two pasted lines raw, and zsh runs both before the user presses anything.
+  A terminal that honors the mode wraps the same bytes in `ESC[200~ ... ESC[201~`; zsh inserts them into the edit buffer as literal text and runs nothing until the user presses Enter, after which both commands run.
+  The lab presses `^G` (`send-break`) and runs a sync command after each paste, so a count of 0 means the shell processed the paste and declined to run it, not that the run ended early.
 
 ## Pitfalls
 
@@ -790,9 +799,9 @@ echo "   Bracketed paste disabled."
 > >    The cursor rests at row 10, column 25.
 > > 4. `\033[3D`: `CUB` (Cursor Backward) with parameter 3 moves the cursor 3 columns to the left:
 > >    $$25 - 3 = 22$$
-> >    The cursor is now at row 10, column 22 (resting on the second 'l' of "Hello").
+> >    The cursor is now at row 10, column 22 (resting on the first 'l' of "Hello").
 > > 5. `\033[K`: `EL` (Erase in Line) with default parameter 0 erases from the cursor position to the end of the line.
-> >    Columns 22, 23, and 24 ("lo") are cleared.
+> >    Columns 22, 23, and 24 ("llo") are cleared.
 > >    Columns 20 and 21 ("He") remain.
 > > 6. `World`: Prints 5 characters starting at column 22.
 > >    They occupy columns 22, 23, 24, 25, and 26.
@@ -869,9 +878,10 @@ echo "   Bracketed paste disabled."
 > > `CSI unicode-key-code : alternate-keys ; modifiers : event-type ; text-as-codepoints u`
 > > 
 > > 1. **Disambiguation (Flag 1):**
-> >    When enabled, keys that previously collided emit unique codepoints with modifier parameters.
-> >    `Tab` emits `\x1b[9;1u`, while `Ctrl+I` emits `\x1b[105;5u`.
-> >    `Enter` emits `\x1b[13;1u`, while `Shift+Enter` emits `\x1b[13;2u`.
+> >    When enabled, `Esc` and the modified keys that previously collided emit unique codepoints with modifier parameters.
+> >    Unmodified `Tab`, `Enter`, and `Backspace` still send their legacy bytes (`0x09`, `0x0D`, and `0x7F`), so a user can still type `reset` and press Enter after a program that set the mode crashes.
+> >    `Ctrl+I` emits `\x1b[105;5u` instead of `0x09`, and `Shift+Enter` emits `\x1b[13;2u` instead of `0x0D`.
+> >    A modifier value of 1 (no modifiers) is omitted rather than sent as `;1`, so a bare `Esc` arrives as `\x1b[27u`.
 > > 2. **Event Types (Flag 2):**
 > >    Adds subparameter `:1` (press), `:2` (repeat), or `:3` (release) to the modifier field.
 > > 3. **Backward Compatibility via Progressive Enhancement Stack:**

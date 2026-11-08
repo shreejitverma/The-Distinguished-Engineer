@@ -3,12 +3,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN="${SCRIPT_DIR}/signal_job_control"
-
-trap 'rm -f "${BIN}"' EXIT
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
 
 "${CC:-gcc}" -O2 -Wall -Wextra -Werror -pedantic -std=c11 \
     "${SCRIPT_DIR}/signal_job_control.c" \
-    -o "${BIN}"
+    -o "${WORKDIR}/signal_job_control"
 
-exec "${BIN}"
+"${WORKDIR}/signal_job_control"

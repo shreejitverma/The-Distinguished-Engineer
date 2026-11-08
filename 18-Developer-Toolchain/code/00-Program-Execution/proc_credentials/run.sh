@@ -2,6 +2,9 @@
 # requires: linux
 set -euo pipefail
 
-CC="${CC:-gcc}"
-"$CC" -std=c11 -Wall -Wextra -O2 -o lab main.c
-./lab
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKDIR="$(mktemp -d)"
+trap 'rm -rf "${WORKDIR}"' EXIT
+
+"${CC:-gcc}" -std=c11 -Wall -Wextra -O2 -o "${WORKDIR}/lab" "${SCRIPT_DIR}/main.c"
+"${WORKDIR}/lab"

@@ -494,12 +494,13 @@ Terminal infrastructure at enterprise scale (supporting 10,000 to 50,000 develop
    *Decision Rule:* Production container nodes must increase `/proc/sys/kernel/pty/max` to at least `65536` or `1048576` via sysctl (`kernel.pty.max = 1048576`), and monitoring agents must alert when `/proc/sys/kernel/pty/nr` crosses 75% of capacity.
 
 2. **Multi-Instance `devpts` Isolation:**
-   By default, mounting `devpts` creates a shared view of terminal nodes across the host.
-   To prevent containers from snooping on or interacting with sibling terminal nodes, container engines must mount `devpts` with private instance flags:
+   Since Linux 4.7, every `devpts` mount is a separate instance (`Documentation/filesystems/devpts.rst`), so the `newinstance` option is accepted but no longer changes anything.
+   Each container that mounts its own `devpts` obtains an independent PTY space where terminal indices start at 0, preventing index collisions and keeping sibling slaves out of reach; a container that bind-mounts the host's `/dev/pts` instead shares the host's nodes.
+   The knobs that still matter are `ptmxmode` (permissions of the instance's `ptmx` node), `mode` and `gid` (permissions of new slaves), and `max` (a per-instance cap):
    ```bash
-   mount -t devpts -o newinstance,ptmxmode=0666,mode=620 devpts /dev/pts
+   mount -t devpts -o ptmxmode=0666,mode=620,max=4096 devpts /dev/pts
    ```
-   Each container namespace obtains an independent PTY space where terminal indices start at 0, preventing global index collisions and securing slave access.
+   All instances still draw from the global `kernel.pty.max` pool, and `kernel.pty.reserve` (default `1024`) holds that many PTYs back for the initial instance, so non-initial instances together can allocate at most `max - reserve`.
 
 3. **High-Throughput Streaming and Flow Control:**
    Commands producing massive output streams (such as `cat large_file.log` or streaming compilers) can saturate terminal emulators.
@@ -523,7 +524,7 @@ flowchart TD
     end
 
     subgraph CONTAINER["Isolated User Workspace"]
-        PTS["PTY Slave (/dev/pts/0)<br/>devpts newinstance mount"]
+        PTS["PTY Slave (/dev/pts/0)<br/>private devpts instance"]
         APP["Application (vim / gdb / bash)<br/>Receives SIGWINCH on resize"]
     end
 
@@ -704,7 +705,7 @@ os.close(master)
 > > Identify PTY leaks by running `lsof /dev/ptmx` or checking `/proc/*/fd` across zombie processes.
 > > **Remediation:**
 > > 1. Immediately raise the kernel ceiling across all container hosts: `sysctl -w kernel.pty.max=1048576`.
-> > 2. Ensure every container mounts its own isolated `devpts` instance using `mount -t devpts -o newinstance,ptmxmode=0666,mode=620 devpts /dev/pts` to prevent cross-container index collisions.
+> > 2. Ensure every container mounts its own `devpts` instance (every mount is a private instance since Linux 4.7) with a per-instance cap, for example `mount -t devpts -o ptmxmode=0666,mode=620,max=4096 devpts /dev/pts`, so one leaking container cannot drain the shared pool; remember that non-initial instances share at most `kernel.pty.max - kernel.pty.reserve` PTYs.
 > > 3. Audit backend terminal server daemons (e.g., node-pty or xterm bridge) to ensure master file descriptors are closed immediately when WebSocket connections terminate, preventing descriptor leakage.
 
 > [!question] L8+: Design an asynchronous, non-blocking pseudoterminal supervisor in C or Rust that multiplexes I/O between a network WebSocket and a child shell without risking kernel buffer deadlocks or orphaned terminals.
