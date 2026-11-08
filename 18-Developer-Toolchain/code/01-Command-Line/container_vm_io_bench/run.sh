@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# requires: docker
+# requires: docker, macos
+# Golden output (expected/darwin-arm64.txt) was recorded with OrbStack as the Docker engine.
+# Another engine may report a different bind-mount filesystem type; the lab then fails instead of passing silently.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,6 +34,10 @@ if [ ! -f "${TMPDIR_HOST}/sync_token.txt" ]; then
     exit 1
 fi
 
+# Host-side view of the case-collision test: the same directory, read by macOS rather than by the guest.
+CASE_ENTRIES=$(ls "${TMPDIR_HOST}/bench_case_test" | grep -ci '^probe\.txt$' || true)
+echo "Host-side entries matching probe.txt: ${CASE_ENTRIES}"
+
 TOKEN=$(cat "${TMPDIR_HOST}/sync_token.txt")
 echo "Cross-boundary sync token: ${TOKEN}"
 
@@ -46,4 +52,5 @@ if [ "${FILE_UID}" = "${HOST_UID}" ]; then
     echo "Host UID translation: VERIFIED (mapped to host process UID)"
 else
     echo "Host UID translation: UNEXPECTED (${FILE_UID} != ${HOST_UID})"
+    exit 1
 fi

@@ -3,10 +3,13 @@ import os
 import sys
 import time
 
+MIN_LATENCY_RATIO = 2.0
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: bench.py <host_mount_dir>", file=sys.stderr)
-        sys.exit(1)
+        return 2
 
     host_mount = sys.argv[1]
 
@@ -47,8 +50,11 @@ def main():
         f.write("b")
     host_distinct = len([f for f in os.listdir(case_host_dir) if f.lower() == "probe.txt"])
 
-    print(f"Native overlayfs case-sensitive: {nat_distinct == 2} ({nat_distinct} entries)")
-    print(f"Host bind mount case-sensitive: {host_distinct == 2} ({host_distinct} entry, APFS case folding)")
+    def entries(n):
+        return f"{n} {'entry' if n == 1 else 'entries'}"
+
+    print(f"Native overlayfs case-sensitive: {nat_distinct == 2} ({entries(nat_distinct)})")
+    print(f"Host bind mount case-sensitive: {host_distinct == 2} ({entries(host_distinct)})")
 
     # 3. Metadata I/O Benchmark
     def run_cycle(base_dir, n=500):
@@ -72,16 +78,20 @@ def main():
     dur_host, count_host = run_cycle(os.path.join(host_mount, "bench_host_io"), 500)
 
     print(f"File count verified: native={count_nat}/500, host={count_host}/500")
-    if dur_host > dur_nat:
-        print("Metadata latency check: PASS (host bind mount > native overlayfs)")
+    failed = count_nat != 500 or count_host != 500
+    # Observed ratio is about 7x under OrbStack; 2x leaves margin for noise while still rejecting equal timings.
+    if dur_host >= MIN_LATENCY_RATIO * dur_nat:
+        print(f"Metadata latency check: PASS (host bind mount >= {MIN_LATENCY_RATIO:g}x native overlayfs)")
     else:
-        print("Metadata latency check: FAIL (unexpected overhead relationship)")
+        print(f"Metadata latency check: FAIL (host bind mount < {MIN_LATENCY_RATIO:g}x native overlayfs)")
+        failed = True
 
     # 4. Cross-Boundary Synchronization Token
     token_path = os.path.join(host_mount, "sync_token.txt")
     with open(token_path, "w") as f:
         f.write("vm_write_ok\n")
     print("Guest sync token written: OK")
+    return 1 if failed else 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

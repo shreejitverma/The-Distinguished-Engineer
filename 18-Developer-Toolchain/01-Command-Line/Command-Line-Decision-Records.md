@@ -2,7 +2,7 @@
 type: playbook
 track: [distinguished, sde]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Michael Nygard, Documenting Architecture Decisions, Cognitect Blog, 2011, https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions"
@@ -16,6 +16,25 @@ sources:
   - "IEEE Std 1003.1-2024, POSIX.1-2024 Shell Command Language, IEEE and The Open Group, 2024, https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html"
   - "Chet Ramey, GNU Bash Reference Manual, Free Software Foundation, 2026, https://www.gnu.org/software/bash/manual/"
   - "Vidar Holen, ShellCheck: static analysis tool for shell scripts, GitHub, 2026, https://github.com/koalaman/shellcheck"
+  - "Oliver Kopp et al., MADR 4.0.0 template (status in front matter, Confirmation under Decision Outcome), MADR, 2024, https://raw.githubusercontent.com/adr/madr/main/template/adr-template.md"
+  - "Oliver Kopp et al., MADR releases (4.0.0, 2024-09-17), MADR, 2024, https://github.com/adr/madr/releases"
+  - "Oliver Kopp et al., MADR 3.0.0 template (Validation section), MADR, 2022, https://raw.githubusercontent.com/adr/madr/3.0.0/template/adr-template.md"
+  - "OpenSSH Project, OpenSSH 7.3 release notes (ProxyJump and -J), OpenSSH, 2016, https://www.openssh.com/txt/release-7.3"
+  - "OpenSSH Project, OpenSSH 5.4 release notes (certificates), OpenSSH, 2010, https://www.openssh.com/txt/release-5.4"
+  - "OpenSSH Project, OpenSSH 8.2 release notes (ecdsa-sk and ed25519-sk), OpenSSH, 2020, https://www.openssh.com/txt/release-8.2"
+  - "OpenSSH Project, OpenSSH 9.3p2 release notes (CVE-2023-38408 fix), OpenSSH, 2023, https://www.openssh.com/txt/release-9.3p2"
+  - "NIST, CVE-2023-38408 (CVSS 3.1 base 9.8), National Vulnerability Database, 2023, https://nvd.nist.gov/vuln/detail/CVE-2023-38408"
+  - "OpenSSH Project, ssh.c (implicit ProxyCommand with -W from ProxyJump), openssh-portable, GitHub, 2026, https://github.com/openssh/openssh-portable/blob/master/ssh.c"
+  - "OpenSSH Project, sshkey.c (Certificate invalid: expired reason string), openssh-portable, GitHub, 2026, https://github.com/openssh/openssh-portable/blob/master/sshkey.c"
+  - "OpenBSD Project, sshd_config(5) (AuthorizedKeysFile default, AllowAgentForwarding caveat), OpenBSD, 2026, https://man.openbsd.org/sshd_config"
+  - "OpenBSD Project, ssh_config(5) (ProxyJump none), OpenBSD, 2026, https://man.openbsd.org/ssh_config"
+  - "nix-community, nix-direnv README and 3.0.4 direnvrc, GitHub, 2026, https://github.com/nix-community/nix-direnv"
+  - "Vidar Holen, ShellCheck wiki SC2155, ShellCheck, 2026, https://www.shellcheck.net/wiki/SC2155"
+  - "Vidar Holen, ShellCheck wiki SC2086, ShellCheck, 2026, https://www.shellcheck.net/wiki/SC2086"
+  - "Eelco Dolstra et al., Nix Reference Manual: nix.conf experimental-features, NixOS Foundation, 2026, https://nix.dev/manual/nix/stable/command-ref/conf-file.html"
+  - "Chet Ramey, GNU Bash Reference Manual: Pipelines, Free Software Foundation, 2026, https://www.gnu.org/software/bash/manual/html_node/Pipelines.html"
+  - "Eelco Dolstra et al., Nix Reference Manual: Serving a Nix store via HTTP (binary cache substituters), NixOS Foundation, 2026, https://nix.dev/manual/nix/stable/package-management/binary-cache-substituter.html"
+  - "OpenBSD Project, ssh-keygen(1) -V validity_interval (certificate validity), OpenBSD, 2026, https://man.openbsd.org/ssh-keygen"
 ---
 
 # Command Line Decision Records
@@ -83,7 +102,7 @@ command -v bash zsh python3 cargo shellcheck nix direnv mise ssh ssh-keygen
 Ensure the following tools, configurations, and permissions are verified:
 
 1. **Static Analysis & Linting:** ShellCheck 0.9.0 or later for shell script inspection (ShellCheck 0.11.0 verified on macOS arm64 as of 2026-11).
-2. **Environment Management:** Nix with `experimental-features = "nix-command flakes"` enabled, `direnv` 2.30+ with `nix-direnv`, and `mise` 2024.1+ (mise 2026.11.3 verified as of 2026-11).
+2. **Environment Management:** Nix with `experimental-features = nix-command flakes` (unquoted; quoting makes Nix warn `unknown experimental feature '"nix-command'`, checked with Determinate Nix 2.34.7 as of 2026-11) enabled, `direnv` 2.30+ with `nix-direnv`, and `mise` 2024.1+ (mise 2026.11.3 verified as of 2026-11).
 3. **OpenSSH Tooling:** OpenSSH 7.3 or later for `ProxyJump` support, OpenSSH 8.2 or later for FIDO2 hardware keys (`ed25519-sk`), and OpenSSH Certificate Authority signing capability (OpenSSH 10.6p2 verified as of 2026-11).
 4. **Repository Privileges:** Maintainer or Owner permissions in the target source repositories to commit Architectural Decision Records under `docs/decisions/` and configure branch protection rules.
 
@@ -105,18 +124,18 @@ The verification command must confirm all CLI binaries are available in `PATH` a
 | Item | Platform | Value `(as of 2026-11)` | Why it matters |
 | :--- | :--- | :--- | :--- |
 | Google Shell Style Guide length limit | Both | 100 lines | Hard threshold where shell scripts must be evaluated for rewrite into Python or Rust. |
-| External binary fork+exec latency | macOS arm64 | ~1,800 us (~1.8 ms) | Measured `/usr/bin/true` loop; spawning 1,000 child processes in bash takes ~1.8 seconds. |
-| External binary fork+exec latency | Linux x86_64 | ~75 to 120 us | `fork()` + `execve()` kernel execution; high fork frequency in loops creates measurable latency. |
-| In-memory Python iteration overhead | Both | ~17 ns per iteration | Measured Python in-memory loop; ~100,000x faster than external fork+exec in shell. |
-| In-memory Rust function call overhead | Both | < 2 ns per call | Inlined or zero-cost abstraction; ideal for tight loops and high-throughput stream processing. |
-| POSIX `ARG_MAX` buffer limit | Linux x86_64 | 2,097,152 bytes (2 MiB) | Maximum bytes for `execve` argument and environment list; shell expansion crashes beyond this. |
-| POSIX `ARG_MAX` buffer limit | macOS arm64 | 1,048,576 bytes (1 MiB) | Half the Linux limit; commands passing thousands of files via globbing fail with `Argument list too long`. |
-| `nix-direnv` evaluation latency | Both | < 20 ms cached vs 2.5s raw | Caches `nix print-dev-env` closure in `.direnv/`; eliminates interactive shell prompt lag. |
-| macOS Devcontainer bind-mount latency penalty | macOS | 10x to 50x slowdown | Virtualization file stat overhead across VirtioFS / gRPC FUSE; degrades C++/Rust compiles. |
+| External binary fork+exec latency | macOS arm64 | ~1,700 us (~1.7 ms) | Measured: bash 5.3 loop of 1,000 `/usr/bin/true` took 1.68 s on macOS 27.2 arm64; the same loop with the `:` builtin took 9 ms. |
+| External binary fork+exec latency | Linux | ~185 us (linux/arm64 in an OrbStack VM on Apple silicon) | Measured as 1,000 `/bin/true` in a bash loop in `debian:stable-slim`, three runs of 183 to 188 us per call; bare-metal and x86_64 Linux were not measured, so this is a VM figure only. |
+| In-memory Python iteration overhead | macOS arm64 | ~6 ns per iteration | Measured `python3 -m timeit 'for i in range(10_000_000): pass'` = 60.2 ms on Python 3.15.2 (the earlier ~17 ns was not reproduced); ~280,000x cheaper than one fork+exec. |
+| In-memory Rust function call overhead | macOS arm64 | ~2.5 ns per call | Measured `#[inline(never)]` call on a loop-carried `u64` through `black_box`, 1e9 iterations, `rustc -O` 1.99.0, twice 2.53 ns; an inlined call has no call overhead at all. |
+| `ARG_MAX` (`getconf ARG_MAX`) | Linux | 2,097,152 bytes (2 MiB) | Measured in `debian:stable-slim` with an 8 MiB stack limit; Linux derives it from one quarter of `ulimit -s`, so it is not a fixed constant. `execve` fails with `E2BIG` beyond it; the shell's own expansion does not crash. |
+| `ARG_MAX` (`getconf ARG_MAX`) | macOS arm64 | 1,048,576 bytes (1 MiB) | Measured on macOS 27.2; half the Linux default; commands passing thousands of files via globbing fail with `Argument list too long`. |
+| `nix-direnv` re-evaluation trigger | Both | On change to `.envrc`, `flake.nix`, or `flake.lock` | The README says it is "significantly faster after the first run by caching" the environment and gives no timings; for `use flake` it reloads when those files change and falls back to the last working shell if evaluation fails. |
+| macOS Devcontainer bind-mount latency penalty | macOS | ~2.7x slower (stat walk of 20,000 files) | Measured `find -exec stat` over 20,000 empty files in a `virtiofs` bind mount (40 to 48 ms) vs a copy on the container's own filesystem (15 to 17 ms), OrbStack on Apple silicon; metadata-bound compiles degrade by a workload-dependent factor, so measure your own tree. |
 | OpenSSH `ProxyJump` introduction | Both | OpenSSH 7.3 (August 2016) | Standardized end-to-end SSH tunneling via `-J`; renders insecure `ForwardAgent yes` obsolete. |
 | OpenSSH Certificate format introduction | Both | OpenSSH 5.4 (March 2010) | Replaces static `~/.ssh/authorized_keys` with cryptographically signed user and host certificates. |
 | OpenSSH FIDO2 hardware key support | Both | OpenSSH 8.2 (February 2020) | Native support for `ed25519-sk` and `ecdsa-sk` hardware-backed resident keys. |
-| OpenSSH User Certificate recommended TTL | Both | 8 to 16 hours | Maximum validity window for developer certificates aligned with working shift. |
+| Developer certificate TTL in ADR-003 | Both | 8 hours (policy of this note) | Not an OpenSSH recommendation: `ssh-keygen -s` without `-V` mints `Valid: forever` (shown by the lab), so a short TTL must be set explicitly. |
 | OpenSSH ssh-agent RCE vulnerability | Both | CVE-2023-38408 (CVSS 9.8) | PKCS#11 provider abuse under `ForwardAgent yes`; fixed in OpenSSH 9.3p2. |
 
 ## Step-by-Step Execution
@@ -125,7 +144,8 @@ Follow these steps sequentially to establish, formalize, and enforce command-lin
 
 ### Step 1: Initialize the ADR Repository and Automated Linter
 
-Create a version-controlled decision registry in the root of the engineering monorepo or infrastructure repository adhering to the Markdown Architectural Decision Record (MADR 3.0) format.
+Create a version-controlled decision registry in the root of the engineering monorepo or infrastructure repository adapted from the Markdown Architectural Decision Record format (MADR 4.0.0, released 2024-09-17).
+Upstream MADR keeps `status` in YAML front matter and `Confirmation` as an H3 under `Decision Outcome` (MADR 3.0 called it `Validation`); this template promotes both to H2 sections so the linter below can find them.
 
 ```bash
 mkdir -p docs/decisions
@@ -273,7 +293,7 @@ We must establish strict, measurable boundaries defining when automation remains
 Chosen option: A multi-tiered boundary policy governed by mechanical metrics:
 1. Shell (POSIX sh / Bash) is restricted to simple glue utilities:
    - Must be <= 100 Source Lines of Code (SLOC).
-   - Must pass ShellCheck with zero warnings (`shellcheck -S error`).
+   - Must pass ShellCheck at its default severity with zero findings (plain `shellcheck`; `-S error` would pass SC2155, a `warning`, and SC2086, an `info`).
    - Must use strict mode (`set -euo pipefail`) and safe signal traps.
    - Prohibited from implementing nested data structures or floating-point arithmetic.
 2. Python 3 (packaged via uv and pyproject.toml) is mandatory when:
@@ -301,9 +321,11 @@ Enforced via `scripts/audit-tooling-language.sh` in pre-commit hooks and CI pull
 EOF
 ```
 
-Implement the automated audit scanner that parses shell scripts and flags ADR-001 boundary violations:
+Implement the automated audit scanner that parses shell scripts and flags ADR-001 boundary violations.
+Three details are load-bearing and were verified by running the script (bash 5.3.15, macOS arm64, as of 2026-11): `find` prints paths with a leading `./`, so the skip pattern must include it; `((VIOLATIONS++))` returns status 1 when the counter is 0, which under `set -e` kills the audit after the first violation and before the `FAILED` summary; and an unanchored `declare\s+-A` pattern matches the scanner's own message string, so the scanner flagged itself.
 
 ```bash
+mkdir -p scripts
 cat <<'EOF' > scripts/audit-tooling-language.sh
 #!/usr/bin/env bash
 set -euo pipefail
@@ -313,15 +335,15 @@ VIOLATIONS=0
 
 echo "Auditing shell scripts against ADR-001 boundaries..."
 while IFS= read -r script; do
-    # Skip ignored directories
-    [[ "$script" =~ ^(\.git|\.direnv|\.devenv|vendor|node_modules)/ ]] && continue
+    # Skip ignored directories (find prints paths with a leading ./)
+    [[ "$script" =~ ^\./(\.git|\.direnv|\.devenv|vendor|node_modules)/ ]] && continue
 
-    # Count non-blank, non-comment lines
-    SLOC=$(grep -v -E '^\s*(#|$)' "$script" | wc -l | tr -d ' ')
+    # Count non-blank, non-comment lines; grep -c exits 1 on a zero count
+    SLOC=$(grep -c -v -E '^\s*(#|$)' "$script" || true)
 
     # Check for forbidden constructs: associative arrays or manual JSON parsing
     FORBIDDEN=""
-    if grep -q -E 'declare\s+-A' "$script"; then
+    if grep -q -E '^[[:space:]]*(declare|typeset|local)[[:space:]]+-[[:alpha:]]*A' "$script"; then
         FORBIDDEN="Associative arrays detected (declare -A)"
     elif grep -q -E '(awk|sed).*"\{.*:.*\}' "$script"; then
         FORBIDDEN="Manual JSON stream manipulation via regex"
@@ -329,12 +351,12 @@ while IFS= read -r script; do
 
     if (( SLOC > MAX_SHELL_SLOC )); then
         echo "VIOLATION [SLOC]: $script has $SLOC lines (exceeds maximum of $MAX_SHELL_SLOC lines)."
-        ((VIOLATIONS++))
+        VIOLATIONS=$((VIOLATIONS + 1))
     fi
 
     if [[ -n "$FORBIDDEN" ]]; then
         echo "VIOLATION [PATTERN]: $script - $FORBIDDEN. Must migrate to Python or Rust."
-        ((VIOLATIONS++))
+        VIOLATIONS=$((VIOLATIONS + 1))
     fi
 done < <(find . -type f \( -name "*.sh" -o -name "*.bash" \) | sort)
 
@@ -461,7 +483,7 @@ EOF
 # Profile A: Cached direnv integration
 cat <<'EOF' > .envrc
 if ! has nix_direnv_version || ! nix_direnv_version 3.0.4; then
-  source_url "https://raw.githubusercontent.com/nix-community/nix-direnv/3.0.4/direnvrc" "sha256-Dzl+z+sZA0G297YVQKd31TF2VV2lwH35y+wA1Oq24kM="
+  source_url "https://raw.githubusercontent.com/nix-community/nix-direnv/3.0.4/direnvrc" "sha256-DzlYZ33mWF/Gs8DDeyjr8mnVmQGx7ASYqA5WlxwvBG4="
 fi
 use flake
 EOF
@@ -485,11 +507,15 @@ EOF
 **Verification:**
 
 ```bash
-mise validate mise.toml 2>/dev/null || mise trust mise.toml --yes
+mise trust mise.toml
+mise config ls
 mise ls --current
 ```
 
 The verification command checks that `mise.toml` parses correctly and lists the active pinned runtimes.
+mise 2026.11.3 has no `validate` subcommand (`mise validate` is read as a task name and fails with `no tasks defined`), so the earlier `mise validate ... ||` form always fell through.
+Checked as of 2026-11: `mise config ls` lists `mise.toml  python, node, shellcheck`, and `mise ls --current` lists the three pins, marked `(missing)` until `mise install`.
+The sha256 in `.envrc` above is the SRI hash of the 3.0.4 `direnvrc`, recomputed from the file (the earlier value did not match it); the nix-direnv README now pins 3.2.0.
 
 ### Step 4: Codify and Execute ADR-003 (Zero-Trust Remote Access Architecture)
 
@@ -507,7 +533,8 @@ accepted
 
 Engineering workflows historically relied on SSH Agent Forwarding (`ssh -A` or `ForwardAgent yes`) to hop through intermediate bastion servers to internal production nodes.
 Agent forwarding exposes the client's local UNIX-domain authentication socket (`$SSH_AUTH_SOCK`) on the remote bastion.
-Any process with root privileges on that bastion (or exploiting vulnerabilities such as CVE-2023-38408 in OpenSSH ssh-agent) can hijack the forwarded socket to authenticate to arbitrary downstream systems as the victim.
+Any process with root privileges on that bastion can hijack the forwarded socket to authenticate to arbitrary downstream systems as the victim.
+Worse, CVE-2023-38408 (fixed in OpenSSH 9.3p2) let an attacker-controlled host that received a forwarded agent achieve remote code execution in the client's ssh-agent through PKCS#11 provider loading.
 Furthermore, static `~/.ssh/authorized_keys` deployed across thousands of servers suffer from zero revocation capabilities and lack identity lifecycle expiration.
 We must replace insecure agent forwarding with end-to-end encrypted tunnels and replace static keys with short-lived cryptographically signed certificates.
 
@@ -530,10 +557,10 @@ Chosen option: Option 3 - Mandate ProxyJump and deploy an OpenSSH Certificate Au
 
 1. Immediate Fleet-Wide Ban on Agent Forwarding:
    - `ForwardAgent no` is enforced globally in client `~/.ssh/config`.
-   - `AllowAgentForwarding no` is enforced on all bastion and production `sshd_config` daemons.
+   - `AllowAgentForwarding no` is enforced on all bastion and production `sshd_config` daemons; sshd_config(5) notes this does not improve security unless users are also denied shell access, so jump-only bastions also need `PermitTTY no` and no shell.
 2. End-to-End Bastion Traversal via ProxyJump:
    - All internal host access routes through intermediate bastions using `ProxyJump` (`-J`).
-   - The bastion forwards encrypted TCP streams without terminating the TLS/SSH transport or viewing client credentials.
+   - The bastion forwards encrypted TCP streams without terminating the end-to-end SSH transport or viewing client credentials.
 3. Ephemeral OpenSSH Certificate Infrastructure:
    - Static `authorized_keys` are deprecated and replaced with `TrustedUserCAKeys /etc/ssh/user_ca.pub`.
    - User certificates are minted via automated corporate OIDC/SSO workflows with an 8-hour maximum TTL.
@@ -620,18 +647,23 @@ mkdir -p /tmp/ssh-ca-test
 
 Inspect the certificate output to verify that:
 1. `Type` is `ssh-ed25519-cert-v01@openssh.com user certificate`.
-2. `Valid` window is strictly bounded (8 hours).
+2. `Valid` window is strictly bounded (8 hours plus at most a few minutes; OpenSSH 10.6p2 backdates the start to the previous minute).
 3. `Principals` contains the approved usernames.
 4. `Extensions` contains ONLY `permit-port-forwarding` and `permit-pty`, confirming `permit-agent-forwarding` has been explicitly revoked.
 
+The lab `code/01-Command-Line/adr_gates/` runs this recipe with OpenSSH 10.6p2 on macOS arm64 (as of 2026-11) and prints the block below, byte-identical to its `expected/darwin-arm64.txt`.
+The lab masks the key fingerprints and the two timestamps, which change on every run, and checks the span between them separately (it printed `validity span within 8h to 8h05m: True`).
+`ssh-keygen -L` echoes the path it was given, so the first line is the relative file name.
+Without `-O clear` the same key is signed with the default set `permit-X11-forwarding`, `permit-agent-forwarding`, `permit-port-forwarding`, `permit-pty`, and `permit-user-rc`, and without `-V` it is `Valid: forever`; the lab prints both.
+
 ```text
-/tmp/ssh-ca-test/dev_user_key-cert.pub:
+dev_user_key-cert.pub:
         Type: ssh-ed25519-cert-v01@openssh.com user certificate
         Public key: ED25519-CERT SHA256:...
         Signing CA: ED25519 SHA256:... (using ssh-ed25519)
         Key ID: "alice@corp.internal"
         Serial: 2026110701
-        Valid: from 2026-11-07T... to 2026-11-07T...
+        Valid: from START to END
         Principals: 
                 dev-user
                 alice
@@ -682,7 +714,7 @@ git config core.hooksPath .githooks
 bash .githooks/pre-commit
 ```
 
-Expected output:
+Expected output (lab output, platform darwin-arm64):
 ```text
 ==> Running Architectural Decision Record (ADR) Pre-Commit Gates...
 PASS: 3 ADRs validated successfully.
@@ -691,6 +723,9 @@ PASS: All shell scripts conform to ADR-001 boundaries.
 ==> All Architectural Decision Record checks passed.
 ```
 Exit status must be 0.
+The block above is byte-identical to an excerpt of `code/01-Command-Line/adr_gates/expected/darwin-arm64.txt` (platform darwin-arm64, bash 5.3.15, Python 3.15.2, as of 2026-11), which the lab produces by running Steps 1 to 5 in a scratch git repository.
+The same lab adds a `ssh/config.bad` file containing `ForwardAgent yes`: the hook then prints `./ssh/config.bad:2:    ForwardAgent yes` and exits 1.
+It also feeds the linter an ADR with an invalid status and one without `## Confirmation`, and feeds the audit a 120-line script with `declare -A` plus an oversized script under `node_modules/`; each gate fails or skips exactly as the steps claim.
 
 ## Rollback Procedure
 
@@ -701,14 +736,14 @@ When a decision record, language migration, or environment deployment fails or i
    - Update the status in `docs/decisions/0001-tooling-language-boundary.md` to `proposed` or amend the SLOC threshold.
    - **Check:** `bin/deploy-service --help` outputs the previous stable interface.
 2. **Rollback ADR-002 (Workstation Environments):**
-   - If a Nix flake evaluation fails or Darwin sandbox incompatibility breaks developer builds, revert the directory hook: `rm -f .envrc .direnv` and restore `mise.toml`.
-   - In Devcontainers, if named volume mount permissions lock up on macOS, restore host native execution by running `devcontainer up --remove-existing-container`.
+   - If a Nix flake evaluation fails or Darwin sandbox incompatibility breaks developer builds, revert the directory hook: `rm -f .envrc && rm -rf .direnv` (`.direnv` is a directory, so `rm -f` alone fails on it) and restore `mise.toml`.
+   - In Devcontainers, if named volume mount permissions lock up on macOS, recreate the container from scratch with `devcontainer up --remove-existing-container`, or fall back to host native execution with Profile A or B.
    - **Check:** Running `cargo check` or `pytest` executes successfully on host bare metal.
 3. **Rollback ADR-003 (Zero-Trust Remote Access / SSH CAs):**
    - If the SSH Certificate Authority private key is compromised or the OIDC signing service experiences an outage, activate the break-glass offline emergency key.
-   - On production servers, deploy emergency break-glass static authorized keys: `echo "$BREAK_GLASS_PUBKEY" | sudo tee -a /etc/ssh/authorized_keys`.
-   - If `ProxyJump` drops active sessions due to network proxy issues, temporarily bypass ProxyJump by connecting to direct VPN addresses using `ssh -o ProxyJump=none user@host`.
-   - **Check:** `ssh -o CertificateFile=none -i ~/.ssh/break_glass_key dev-user@bastion.corp.internal` establishes access.
+   - On production servers, deploy emergency break-glass static authorized keys to a file that `AuthorizedKeysFile` actually reads (the sshd_config(5) default is only `.ssh/authorized_keys .ssh/authorized_keys2`, so `/etc/ssh/authorized_keys` is ignored unless listed): `echo "$BREAK_GLASS_PUBKEY" | sudo tee -a ~dev-user/.ssh/authorized_keys`.
+   - If `ProxyJump` drops active sessions due to network proxy issues, temporarily bypass ProxyJump by connecting to direct VPN addresses using `ssh -o ProxyJump=none user@host` (ssh_config(5): setting the host to `none` disables the option).
+   - **Check:** `ssh -F none -o IdentitiesOnly=yes -i ~/.ssh/break_glass_key dev-user@bastion.corp.internal` establishes access; `-F none` skips the corporate config and its `CertificateFile` lines (`CertificateFile none` is not a documented special value, and `ssh -G` reports it as a literal file name).
 4. **Rollback ADR Linting and Pre-Commit Hooks:**
    - If an emergency hotfix is blocked by strict pre-commit ADR validation, bypass locally using `git commit --no-verify -m "EMERGENCY: hotfix"` and immediately open a tracking issue to remediate the compliance gap.
    - Restore default hooks path with `git config --unset core.hooksPath`.
@@ -718,13 +753,13 @@ When a decision record, language migration, or environment deployment fails or i
 
 | Failure | How it shows up | Recovery |
 | :--- | :--- | :--- |
-| ADR metadata validation failure | `lint-adrs.py` fails with `Missing required section` or `Invalid status` | Review `docs/decisions/adr-template.md` and ensure H2 headings and Status exactly match the MADR 3.0 specification. |
+| ADR metadata validation failure | `lint-adrs.py` fails with `Missing required section` or `Invalid status` | Review `docs/decisions/adr-template.md` and ensure H2 headings and Status exactly match this template (an H2 adaptation of MADR 4.0.0, which keeps status in front matter). |
 | Shell script SLOC boundary breach | `audit-tooling-language.sh` fails reporting script exceeds 100 SLOC | Refactor monolithic script into modular sub-functions or split execution logic into Python (`uv`) or Rust (`cargo`). |
 | Incompatible CLI flag in rewritten binary | Migrated Python/Rust CLI rejects legacy shell script flags | Implement argument compatibility alias layers using `clap` aliases in Rust or `argparse` fallback parsers in Python. |
 | Nix flake evaluation timeout on macOS | `nix develop` hangs or takes > 30 seconds to evaluate expressions | Ensure `nix-direnv` is sourced in `.envrc` and configure binary substituters in `/etc/nix/nix.conf`. |
-| mise runtime glibc mismatch | `mise install` fails on older Linux distros with `version GLIBC_X.XX not found` | Build runtime from source using `mise install --compile` or deploy Profile A (Nix) which packages its own glibc. |
+| mise runtime glibc mismatch | `mise install` fails on older Linux distros with `version GLIBC_X.XX not found` | Build the runtime from source (for Python, `MISE_PYTHON_COMPILE=1 mise install python`, the env form of the `python.compile` setting; mise 2026.11.3 has no `install --compile` flag) or deploy Profile A (Nix) which packages its own glibc. |
 | Devcontainer macOS filesystem freeze | `docker build` or compilation hangs on macOS during heavy I/O | Move compilation target (`target/`, `.venv/`) to an internal Docker named volume rather than an APFS bind mount. |
-| Expired SSH User Certificate | SSH connection fails with `Certificate invalid: expired` | Re-authenticate via the corporate IdP CLI to refresh the 8-hour certificate from the SSH CA. |
+| Expired SSH User Certificate | The client sees `Permission denied (publickey)`; sshd logs `Refusing certificate ID ... : Certificate invalid: expired` (reason string from `sshkey.c`) | Re-authenticate via the corporate IdP CLI to refresh the 8-hour certificate from the SSH CA. |
 | ProxyJump connection reset | SSH connection terminates with `kex_exchange_identification: Connection closed` | Check bastion TCP connection limits and configure `ServerAliveInterval 30` in `~/.ssh/config`. |
 | Stripped agent forwarding blocks nested jump | User attempts to jump from node to node and receives `Permission denied (publickey)` | Educate user that lateral hopping is blocked by design; configure client-side multi-hop `ProxyJump bastion,intermediate host`. |
 
@@ -737,7 +772,7 @@ When a decision record, language migration, or environment deployment fails or i
 
 > [!warning] The macOS bind-mount performance illusion
 > Assuming Devcontainers perform identically across Linux and macOS workstations is a recipe for developer mutiny.
-> On macOS, all bind mounts cross hypervisor translation layers (VirtioFS / gRPC FUSE), imposing a 10x to 50x latency penalty on directory traversal and file metadata (`stat`) queries.
+> On macOS, all bind mounts cross hypervisor translation layers (VirtioFS / gRPC FUSE), imposing a measurable latency penalty on directory traversal and file metadata (`stat`) queries (about 2.7x for a 20,000-file stat walk on `virtiofs` under OrbStack, macOS arm64, as of 2026-11; the factor depends on the engine and the workload).
 > Never place high-churn directories like `node_modules/`, `target/`, or `.git/` on raw macOS host bind mounts inside a Devcontainer.
 
 > [!warning] Agent forwarding habituation and socket theft
@@ -783,7 +818,7 @@ flowchart TD
 
 - **Continuous Compliance Scanning:** Platform engineering teams run nightly static analysis across the entire monorepo, generating automated pull requests to migrate shell scripts crossing the 100 SLOC boundary into Python or Rust.
 - **Unified Language Toolchains:** The organization standardizes on a single packaging tool per language: `uv` for Python (locking dependencies via `pyproject.toml`) and `cargo` for Rust (locking via `Cargo.lock`), eliminating ad-hoc package installations.
-- **Centralized Binary Caching:** Nix store derivations are accelerated via internal binary caches (such as Attic, Harmonia, or Cachix), reducing new developer environment realization time from 15 minutes to under 20 seconds.
+- **Centralized Binary Caching:** Nix store derivations are accelerated via internal binary caches (such as Attic, Harmonia, or Cachix), so that machines download prebuilt store paths instead of building them (the Nix manual describes substituters this way and gives no timings; measure your own fleet).
 
 ### Automated Ephemeral SSH Certificate Infrastructure
 
@@ -825,15 +860,18 @@ flowchart TD
 > What does this script output on standard POSIX bash, and why does this behavior drive ADR-001 scripting boundaries?
 >
 > > [!success]- Answer
-> > The script outputs:
+> > On bash 5.3.15 (verified as of 2026-11) the script prints nothing and exits with status 1.
+> > The first `((count++))` evaluates to 0 (post-increment returns the old value), so it returns status 1; `set -e` kills the loop's subshell, and `pipefail` makes the pipeline fail, so the parent exits before the final `echo`.
+> > With `count=$((count + 1))` instead, bash prints (lab output, platform darwin-arm64, bash 5.3.15):
 > > ```text
 > > Count: 0
 > > ```
-> > In POSIX and standard Bash, each command in a multi-stage pipeline executes within a separate subshell process.
+> > In Bash, each command in a multi-stage pipeline executes within a separate subshell (POSIX permits, as an extension, running any pipeline command in the current environment; zsh runs the last one there and prints `Count: 3`).
 > > The `while read` loop runs inside a subshell forked from the parent shell.
 > > While `count` increments from 0 to 3 inside that subshell's private memory space, the subshell terminates when the pipeline finishes.
 > > The parent shell's `count` variable remains unchanged at 0.
-> > Because Bash does not share memory across pipeline stages, developers frequently attempt hazardous workarounds (such as temporary files or process substitutions with `shopt -s lastpipe`).
+> > macOS `/bin/bash` 3.2.57 prints `Count: 0` even for the original snippet, so the same script behaves differently across the fleet.
+> > Because Bash does not share memory across pipeline stages, developers frequently attempt workarounds (temporary files, process substitution `done < <(...)`, or `shopt -s lastpipe`, which only takes effect when job control is off).
 > > Under ADR-001, any script requiring stateful accumulation, tabular reduction, or structured data transformations across loops must be rewritten in Python or Rust where in-memory state is explicit and safe.
 
 > [!question] L5
@@ -851,7 +889,8 @@ flowchart TD
 > > ```
 > > ensures that the assignment evaluates the command substitution in an isolated command context.
 > > If `command` fails, its non-zero exit status immediately causes `set -e` to abort the script.
-> > Tooling ADRs mandate zero ShellCheck errors (`shellcheck -S error`) in CI precisely to prevent such silent error masking.
+> > Tooling ADRs mandate zero ShellCheck findings at the default severity in CI precisely to prevent such silent error masking.
+> > The severity floor matters: SC2155 is a `warning`, so `shellcheck -S error` exits 0 on it (verified with ShellCheck 0.11.0 as of 2026-11).
 
 > [!question] L6 (Debug This)
 > A developer's CI pipeline fails intermittently under `mise` and `direnv`.
@@ -865,7 +904,8 @@ flowchart TD
 > > Tools like `mise` and `direnv` modify environment variables (`PATH`, shims) in the context of interactive shell hooks or dynamic subshell exports.
 > > When a parent process or build tool (such as Make or a build runner) forks a child command via `/bin/sh -c` or `execve("/bin/sh", ...)`, `/bin/sh` executes as a non-interactive, non-login POSIX shell.
 > > It does not source `.zshrc`, `.bashrc`, or direnv hooks, and it strips unexported functions.
-> > If `mise` was configured to use shell function hooks rather than persistent directory shims, `PATH` in `/bin/sh` reverts to the system default (`/usr/bin:/bin`), which lacks the pinned Node.js runtime.
+> > A child `/bin/sh` does inherit whatever `PATH` was exported when it was spawned, so the failure appears when the build tool was started outside an activated shell (CI runner, IDE, cron, launchd) or the tool resets the environment (`env -i`, `sudo` `secure_path`, an explicit `PATH=` in a Makefile).
+> > If `mise` was configured to use prompt hooks (`mise activate`) rather than persistent shims, that hook never ran in those contexts, so `PATH` falls back to a system default such as `/usr/bin:/bin`, which lacks the pinned Node.js runtime.
 > > Architectural fix:
 > > 1. Configure `mise` to maintain static shims in a standardized location:
 > >    `export PATH="$HOME/.local/share/mise/shims:$PATH"`
@@ -883,7 +923,7 @@ flowchart TD
 > > 2. The attacker cannot extract the private key bytes, but they can request the agent to sign authentication challenges, allowing the attacker to authenticate to any downstream server the victim has access to.
 > > 3. Vulnerabilities like CVE-2023-38408 allow malicious jump hosts to abuse PKCS#11 provider loading to achieve Remote Code Execution on the client.
 > > Contrast with `ProxyJump`:
-> > `ProxyJump` uses the SSH `-W` option to request the intermediate bastion to establish a raw TCP stream forward to port 22 of the target server.
+> > `ProxyJump` sets an implicit `ProxyCommand` that runs `ssh -W` (see `ssh.c`) to request the intermediate bastion to establish a raw TCP stream forward to port 22 of the target server.
 > > The client then establishes an end-to-end encrypted SSH session directly through that TCP stream.
 > > The bastion sees only encrypted ciphertext packets; it never receives an agent socket, never terminates the transport layer, and cannot forge authentication requests.
 
@@ -897,13 +937,13 @@ flowchart TD
 > > Host directories bind-mounted into the container must translate filesystem operations across the hypervisor boundary via VirtioFS or 9P protocols.
 > > Compilers like `clang` and `rustc` perform tens of thousands of `stat()`, `open()`, and `close()` syscalls to resolve headers and module interfaces.
 > > On native macOS, these execute against APFS in microseconds.
-> > Across the hypervisor bind mount, each filesystem query incurs inter-process communication, memory copying, and macOS kernel permission checks, introducing an order-of-magnitude latency penalty.
+> > Across the hypervisor bind mount, each filesystem query incurs inter-process communication, memory copying, and macOS kernel permission checks, introducing a latency penalty (about 2.7x on a stat-only walk in the measurement above).
 > > Architectural Migration (ADR-002):
 > > 1. Migrate the project from a containerized environment to a native Nix flake (`flake.nix`).
 > > 2. Define the compiler (`clang`, `rustc`), build systems (`cmake`, `ninja`), and native C-libraries (`openssl`, `boost`) as derivation inputs in Nixpkgs.
 > > 3. On macOS, Nix realizes these packages natively in `/nix/store` as Mach-O ARM64 binaries linked against the native macOS Darwin SDK, completely bypassing the hypervisor.
 > > 4. Integrate `direnv` and `nix-direnv` so that entering the directory instantly exports `PATH`, `CPATH`, and `LIBRARY_PATH` without VM translation overhead.
-> > The result restores 100% native APFS compile speeds while preserving byte-for-byte toolchain version pinning.
+> > The result removes the hypervisor file-sharing hop from the compile path while preserving toolchain version pinning through `flake.lock`.
 
 > [!question] L7
 > Design an automated governance engine for a 10,000-engineer monorepo that continuously audits shell scripts, scores migration triggers, and gates pull requests violating tooling language boundaries.
@@ -974,7 +1014,7 @@ flowchart TD
 - Michael Nygard, Documenting Architecture Decisions (2011), https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions.
   The seminal essay introducing Architectural Decision Records (ADRs) as lightweight, version-controlled design artifacts.
 - Oliver Kopp, Anita Armbruster, and Olaf Zimmermann, Markdown Architectural Decision Records (MADR), https://adr.github.io/madr/.
-  The standard MADR 3.0 specification providing structured headings, decision drivers, and consequences.
+  The MADR specification (4.0.0 as of 2026-11) providing structured headings, decision drivers, and consequences.
 - Google Inc., Google Shell Style Guide, https://google.github.io/styleguide/shellguide.html.
   Authoritative guidance establishing the 100-line limit and defining when to transition from shell to structured languages.
 - OpenBSD Project, OpenSSH Manual Pages: ssh(1), sshd(8), ssh_config(5), ssh-keygen(1), https://man.openbsd.org/.
@@ -996,4 +1036,5 @@ flowchart TD
 
 - Prerequisites: [[Robust-Shell-Scripting-and-ShellCheck]], [[Dotfiles-Nix-Direnv-Mise-and-Devcontainers]], [[SSH-In-Depth-Keys-Forwarding-Certificates-and-FIDO2]]
 - Next: [[Rebuild-a-Minimal-Shell-With-Job-Control]]
+- Lab: `code/01-Command-Line/adr_gates/` (requires: macos)
 - See also: [[13-Agentic-AI/Agentic-Harness/components/dotfiles-nix|dotfiles nix]]
