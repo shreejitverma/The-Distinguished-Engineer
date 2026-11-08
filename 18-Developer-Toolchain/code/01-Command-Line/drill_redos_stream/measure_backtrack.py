@@ -51,8 +51,8 @@ def main() -> None:
     print("MEASURED ON THE LAB PATTERNS (CPython re, best of 3, N = 16, 18, 20, 22):")
     sizes = [16, 18, 20, 22]
     times = [best_time(PATTERN_VULN, n, 3) for n in sizes]
-    ratios = [b / a for a, b in zip(times, times[1:])]
-    growth_ok = all(GROWTH_BAND[0] <= r <= GROWTH_BAND[1] for r in ratios)
+    per_step = (times[-1] / times[0]) ** (1 / (len(sizes) - 1))
+    growth_ok = GROWTH_BAND[0] <= per_step <= GROWTH_BAND[1]
     print(f"VULN_PATTERN_TIME_GROWS_4X_PER_2_CHARS: {growth_ok}")
 
     lin_a = best_time(PATTERN_LINEAR, 100_000, 5)

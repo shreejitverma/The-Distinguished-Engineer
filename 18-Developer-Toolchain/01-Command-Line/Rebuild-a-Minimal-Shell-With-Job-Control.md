@@ -422,6 +422,8 @@ void put_job_in_foreground(Job *j, bool continue_job) {
                 p->state = STATUS_RUNNING;
             }
         }
+        // A resumed job must be reported again the next time it stops
+        j->notified = false;
     }
 
     // Synchronous wait loop: block until all processes complete or stop
@@ -552,6 +554,9 @@ int builtin_fg(char **argv) {
 When targeting process groups with `kill()`, the signal must be sent to the negative process group ID (`kill(-j->pgid, SIGCONT)`).
 This broadcasts `SIGCONT` to every process in the pipeline simultaneously.
 Sending `SIGCONT` to an individual process PID would resume only that specific process, leaving upstream or downstream pipeline stages suspended.
+`put_job_in_background(j, true)` resumes the job exactly as the foreground path in Step 5 does: it sends `SIGCONT`, marks every stopped process running, and clears `j->notified`.
+`mark_process_status()` clears it too when `waitpid()` reports `WIFCONTINUED`, which covers a `kill -CONT` sent from outside the shell.
+Without that reset, a job stopped once, resumed with `bg`, and stopped again (for example by `SIGTTIN` when it reads the terminal) would never be reported, because `check_jobs()` prints `Stopped` only while `notified` is false.
 
 **Verification:**
 Suspend a job with `Ctrl+Z`.
@@ -616,6 +621,8 @@ bg returned the prompt while the job kept running: yes
 jobs list status after bg: Running
 every pipeline stage resumed and finished: yes
 asynchronous job done notification: received
+a bg job that stops again is reported again: yes
+re-stopped job finished under fg: yes
 
 === Milestone 8: Foreground Resumption via fg ===
 job suspended again: yes
@@ -640,6 +647,7 @@ What each milestone proves, checked on 2026-11-07 by applying 35 single-point mu
 - Milestone 5 proves that both pipeline stages share one process group whose ID is a stage pid and differs from the shell's; giving each stage its own group fails it.
 - Milestone 6 proves `WUNTRACED` stop detection (without it the suite fails), the job-table state, terminal reclamation, and that the shell reapplies its own terminal modes when a job stops (removing that `tcsetattr()` leaves `ECHO` off on the terminal).
 - Milestone 7 proves `bg` on a two-stage pipeline: signalling one pid instead of the group leaves the second stage stopped, so neither it nor the `Done` notice arrives; a wrong reported group, `bg` waiting in the foreground, a job whose `foreground` flag is not cleared, a reaper without `WNOHANG`, and no reaping at all each fail a check.
+  A job that stops, is resumed with `bg`, and stops again must be reported a second time; leaving `notified` set across the resume fails `a bg job that stops again is reported again`.
 - Milestone 8 proves `fg` on a two-stage pipeline: signalling one pid fails it, and the job's own terminal modes must come back on resume with `ECHO` off and `ICANON` on in both stages, so skipping the save at stop time (which leaves an all-zero `termios`) or the restore at `fg` fails it.
 - The suite does not check that the child resets `SIGINT`, `SIGQUIT`, `SIGTSTP`, `SIGTTIN`, and `SIGTTOU` to `SIG_DFL` before `execvp()`; that is practice drill 3.
 
@@ -764,22 +772,22 @@ flowchart LR
 > Next, introduce one defect at a time into `mini_shell.c`, predict the exact failure mode, and run the same command: a failing run lists every failed check and any `mini_sh:` diagnostic the shell printed.
 > 1. **Delete parent pipe closure:** In `launch_job()`, disable the parent's `if (out_fd != STDOUT_FILENO && out_fd != job_out_fd) { close(out_fd); }` block.
 >    Predict that Milestone 2 hangs on `sort -r` waiting for `EOF`.
->    Observed on 2026-11-07: `pipe 3 stages:` prints nothing once the 3-second read times out, and 24 checks fail, every later check in the main session (the two delayed-`setpgid()` runs use their own shells and pass).
+>    Observed on 2026-11-08: `pipe 3 stages:` prints nothing once the 3-second read times out, and 26 checks fail, every later check in the main session (the two delayed-`setpgid()` runs use their own shells and pass).
 > 2. **Delete `SIGTTOU` shielding:** In `init_shell()`, comment out `signal(SIGTTOU, SIG_IGN);`.
 >    In an ordinary terminal the shell would stop on its first reclaiming `tcsetpgrp()`.
 >    In the harness the shell is a session leader whose parent is outside the session, so its group is orphaned and the reclaim fails instead of stopping the shell.
->    Observed on 2026-11-07: after the first `echo` the shell printed `mini_sh: tcsetpgrp (reclaim): Inappropriate ioctl for device`, its next terminal read ended, and it exited with status 0; 31 checks fail, starting with the first one because the diagnostic lands in the `echo` output.
+>    Observed on 2026-11-08: after the first `echo` the shell printed `mini_sh: tcsetpgrp (reclaim): Inappropriate ioctl for device`, its next terminal read ended, and it exited with status 0; 33 checks fail, starting with the first one because the diagnostic lands in the `echo` output.
 > 3. **Delete child signal reset:** Comment out the child's `signal(SIGINT, SIG_DFL)` calls before `execvp()`.
 >    Predict that child processes become completely immune to terminal `Ctrl+C` keystrokes, because a signal ignored by the shell stays ignored across `execve()`.
 >    The suite does not check this, so verify it by hand in a real terminal.
 > 4. **Delete parent `setpgid()`:** Comment out the `setpgid(pid, job->pgid)` line in the parent execution path, leaving only the child invocation.
 >    Predict that the child is no longer reliably in its group when the shell hands over the terminal.
->    Observed on 2026-11-07: the first `echo` printed nothing, the shell's next terminal read failed and it exited, and 29 checks fail; the order of events depends on which process runs first after `fork()`, so rely on the symptom rather than the order.
+>    Observed on 2026-11-08: the first `echo` printed nothing, the shell's next terminal read failed and it exited, and 31 checks fail; the order of events depends on which process runs first after `fork()`, so rely on the symptom rather than the order.
 >    The suite widens the window itself: `MINI_SHELL_RACE_DELAY=child` makes the child wait 150 ms before its own `setpgid()`, and deleting the parent's `setpgid()` fails `parent setpgid alone suffices when the child is delayed`.
 >    Deleting the child's `setpgid()` instead fails exactly one check, `child setpgid alone suffices when the parent is delayed`, which runs with `MINI_SHELL_RACE_DELAY=parent`.
 > 5. **Delete background mode flag update:** In `put_job_in_background()`, comment out `j->foreground = false;`.
 >    Predict that a job resumed with `bg` is never reported as `Done`, because `check_jobs()` prints `Done` only for jobs whose `foreground` flag is false; jobs started with `&` are still reported, because the parser clears the flag for them.
->    Observed on 2026-11-07: exactly one check fails, `asynchronous job done notification`.
+>    Observed on 2026-11-08: exactly one check fails, `asynchronous job done notification`.
 > Target time: complete all five failure diagnoses in under 20 minutes.
 
 ## Interview Questions

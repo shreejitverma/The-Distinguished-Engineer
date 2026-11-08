@@ -619,7 +619,7 @@ Which process holds which file descriptor, and where does kernel line discipline
 An engineer on a laptop working via an SSH ControlMaster connection closes their laptop lid, walks to a conference room, and opens the lid.
 Their terminal is dead.
 Opening a new local terminal tab and running `ssh devbox` hangs indefinitely.
-However, running `ssh -o ControlMaster=no devbox` connects almost immediately.
+However, running `ssh -o ControlPath=none devbox` connects almost immediately.
 Perform a root cause analysis: trace the kernel network socket states, explain why the local master process does not exit, and explain why subsequent client commands hang.
 
 > [!success]- Answer
@@ -645,8 +645,9 @@ Perform a root cause analysis: trace the kernel network socket states, explain w
 >    - The client then sends `MUX_C_NEW_SESSION`; the master queues a channel-open request onto the dead TCP connection and replies `MUX_S_SESSION_OPENED` only from its channel-confirm callback (`mux.c`), which never fires.
 >    - The new client hangs in `read()` until the master's own TCP stack or keepalive logic gives up.
 > 
-> 4. **Why `ControlMaster=no` Succeeded:**
->    Passing `-o ControlMaster=no` bypasses the local UNIX control socket completely, causing the client to initiate an independent TCP handshake directly to `devbox` over the new Wi-Fi network, completing authentication in the usual fraction of a second.
+> 4. **Why `ControlPath=none` Succeeded:**
+>    Passing `-o ControlPath=none` (or `-S none`) disables connection sharing, so the client never touches the control socket and instead initiates an independent TCP handshake directly to `devbox` over the new Wi-Fi network, completing authentication in the usual fraction of a second.
+>    `-o ControlMaster=no` alone would not help: `no` is the default, and in that mode the client still tries the existing master through `ControlPath` (ssh_config(5)), so it would hang exactly like `ssh devbox`.
 > 
 > **Permanent Remediation:**
 > Set `ServerAliveInterval 15` and `ServerAliveCountMax 3` in `~/.ssh/config`.

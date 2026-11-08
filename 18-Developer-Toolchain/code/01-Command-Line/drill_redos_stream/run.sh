@@ -19,7 +19,7 @@ echo "--- stdbuf -oL pipe buffer check ---"
 stdbuf -oL ./log_producer --mode=check | cat
 
 # The probe reads a FIFO and opens it itself, so a writer's redirection blocks until the probe is ready.
-# A FIFO is the same kernel pipe as `a | b`, so glibc sees S_ISFIFO and picks the same 4096-byte buffer.
+# A FIFO is the same kernel pipe as `a | b` and reports the same st_blksize (4096), so glibc picks the same buffer size.
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 FIFO="${WORK}/delivery.fifo"

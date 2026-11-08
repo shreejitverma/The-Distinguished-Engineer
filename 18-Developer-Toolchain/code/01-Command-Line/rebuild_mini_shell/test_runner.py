@@ -335,6 +335,25 @@ def main():
                 time.sleep(0.25)
         check("every pipeline stage resumed and finished", finished == 2)
         tag("asynchronous job done notification", done, "received", "missed")
+        s.send("./job_probe --stop --stop")
+        text = s.prompt()
+        first_stop = re.search(r"^\[\d+\]\+ Stopped ", text, re.MULTILINE) is not None
+        s.send("bg")
+        restopped = False
+        deadline = time.monotonic() + 3.0
+        text = s.prompt()
+        while not restopped:
+            restopped = re.search(r"^\[\d+\]\+ Stopped \./job_probe --stop --stop$", text, re.MULTILINE) is not None
+            if restopped or time.monotonic() >= deadline:
+                break
+            time.sleep(0.25)
+            s.send("")
+            text = s.prompt()
+        check("a bg job that stops again is reported again", first_stop and restopped)
+        s.send("fg")
+        s.prompt()
+        left, ok_jobs = s.run("jobs")
+        check("re-stopped job finished under fg", ok_jobs and left == [])
 
         print("\n=== Milestone 8: Foreground Resumption via fg ===")
         job = "./job_probe --raw --stop | ./job_probe --stop"

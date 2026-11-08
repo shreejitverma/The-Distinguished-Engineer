@@ -37,6 +37,8 @@ bg returned the prompt while the job kept running: yes
 jobs list status after bg: Running
 every pipeline stage resumed and finished: yes
 asynchronous job done notification: received
+a bg job that stops again is reported again: yes
+re-stopped job finished under fg: yes
 
 === Milestone 8: Foreground Resumption via fg ===
 job suspended again: yes

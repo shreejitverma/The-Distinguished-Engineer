@@ -96,7 +96,7 @@ The pipeline consists of three core components:
 Three helpers support the checks.
 `emit_py.py` writes five records through Python's own `sys.stdout`, `measure_backtrack.py` times the lab's two regexes, and `stall_probe.py` samples `/proc` for the wedged filter.
 The probe opens the FIFO itself, so the writer's redirection blocks until the probe is ready to read and there is no start-up race.
-A FIFO is the same kernel pipe as `a | b`, so glibc sees a FIFO and picks the same buffer.
+A FIFO is the same kernel pipe as `a | b` and reports the same `st_blksize` (4096), so glibc picks the same buffer size.
 
 The parsing filter in the vulnerable pipeline uses the following regular expression:
 ```python
@@ -215,7 +215,7 @@ The same probe on `stdbuf -oL ./log_producer` sees the first byte about 400 ms b
 The next three probes use Python's own `sys.stdout`: it stalls by default, still stalls under `stdbuf -oL` (Python's `TextIOWrapper` buffer is not glibc's), and delivers in real time only with `python3 -u`.
 
 In Phase 2, the table is the closed form $2^{N-1}$ printed by `measure_backtrack.py`, not a measurement.
-The two booleans under it are measured on the lab's own `PATTERN_VULN` and `PATTERN_LINEAR`: the first is `True` when every step of N = 16, 18, 20, 22 multiplies the best-of-3 time by 2.5 to 6 (expected about 4 per two characters), the second when doubling a 100,000-character route multiplies the linear pattern's time by 1.3 to 3.2.
+The two booleans under it are measured on the lab's own `PATTERN_VULN` and `PATTERN_LINEAR`: the first is `True` when going from N = 16 to N = 22 multiplies the best-of-3 time by 2.5 to 6 per two characters on average (the geometric mean over the three steps; expected about 4), the second when doubling a 100,000-character route multiplies the linear pattern's time by 1.3 to 3.2.
 A separate timing of the vulnerable pattern in CPython 3.12.3 (linux-aarch64 container, as of 2026-11) gave 2.8 ms at $N = 16$, 44.2 ms at $N = 20$, and 704 ms at $N = 24$, a factor of 3.96 to 4.01 per two extra characters; those numbers are not printed because they vary by machine.
 When evaluated with GNU `grep -P` (grep 3.11, PCRE2 10.42), PCRE2 exhausts its default match limit (`PCRE2_CONFIG_MATCHLIMIT`), printing `grep: (standard input): exceeded PCRE's backtracking limit` and aborting with exit code 2.
 The abort is fatal for the whole stream: fed the pathological line followed by a valid one, grep 3.11 exits 2 after about 15 ms wall time including startup and never prints the valid line (measured, linux-aarch64, as of 2026-11).

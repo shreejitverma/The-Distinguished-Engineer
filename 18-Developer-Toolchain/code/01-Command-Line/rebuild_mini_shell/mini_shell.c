@@ -163,6 +163,7 @@ static bool mark_process_status(pid_t pid, int status) {
                     p->state = STATUS_STOPPED;
                 } else if (WIFCONTINUED(status)) {
                     p->state = STATUS_RUNNING;
+                    j->notified = false;
                 } else {
                     p->state = STATUS_COMPLETED;
                 }
@@ -244,6 +245,7 @@ static void put_job_in_foreground(Job *j, bool continue_job) {
                 p->state = STATUS_RUNNING;
             }
         }
+        j->notified = false;
     }
 
     int status;
@@ -280,6 +282,7 @@ static void put_job_in_background(Job *j, bool continue_job) {
                 p->state = STATUS_RUNNING;
             }
         }
+        j->notified = false;
     }
     printf("[%d] %d\n", j->id, (int)j->pgid);
     fflush(stdout);

@@ -722,12 +722,13 @@ class ReftableStack:
     def table_sizes(self) -> list[int]:
         """Sizes as reftable/stack.c passes them to the segment search.
 
-        Git uses file size minus the footer (table->size) minus (header_size(version) - 1).
+        Git uses file size minus the footer (table->size) minus (header_size(version) - 1),
+        where version comes from the stack's hash (1 for sha1, 2 otherwise), not each table's header.
         """
         return [
             len(reader.data)
             - footer_size(reader.header.version)
-            - (header_size(reader.header.version) - 1)
+            - (header_size(1 if reader.header.hash_id == b"sha1" else 2) - 1)
             for _, reader in self.tables
         ]
 

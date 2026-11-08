@@ -51,7 +51,7 @@ Stack rejected a malformed name: True
 Stack rejected a name that disagrees with the header: True
 
 --- Geometric Compaction Analysis ---
-Stack sizes as Git feeds them to the search (file - footer - header overhead): [8165, 4069]
+Stack sizes as Git feeds them to the search (file - footer - header overhead): [8169, 4073]
 Compaction segment for the 2-table stack: None
 Compaction segment for sizes [64, 32, 16, 8, 4, 2, 1]: None
 Compaction segment for sizes [64, 32, 16, 8, 4, 3, 1]: (0, 6)

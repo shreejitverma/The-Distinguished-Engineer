@@ -479,6 +479,7 @@ struct segment suggest_compaction_segment(uint64_t *sizes, size_t n,
 ```
 
 The caller passes each table's size minus a fixed per-table overhead (`header_size(version) - 1`), not the raw file size (`reftable/stack.c`, git.git v2.56.0).
+That `version` comes from the stack's hash, not from each table's header: `stack_segments_for_compaction()` uses 1 for SHA-1 and 2 otherwise, so the overhead is 23 bytes for a SHA-1 stack and 27 for SHA-256.
 
 When a segment of adjacent tables violates the geometric ratio, Git merges them into a single consolidated table, purges obsolete tombstones, acquires `tables.list.lock`, and updates `tables.list` in one atomic replacement.
 
@@ -518,7 +519,7 @@ How reference backends, binary searching, and atomic transactions are approached
 ## Worked Lab Example
 
 The companion lab in `code/02-Version-Control/reftable_reader/` implements a minimal single-block reftable writer, reader, and stack simulator in pure Python without external dependencies.
-It validates Version 2 headers, verifies trailing CRC-32 checksums, decodes prefix-compressed reference records, binary searches the restart table and then walks records forward from the chosen restart offset, inflates zlib reflog blocks, resolves multi-table stacks with tombstones, and evaluates geometric compaction with the same size inputs as Git (file size minus footer minus `header_size(version) - 1`).
+It validates Version 2 headers, verifies trailing CRC-32 checksums, decodes prefix-compressed reference records, binary searches the restart table and then walks records forward from the chosen restart offset, inflates zlib reflog blocks, resolves multi-table stacks with tombstones, and evaluates geometric compaction with the same size inputs as Git (file size minus footer minus `header_size(version) - 1`, with `version` taken from the hash as Git does).
 Its limits are stated plainly:
 
 - Its writer emits v2 headers with a `sha1` hash ID, where Git writes v1 for SHA-1, so the main tables are not byte-compatible with what `git` would write.
@@ -589,7 +590,7 @@ Stack rejected a malformed name: True
 Stack rejected a name that disagrees with the header: True
 
 --- Geometric Compaction Analysis ---
-Stack sizes as Git feeds them to the search (file - footer - header overhead): [8165, 4069]
+Stack sizes as Git feeds them to the search (file - footer - header overhead): [8169, 4073]
 Compaction segment for the 2-table stack: None
 Compaction segment for sizes [64, 32, 16, 8, 4, 2, 1]: None
 Compaction segment for sizes [64, 32, 16, 8, 4, 3, 1]: (0, 6)
@@ -614,7 +615,7 @@ Flip in the stored CRC-32 byte: rejected, calculated != stored is True
 3. **Varint Bias:** `128` encodes as `8000` and `16512` as `808000`, which a plain LEB128 or a bias-free big-endian scheme would not produce.
 4. **Newest Reflog First:** The two reflog entries were added oldest first but are read back newest first, because the key stores `0xFFFFFFFFFFFFFFFF - update_index`.
 5. **Tombstone Masking:** Querying `refs/heads/feature` in the combined stack returned `None` because Table 2 contained a tombstone (`value_type = 0x0`) with `update_index = 3`, shadowing Table 1.
-6. **Compaction Inputs:** The two-table stack needs no compaction once the fixed per-table overhead is subtracted (8165 is not below 2 x 4069), while the sequence `64, 32, 16, 8, 4, 3, 1` selects `(0, 6)` and `128, 32, 16, 8, 4, 3, 1` selects `(1, 6)`.
+6. **Compaction Inputs:** The two-table stack needs no compaction once the fixed per-table overhead is subtracted (8169 is not below 2 x 4073), while the sequence `64, 32, 16, 8, 4, 3, 1` selects `(0, 6)` and `128, 32, 16, 8, 4, 3, 1` selects `(1, 6)`.
 7. **Integrity Validation:** Inverting a single bit in a footer pointer byte or in the stored CRC-32 caused `ReftableReader` to reject the table, preventing silent state corruption.
 
 ## Pitfalls
