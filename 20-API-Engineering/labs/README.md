@@ -11,6 +11,7 @@ sources: []
 
 Every executable claim in [API Engineering](../README.md) is backed by a deterministic, self-contained lab in this workspace and gated in CI by `python3 tools/check_api_labs.py`.
 All notes share a single `uv`-locked workspace (`uv 0.11.26`, `.python-version` `3.14`) so that every lab runs against one hermetic `uv.lock` file without duplicating virtual environments per note.
+SQLAlchemy is pinned twice as conflicting dependency groups resolved in the same `uv.lock`: `sqlalchemy21` (`2.1.8`) is a default group, and `sqlalchemy20` (`2.0.57`) is the deliberate 2.0 compatibility leg for labs that compare the two series.
 See [STYLE.md](../STYLE.md) for the note contract that binds prose claims to these labs.
 
 ## Workspace layout
@@ -34,7 +35,7 @@ See [STYLE.md](../STYLE.md) for the note contract that binds prose claims to the
     f27_reference/
 ```
 
-Container definitions (`Dockerfile.debian`, `Dockerfile.alpine`, and `compose.yaml`) are not checked in yet and arrive with the first Tier 3 lab.
+Container definitions (`Dockerfile.debian`, `Dockerfile.alpine`, and `compose.yaml`) are not checked in yet; they arrive with the first lab that needs a real PostgreSQL, Valkey, or Envoy service, together with its pytest marker and gate option.
 Optional contract fixtures live under `fixtures/openapi/` and `fixtures/proto/` once contract labs are added.
 
 ## Naming and traceability rules
@@ -50,16 +51,17 @@ A note declares its lab by adding a bullet under its `## Related` section in the
 - Lab: `labs/tests/f01_http_semantics_and_wire_protocols/test_http_1_1_framing_keep_alive_and_chunked_encoding.py`
 ```
 
-A note may declare more than one `- Lab:` line when needed, and every declared path must be tracked in git.
+A note declares at most one lab, because the only valid path is the one derived from its folder and stem, and the declared path must be tracked in git.
 Every tracked `labs/tests/**/test_*.py` file must be declared by exactly one note, with no orphan test modules and no double owners.
 Once a note moves past `status: seed` to `draft`, `solid`, or `canonical`, it must replace its `Lab plan:` placeholder line with a real `- Lab:` declaration or remove the plan line if no lab applies.
 
 ## Execution tiers and pytest markers
 
+Every lab test carries exactly one tier marker; `tests/conftest.py` fails collection (pytest exit code 4) for a test with none or both, so no lab is silently deselected.
+
 1. `@pytest.mark.unit` (Tier 1): Runs entirely in-process without opening network sockets or talking to external daemons.
    ASGI and FastAPI endpoints use `httpx.AsyncClient` with `httpx.ASGITransport` and `asgi_lifespan.LifespanManager`, wire framing labs feed raw byte buffers into `h11`, `h2`, or `aioquic` state machines, Redis rate limiters use `fakeredis[lua]`, and SQLite labs use `aiosqlite`.
 2. `@pytest.mark.socket` (Tier 2): Binds ephemeral loopback sockets (`127.0.0.1:0`) or UNIX domain sockets for TLS 1.3 and mTLS handshakes, ASGI server worker lifecycle and `SIGTERM` drain tests, and `grpc.aio` streaming and deadline propagation.
-3. `@pytest.mark.container` (Tier 3): Exercises real multi-connection service behavior against PostgreSQL, Valkey, or Envoy containers defined in `compose.yaml`, which arrives with the first Tier 3 lab.
 
 ## Running locally
 
@@ -68,7 +70,6 @@ Run the full gate from the repository root:
 ```sh
 python3 tools/check_api_labs.py
 python3 tools/check_api_labs.py --only traceability --only ascii
-python3 tools/check_api_labs.py --containers
 ```
 
 Or run individual tools directly inside `20-API-Engineering/labs/`:
@@ -80,5 +81,11 @@ uv run --frozen ruff format --check src tests
 uv run --frozen ruff check src tests
 uv run --frozen mypy src tests
 uv run --frozen pyright src tests
-uv run --frozen pytest -m "unit or socket" --cov --cov-report=term-missing --cov-fail-under=95
+uv run --frozen pytest --cov --cov-report=term-missing --cov-fail-under=95
+```
+
+Run the suite against the SQLAlchemy 2.0 compatibility leg instead of the default 2.1 group:
+
+```sh
+uv run --frozen --no-group sqlalchemy21 --group sqlalchemy20 pytest
 ```

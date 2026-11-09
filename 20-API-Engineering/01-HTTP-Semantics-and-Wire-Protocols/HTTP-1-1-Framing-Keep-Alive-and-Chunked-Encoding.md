@@ -45,7 +45,7 @@ stateDiagram-v2
     BODY_NONE --> DONE_WAIT: "EndOfMessage emitted"
     BODY_CHUNKED --> DONE_WAIT: "0\\r\\n + trailer-section + \\r\\n<br/>-> EndOfMessage(headers)"
     BODY_CL --> DONE_WAIT: "N octets consumed<br/>-> EndOfMessage"
-    BODY_CHUNKED --> ERROR_CLOSE: "Non-CRLF chunk footer<br/>or bare CR -> RemoteProtocolError"
+    BODY_CHUNKED --> ERROR_CLOSE: "Non-CRLF chunk footer<br/>or invalid chunk-size line -> RemoteProtocolError"
     DONE_WAIT --> IDLE: "our_state == DONE and<br/>their_state == DONE and<br/>keep_alive == True"
     DONE_WAIT --> MUST_CLOSE: "Connection: close or<br/>HTTP/1.0 without keep-alive or<br/>unread request body"
     MUST_CLOSE --> CLOSED: "Socket FIN / close()"
@@ -75,7 +75,8 @@ field-line     = field-name ":" OWS field-value OWS
 ```
 
 Every `start-line` and `field-line` is delimited by `CRLF` (`0x0d 0x0a`, or `b"\r\n"`), and the header section ends at the first empty line (`b"\r\n\r\n"` after the final header value) `(RFC 9112 Section 2.1)`.
-Although `(RFC 9112 Section 2.2)` permits a recipient to accept a single `LF` (`0x0a`) as a line terminator in control lines, a sender must always emit `CRLF`, and a recipient must reject any bare `CR` (`0x0d` not immediately followed by `0x0a`) in a `start-line`, `field-line`, or `chunk-size` line to prevent parser split attacks.
+Although `(RFC 9112 Section 2.2)` permits a recipient to accept a single `LF` (`0x0a`) as a line terminator in control lines, a sender must always emit `CRLF` and must not generate a bare `CR` (`0x0d` not immediately followed by `0x0a`) in any protocol element other than the content `(RFC 9112 Section 2.2)`.
+A recipient of a bare `CR` must either consider that element invalid or replace each bare `CR` with `SP` before processing the element or forwarding the message `(RFC 9112 Section 2.2)`; treating it as invalid is the stricter option, and it is the one the lab decoder takes so that no two parsers can disagree on where a `start-line`, `field-line`, or `chunk-size` line ends.
 Furthermore, whitespace between `field-name` and the colon `:` is forbidden: a server must reject any request header line containing space or horizontal tab before the colon with `400 Bad Request` `(RFC 9112 Section 5.1)`.
 `h11 0.16.0` splits a header block on `\n`, so it accepts a bare `LF` line ending `(h11 0.16.0 h11/_receivebuffer.py, ReceiveBuffer.maybe_extract_lines)`, and `header_field_re` (compiled from `header_field` in `h11/_abnf.py`) rejects any whitespace preceding the colon `(h11 0.16.0 h11/_readers.py, header_field_re)`.
 A bare `CR` is rejected in the request line only because the line then fails the request-line regex: `GET / HTTP/1.1\rHost: a` raises `RemoteProtocolError: illegal request line` (measured with `h11 0.16.0`, CPython 3.14.6, macOS 27.2 arm64).
@@ -83,7 +84,7 @@ Also retired by `(RFC 9112 Section 5.2)` is `obs-fold` (multiline header folding
 
 ### Body length determination precedence (RFC 9112 Section 6.3)
 
-Unlike HTTP/2 or HTTP/3, HTTP/1.1 does not prefix every message with a binary length field; instead, every recipient determines the exact number of `message-body` octets on the wire by evaluating the eight-step ordered decision cascade in `(RFC 9112 Section 6.3)`:
+Unlike HTTP/2 or HTTP/3, HTTP/1.1 does not prefix every message with a binary length field; instead, every recipient determines the exact number of `message-body` octets on the wire by evaluating the eight-step ordered decision cascade in `(RFC 9112 Section 6.3)`, applied in order with the first matching step winning:
 
 1. Any response to a `HEAD` request and any `1xx` (Informational), `204 No Content`, or `304 Not Modified` response is always terminated by the first empty line after the header fields (`0` body bytes on the wire), regardless of `Content-Length` or `Transfer-Encoding` headers present `(RFC 9112 Section 6.3)`.
 2. Any `2xx` (Successful) response to a `CONNECT` request implies that the connection immediately switches to a raw byte tunnel after the empty header termination line (`0` HTTP body bytes) `(RFC 9112 Section 6.3)`.
@@ -92,10 +93,10 @@ Unlike HTTP/2 or HTTP/3, HTTP/1.1 does not prefix every message with a binary le
 4. If `Transfer-Encoding` is present and `chunked` is the final transfer coding, the message body length is determined by reading chunks until the `0`-length terminating chunk and trailer section are consumed `(RFC 9112 Section 6.3)`.
    If `Transfer-Encoding` is present on a request and the final coding is not `chunked`, the server cannot determine the message boundary and must respond with `400 Bad Request` and close the connection `(RFC 9112 Section 6.3)`.
    If a server receives a `Transfer-Encoding` coding it does not implement, it must respond with `501 Not Implemented` `(RFC 9112 Section 6.1)`.
-5. If a valid `Content-Length` header field is present without `Transfer-Encoding`, its decimal value defines the exact length in octets of the `message-body` `(RFC 9112 Section 6.3)`.
-   If a message contains multiple `Content-Length` header lines with differing values, or a single `Content-Length` containing non-identical comma-separated values or non-digit characters, the recipient must reject it as invalid `(RFC 9112 Section 6.3)`.
-6. If this is a request message and neither `Transfer-Encoding` nor `Content-Length` is present, the message body length is `0` octets `(RFC 9112 Section 6.3)`.
-7. Otherwise, this is a response message without declared length framing, so its body is terminated by the server closing the underlying TCP connection (`EOF`) `(RFC 9112 Section 6.3)`.
+5. If a message is received without `Transfer-Encoding` and with an invalid `Content-Length` (multiple `Content-Length` header lines with differing values, a single `Content-Length` containing non-identical comma-separated values, or non-digit characters), the framing is invalid and the error is unrecoverable: a server must respond with `400 Bad Request` and close the connection, a proxy must close the upstream connection and respond with `502 Bad Gateway`, and a user agent must close the connection and discard the response `(RFC 9112 Section 6.3)`.
+6. If a valid `Content-Length` header field is present without `Transfer-Encoding`, its decimal value defines the exact length in octets of the `message-body` `(RFC 9112 Section 6.3)`.
+7. If this is a request message and none of the above are true, the message body length is `0` octets `(RFC 9112 Section 6.3)`.
+8. Otherwise, this is a response message without declared length framing, so its body is terminated by the server closing the underlying TCP connection (`EOF`) `(RFC 9112 Section 6.3)`.
 
 In `h11 0.16.0`, `Connection._body_framing` implements this exact cascade in Python `(h11 0.16.0 h11/_connection.py, _body_framing)`:
 - When `request_method == b"HEAD"`, `status_code in (204, 304)`, or `request_method == b"CONNECT"` with `200 <= status_code < 300`, `_body_framing` returns `("content-length", (0,))`.
@@ -104,7 +105,7 @@ In `h11 0.16.0`, `Connection._body_framing` implements this exact cascade in Pyt
 - If `content-length` is present, `_validate_content_length` verifies there is exactly one unique integer matching `r"[0-9]+"` and returns `("content-length", (length,))`.
 - Finally, if neither header is present, `_body_framing` returns `("content-length", (0,))` for a `Request` and `("http/1.0", ())` (`Http10Reader`, which reads until socket `EOF`) for a `Response` `(h11 0.16.0 h11/_connection.py, _body_framing)`.
 
-By contrast, `gunicorn 26.2.0` takes the stricter option permitted by `(RFC 9112 Section 6.1)` step 3: inside `Message.set_body_reader`, if `chunked` is true and `content_length is not None`, Gunicorn immediately raises `InvalidHeader("CONTENT-LENGTH", req=self)` and returns `400 Bad Request` `(gunicorn 26.2.0 gunicorn/http/message.py, Message.set_body_reader)`.
+By contrast, `gunicorn 26.2.0` takes the stricter option permitted by `(RFC 9112 Section 6.1)` for the conflict that step 3 of `(RFC 9112 Section 6.3)` describes: inside `Message.set_body_reader`, if `chunked` is true and `content_length is not None`, Gunicorn immediately raises `InvalidHeader("CONTENT-LENGTH", req=self)` and returns `400 Bad Request` `(gunicorn 26.2.0 gunicorn/http/message.py, Message.set_body_reader)`.
 
 ### Chunked transfer coding wire layout, extensions, and trailers
 
@@ -148,7 +149,8 @@ Three parser invariants govern `chunked-body` decoding:
 1. **Hexadecimal `chunk-size` and `chunk-ext` stripping**:
    `chunk-size` is a base-16 unsigned integer (`1*HEXDIG`, digits `0-9`, `a-f`, `A-F`) giving the exact byte count of `chunk-data`, excluding the trailing `CRLF` `(RFC 9112 Section 7.1)`.
    Optional `chunk-ext` parameters follow a semicolon `;` on the same line `(RFC 9112 Section 7.1.1)`.
-   Recipients that do not understand a chunk extension must ignore it and strip everything from the first `;` to the `CRLF`, but must reject any bare `CR` inside `chunk-ext` so an attacker cannot smuggle a synthetic line break inside an extension value `(RFC 9112 Section 7.1.1)`.
+   A recipient must ignore unrecognized chunk extensions `(RFC 9112 Section 7.1.1)`, and because `chunk-ext` is a protocol element outside the content, a bare `CR` inside it must be treated as invalid or replaced with `SP` `(RFC 9112 Section 2.2)`.
+   The lab decoder treats it as invalid and rejects the chunk, so an attacker cannot smuggle a synthetic line break inside an extension value past a parser that would split there.
    In `h11 0.16.0`, `chunk_header_re` is compiled in `h11/_readers.py` as `b"(?P<chunk_size>([0-9A-Fa-f]){1,20})(?P<chunk_ext>;.*)?[ \\t]*\\r\\n"`, bounding `chunk_size` to at most `20` hexadecimal digits (`16^20 - 1` octets), `(h11 0.16.0 h11/_readers.py, chunk_header_re)`.
    Because `chunk_ext` is `;.*` and `ReceiveBuffer.maybe_extract_next_line` only searches for `\r\n`, h11 accepts a bare `CR` inside a chunk extension: `5;x=\ry\r\nhello\r\n0\r\n\r\n` parses into one `Data` event and `EndOfMessage` (measured with `h11 0.16.0`, CPython 3.14.6, macOS 27.2 arm64).
 
@@ -226,7 +228,7 @@ Across the pinned Python API stack in `labs/` `(as of 2026-11)`:
 
 ## Worked example
 
-The lab implementation in [implementation](../labs/src/api_labs/f01_http_semantics_and_wire_protocols/chunked.py) and its test suite in [test](../labs/tests/f01_http_semantics_and_wire_protocols/test_http_1_1_framing_keep_alive_and_chunked_encoding.py) implement a strict `RFC 9112 Section 7.1` chunked encoder/decoder with trailer validation (`FORBIDDEN_TRAILER_FIELDS` per `RFC 9110 Section 6.5.1`) and drive `h11 0.16.0` server state machines across chunked reassembly, `Transfer-Encoding` vs `Content-Length` precedence, `CVE-2025-43859` non-`CRLF` chunk footer rejection, unread-body `MUST_CLOSE` transitions, and Starlette ASGI `StreamingResponse` vs `JSONResponse` framing.
+The lab implementation in [implementation](../labs/src/api_labs/f01_http_semantics_and_wire_protocols/chunked.py) and its test suite in [test](../labs/tests/f01_http_semantics_and_wire_protocols/test_http_1_1_framing_keep_alive_and_chunked_encoding.py) implement a strict `RFC 9112 Section 7.1` chunked encoder/decoder with trailer validation (`FORBIDDEN_TRAILER_FIELDS` per `RFC 9110 Section 6.5.1`, `token` field names per `RFC 9110 Section 5.1`, and no `CR`, `LF`, or `NUL` in field values per `RFC 9110 Section 5.5`) and drive `h11 0.16.0` server state machines across chunked reassembly, `Transfer-Encoding` vs `Content-Length` precedence, `CVE-2025-43859` non-`CRLF` chunk footer rejection, unread-body `MUST_CLOSE` transitions, and Starlette ASGI `StreamingResponse` vs `JSONResponse` framing.
 
 Full byte-identical source of [implementation](../labs/src/api_labs/f01_http_semantics_and_wire_protocols/chunked.py):
 
@@ -245,6 +247,10 @@ if TYPE_CHECKING:
 
 _HEX_BYTES = frozenset(b"0123456789abcdefABCDEF")
 _MAX_CHUNK_HEX_DIGITS = 20
+_TOKEN_BYTES = frozenset(
+    b"!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+_FIELD_VALUE_FORBIDDEN_BYTES = b"\r\n\x00"
 FORBIDDEN_TRAILER_FIELDS: frozenset[bytes] = frozenset(
     {b"host", b"content-length", b"transfer-encoding", b"trailer", b"authorization", b"te"}
 )
@@ -270,6 +276,18 @@ class H11ExchangeSummary:
     reusable: bool
 
 
+def _validated_trailer(raw_name: bytes, raw_value: bytes) -> tuple[bytes, bytes]:
+    """Return the lowercased name and OWS-stripped value of one trailer field, or raise."""
+    if not raw_name or not all(b in _TOKEN_BYTES for b in raw_name):
+        raise ValueError(f"malformed trailer field line: name {raw_name!r} is not a token")
+    name = raw_name.lower()
+    if name in FORBIDDEN_TRAILER_FIELDS:
+        raise ValueError(f"forbidden trailer field: {name!r}")
+    if any(b in raw_value for b in _FIELD_VALUE_FORBIDDEN_BYTES):
+        raise ValueError(f"trailer field value contains CR, LF, or NUL: {name!r}")
+    return name, raw_value.strip(b" \t")
+
+
 def encode_chunked(
     body: bytes,
     *,
@@ -286,9 +304,7 @@ def encode_chunked(
         parts.append(size_line + chunk + b"\r\n")
     parts.append(b"0\r\n")
     for raw_name, raw_value in trailers:
-        name = raw_name.strip().lower()
-        if not name or name in FORBIDDEN_TRAILER_FIELDS:
-            raise ValueError(f"forbidden trailer field: {raw_name!r}")
+        _validated_trailer(raw_name, raw_value)
         parts.append(raw_name + b": " + raw_value + b"\r\n")
     parts.append(b"\r\n")
     return b"".join(parts)
@@ -328,13 +344,9 @@ def decode_chunked_with_trailers(wire: bytes) -> DecodedChunked:
                     return DecodedChunked(body=bytes(out), trailers=tuple(trailers))
                 field_line = wire[offset:trailer_end]
                 colon = field_line.find(b":")
-                if colon <= 0 or field_line[colon - 1 : colon] in (b" ", b"\t"):
+                if colon == -1:
                     raise ValueError("malformed trailer field line")
-                name = field_line[:colon].lower()
-                if name in FORBIDDEN_TRAILER_FIELDS:
-                    raise ValueError(f"forbidden trailer field: {name!r}")
-                value = field_line[colon + 1 :].strip(b" \t")
-                trailers.append((name, value))
+                trailers.append(_validated_trailer(field_line[:colon], field_line[colon + 1 :]))
                 offset = trailer_end + 2
         data_end = offset + size
         if data_end + 2 > len(wire) or wire[data_end : data_end + 2] != b"\r\n":
@@ -482,7 +494,7 @@ Captured output from running `uv run --frozen pytest tests/f01_http_semantics_an
   Defense in depth requires four controls:
   1. Reject any request containing both `Content-Length` and `Transfer-Encoding` with `400 Bad Request` and close the connection `(RFC 9112 Section 6.1)`.
   2. Reject multiple `Content-Length` headers or non-digit `Content-Length` values (`+42`, `-1`, `0x10`) `(RFC 9112 Section 6.3)`.
-  3. Enforce strict `CRLF` line termination and chunk footer verification (`b"\r\n"`), rejecting bare `CR` anywhere in headers or chunk extensions `(RFC 9112 Section 2.2)` and `(RFC 9112 Section 7.1.1)`.
+  3. Enforce strict `CRLF` line termination and chunk footer verification (`b"\r\n"`), treating bare `CR` anywhere in headers or chunk extensions as invalid rather than replacing it with `SP` `(RFC 9112 Section 2.2)`.
   4. Prefer normalizing traffic to HTTP/2 (`RFC 9113`) at the edge load balancer or speaking HTTP/2 end-to-end so text-based `Content-Length` vs `Transfer-Encoding` ambiguity is eliminated at the wire framing layer.
 - **Unbounded header and chunk-extension memory exhaustion (`Slowloris` and `h11_max_incomplete_size`)**:
   Before an HTTP/1.1 parser can emit `h11.Request`, it must buffer the entire header block up to `b"\r\n\r\n"`; similarly, before emitting `h11.Data` for a chunk, it must buffer the entire `chunk-size [ chunk-ext ] CRLF` line.
@@ -510,7 +522,7 @@ Consequently, the architectural standard for production Python API platforms is:
 > [!question] L5: How does an HTTP/1.1 client know where a `200 OK` response body ends when the server sends neither `Content-Length` nor `Transfer-Encoding: chunked`, and what does that mean for connection reuse?
 >
 > > [!success]- Answer
-> > Under `(RFC 9112 Section 6.3)` step 7, a response message with neither `Transfer-Encoding` nor `Content-Length` (and whose status code and request method allow a body) is framed by the server closing the underlying TCP connection (`EOF`).
+> > Under `(RFC 9112 Section 6.3)` step 8, a response message with neither `Transfer-Encoding` nor `Content-Length` (and whose status code and request method allow a body) is framed by the server closing the underlying TCP connection (`EOF`).
 > > In `h11 0.16.0`, `Connection._body_framing` returns `("http/1.0", ())` and selects `Http10Reader`, which emits `Data` events until `receive_data(b"")` signals socket closure `(h11 0.16.0 h11/_connection.py, _body_framing)`.
 > > Because the message boundary is indistinguishable from socket closure, the persistent connection cannot be reused for a subsequent request and transitions to `MUST_CLOSE` / `CLOSED` `(RFC 9112 Section 9.3)`.
 > >

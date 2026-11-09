@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 _HEX_BYTES = frozenset(b"0123456789abcdefABCDEF")
 _MAX_CHUNK_HEX_DIGITS = 20
+_TOKEN_BYTES = frozenset(
+    b"!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+_FIELD_VALUE_FORBIDDEN_BYTES = b"\r\n\x00"
 FORBIDDEN_TRAILER_FIELDS: frozenset[bytes] = frozenset(
     {b"host", b"content-length", b"transfer-encoding", b"trailer", b"authorization", b"te"}
 )
@@ -37,6 +41,18 @@ class H11ExchangeSummary:
     reusable: bool
 
 
+def _validated_trailer(raw_name: bytes, raw_value: bytes) -> tuple[bytes, bytes]:
+    """Return the lowercased name and OWS-stripped value of one trailer field, or raise."""
+    if not raw_name or not all(b in _TOKEN_BYTES for b in raw_name):
+        raise ValueError(f"malformed trailer field line: name {raw_name!r} is not a token")
+    name = raw_name.lower()
+    if name in FORBIDDEN_TRAILER_FIELDS:
+        raise ValueError(f"forbidden trailer field: {name!r}")
+    if any(b in raw_value for b in _FIELD_VALUE_FORBIDDEN_BYTES):
+        raise ValueError(f"trailer field value contains CR, LF, or NUL: {name!r}")
+    return name, raw_value.strip(b" \t")
+
+
 def encode_chunked(
     body: bytes,
     *,
@@ -53,9 +69,7 @@ def encode_chunked(
         parts.append(size_line + chunk + b"\r\n")
     parts.append(b"0\r\n")
     for raw_name, raw_value in trailers:
-        name = raw_name.strip().lower()
-        if not name or name in FORBIDDEN_TRAILER_FIELDS:
-            raise ValueError(f"forbidden trailer field: {raw_name!r}")
+        _validated_trailer(raw_name, raw_value)
         parts.append(raw_name + b": " + raw_value + b"\r\n")
     parts.append(b"\r\n")
     return b"".join(parts)
@@ -95,13 +109,9 @@ def decode_chunked_with_trailers(wire: bytes) -> DecodedChunked:
                     return DecodedChunked(body=bytes(out), trailers=tuple(trailers))
                 field_line = wire[offset:trailer_end]
                 colon = field_line.find(b":")
-                if colon <= 0 or field_line[colon - 1 : colon] in (b" ", b"\t"):
+                if colon == -1:
                     raise ValueError("malformed trailer field line")
-                name = field_line[:colon].lower()
-                if name in FORBIDDEN_TRAILER_FIELDS:
-                    raise ValueError(f"forbidden trailer field: {name!r}")
-                value = field_line[colon + 1 :].strip(b" \t")
-                trailers.append((name, value))
+                trailers.append(_validated_trailer(field_line[:colon], field_line[colon + 1 :]))
                 offset = trailer_end + 2
         data_end = offset + size
         if data_end + 2 > len(wire) or wire[data_end : data_end + 2] != b"\r\n":

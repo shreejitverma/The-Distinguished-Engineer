@@ -4,6 +4,8 @@ Pure checks (`traceability`, `ascii`) run against temporary git repositories wit
 Subprocess checks (`lock`, `format`, `lint`, `types`, `contracts`, `pytest`) use fake `uv` and `buf`
 executables on PATH that log their arguments and return controlled exit codes, so the real `uv` is
 never invoked and every check in `check_api_labs.py` has a test that fails if the check is removed.
+`LabTierMarkerTest` runs the labs' real pytest through `uv` against the real `labs/tests/conftest.py`
+and is skipped only when `uv` is not on PATH.
 """
 
 from __future__ import annotations
@@ -27,6 +29,8 @@ SLUG_01 = "f01_http_semantics_and_wire_protocols"
 NOTE_STEM = "HTTP-1-1-Framing-Keep-Alive-and-Chunked-Encoding"
 TEST_NAME = "test_http_1_1_framing_keep_alive_and_chunked_encoding.py"
 GIT = shutil.which("git")
+UV = shutil.which("uv")
+REAL_LABS = Path(__file__).resolve().parent.parent.parent / LABS
 
 SEED_NOTE = f"""---
 type: concept
@@ -58,6 +62,7 @@ case "$*" in
     exit "${{FAKE_LINT_RC:-0}}"
     ;;
   "run --frozen mypy src tests")
+    if [ -n "${{FAKE_MYPY_SIGKILL:-}}" ]; then kill -9 $$; fi
     exit "${{FAKE_MYPY_RC:-0}}"
     ;;
   "run --frozen pyright src tests")
@@ -233,6 +238,19 @@ class CheckApiLabsTest(unittest.TestCase):
         self.assertIn("FAIL ascii", result.stdout)
         self.assertIn("em or en dash", result.stdout)
 
+    def test_ascii_fails_when_only_non_ascii_is_a_unicode_line_separator(self) -> None:
+        self.add_valid_workspace()
+        self.add(
+            f"{LABS}/src/api_labs/{SLUG_01}/chunked.py",
+            "x = 1  # separator\u2028here\ny = 2\n",
+        )
+        result = self.run_tool("--only", "ascii")
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn(
+            f"{LABS}/src/api_labs/{SLUG_01}/chunked.py:1: contains non-ASCII characters",
+            result.stdout,
+        )
+
     def test_missing_uv_exits_2_for_non_structural_checks(self) -> None:
         self.add_valid_workspace()
         result = self.run_tool("--only", "lock")
@@ -253,7 +271,7 @@ class CheckApiLabsTest(unittest.TestCase):
                 "run --frozen ruff check src tests",
                 "run --frozen mypy src tests",
                 "run --frozen pyright src tests",
-                "run --frozen pytest -m unit or socket --cov --cov-report=term-missing --cov-fail-under=95",
+                "run --frozen pytest --cov --cov-report=term-missing --cov-fail-under=95",
             ],
         )
 
@@ -281,9 +299,15 @@ class CheckApiLabsTest(unittest.TestCase):
     def test_types_check_failure_fails_gate(self) -> None:
         self.add_valid_workspace()
         self.install_fake_uv()
-        result = self.run_tool("--only", "types", FAKE_PYRIGHT_RC="1")
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("result: FAIL (types)", result.stdout)
+        for env in (
+            {"FAKE_PYRIGHT_RC": "1"},
+            {"FAKE_MYPY_RC": "1"},
+            {"FAKE_MYPY_SIGKILL": "1"},
+        ):
+            with self.subTest(**env):
+                result = self.run_tool("--only", "types", **env)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("result: FAIL (types)", result.stdout)
 
     def test_contracts_validates_openapi_and_proto_fixtures_and_requires_buf(
         self,
@@ -310,19 +334,12 @@ class CheckApiLabsTest(unittest.TestCase):
         self.assertEqual(fail_openapi.returncode, 1)
         self.assertIn("result: FAIL (contracts)", fail_openapi.stdout)
 
-    def test_pytest_check_failure_and_containers_flag_and_timeout(self) -> None:
+    def test_pytest_check_failure_and_timeout(self) -> None:
         self.add_valid_workspace()
         self.install_fake_uv()
         fail_res = self.run_tool("--only", "pytest", FAKE_PYTEST_RC="1")
         self.assertEqual(fail_res.returncode, 1)
         self.assertIn("result: FAIL (pytest)", fail_res.stdout)
-
-        ok_containers = self.run_tool("--only", "pytest", "--containers")
-        self.assertEqual(ok_containers.returncode, 0)
-        self.assertIn(
-            "run --frozen pytest --cov --cov-report=term-missing --cov-fail-under=95",
-            self.calls("uv"),
-        )
 
         stray = (
             f"import os, time; os.setpgid(0, 0); "
@@ -347,6 +364,71 @@ class CheckApiLabsTest(unittest.TestCase):
         if pid_file.exists():
             with contextlib.suppress(ProcessLookupError):
                 os.kill(int(pid_file.read_text()), 9)
+
+
+@unittest.skipUnless(UV, "uv is required to run the labs' real pytest")
+class LabTierMarkerTest(unittest.TestCase):
+    """The labs conftest must turn a test without exactly one tier marker into pytest exit 4."""
+
+    def run_lab_pytest(self, source: str) -> subprocess.CompletedProcess[str]:
+        assert UV is not None
+        with tempfile.TemporaryDirectory() as tmp:
+            tests = Path(tmp) / "tests"
+            tests.mkdir()
+            shutil.copy(REAL_LABS / "tests" / "conftest.py", tests / "conftest.py")
+            (tests / "test_tiers.py").write_text(source)
+            return subprocess.run(
+                [
+                    UV,
+                    "run",
+                    "--frozen",
+                    "--project",
+                    str(REAL_LABS),
+                    "pytest",
+                    "-p",
+                    "no:cacheprovider",
+                    "-c",
+                    str(REAL_LABS / "pyproject.toml"),
+                    "--rootdir",
+                    tmp,
+                    str(tests),
+                ],
+                cwd=tmp,
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=False,
+            )
+
+    def test_unmarked_test_is_a_usage_error_not_a_deselection(self) -> None:
+        result = self.run_lab_pytest(
+            "import pytest\n\n"
+            "@pytest.mark.unit\ndef test_marked() -> None:\n    pass\n\n"
+            "def test_unmarked() -> None:\n    pass\n"
+        )
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 4, output)
+        self.assertIn("test_tiers.py::test_unmarked: tier markers []", output)
+        self.assertNotIn("test_marked:", output)
+
+    def test_two_tier_markers_are_a_usage_error(self) -> None:
+        result = self.run_lab_pytest(
+            "import pytest\n\n"
+            "@pytest.mark.unit\n@pytest.mark.socket\ndef test_both() -> None:\n    pass\n"
+        )
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 4, output)
+        self.assertIn("test_tiers.py::test_both: tier markers ['socket', 'unit']", output)
+
+    def test_one_tier_marker_per_test_runs_every_test(self) -> None:
+        result = self.run_lab_pytest(
+            "import pytest\n\n"
+            "@pytest.mark.unit\ndef test_unit() -> None:\n    pass\n\n"
+            "@pytest.mark.socket\ndef test_socket() -> None:\n    pass\n"
+        )
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("2 passed", output)
 
 
 if __name__ == "__main__":

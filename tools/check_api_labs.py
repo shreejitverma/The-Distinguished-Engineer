@@ -21,9 +21,10 @@ Checks, in execution order:
                   `openapi-spec-validator` via `uv run --frozen` and tracked files under
                   `labs/fixtures/proto/` with `buf lint` (missing `fixtures/` directories pass
                   with a printed note)
-    pytest        `uv run --frozen pytest -m "unit or socket" --cov --cov-report=term-missing
-                  --cov-fail-under=95` by default, or all markers with `--containers`, bounded by
-                  `LAB_SUITE_TIMEOUT` (default 900 seconds) with its process group killed on expiry
+    pytest        `uv run --frozen pytest --cov --cov-report=term-missing --cov-fail-under=95`,
+                  bounded by `LAB_SUITE_TIMEOUT` (default 900 seconds) with its process group killed
+                  on expiry; `labs/tests/conftest.py` fails collection for any test without exactly
+                  one tier marker (`unit` or `socket`), so no lab test is silently deselected
 
 Structural checks (`traceability`, `ascii`) run in pure Python without `uv`.
 A missing required tool (`uv`, or `buf` when proto fixtures exist) is an error (exit 2), never a skip.
@@ -32,7 +33,6 @@ Exit 0 when all selected checks pass, 1 on any check finding, 2 on a missing too
 Usage (from the repo root):
     python3 tools/check_api_labs.py
     python3 tools/check_api_labs.py --only traceability --only ascii
-    python3 tools/check_api_labs.py --containers
 """
 
 from __future__ import annotations
@@ -243,7 +243,7 @@ def check_ascii(repo: Path, files: list[str]) -> list[str]:
         if raw.isascii():
             continue
         text = raw.decode("utf-8", errors="replace")
-        for lineno, line in enumerate(text.splitlines(), 1):
+        for lineno, line in enumerate(text.split("\n"), 1):
             if "\u2014" in line or "\u2013" in line:
                 problems.append(f"{path}:{lineno}: contains em or en dash (non-ASCII)")
             elif not line.isascii():
@@ -307,11 +307,6 @@ def main(argv: list[str] | None = None) -> int:
         choices=ALL_CHECKS,
         metavar="CHECK",
         help=f"run only the named check(s): {', '.join(ALL_CHECKS)}",
-    )
-    ap.add_argument(
-        "--containers",
-        action="store_true",
-        help="include @pytest.mark.container tests in the pytest check",
     )
     args = ap.parse_args(argv)
     repo = args.repo.resolve()
@@ -416,7 +411,7 @@ def main(argv: list[str] | None = None) -> int:
                 ["uv", "run", "--frozen", "pyright", "src", "tests"], labs_dir
             )
             combined_out = "\n".join(out for out in (mypy_out, pyright_out) if out)
-            report("types", max(mypy_rc, pyright_rc), combined_out)
+            report("types", 1 if mypy_rc or pyright_rc else 0, combined_out)
         elif check == "contracts":
             contract_rc = 0
             contract_outs: list[str] = []
@@ -441,13 +436,11 @@ def main(argv: list[str] | None = None) -> int:
                         contract_outs.append(out)
             report("contracts", contract_rc, "\n".join(contract_outs))
         elif check == "pytest":
-            marker_args = [] if args.containers else ["-m", "unit or socket"]
             pytest_cmd = [
                 "uv",
                 "run",
                 "--frozen",
                 "pytest",
-                *marker_args,
                 "--cov",
                 "--cov-report=term-missing",
                 "--cov-fail-under=95",

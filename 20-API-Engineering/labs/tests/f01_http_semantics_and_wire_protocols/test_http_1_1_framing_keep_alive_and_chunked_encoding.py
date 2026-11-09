@@ -70,6 +70,32 @@ def test_chunked_trailers_roundtrip_and_forbidden_field_rejection() -> None:
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "value", "match"),
+    [
+        (b"X-A", b"1\r\nContent-Length: 5", "contains CR, LF, or NUL"),
+        (b"X-A", b"1\nContent-Length: 5", "contains CR, LF, or NUL"),
+        (b"X-A", b"1\rContent-Length: 5", "contains CR, LF, or NUL"),
+        (b"X-A", b"1\x00", "contains CR, LF, or NUL"),
+        (b"X-A: 1\r\nContent-Length", b"5", "malformed trailer field line"),
+        (b" Host", b"a", "malformed trailer field line"),
+        (b"X A", b"1", "malformed trailer field line"),
+        (b"", b"1", "malformed trailer field line"),
+    ],
+)
+def test_encode_rejects_trailer_field_line_injection(name: bytes, value: bytes, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        encode_chunked(b"x", trailers=[(name, value)])
+
+
+@pytest.mark.unit
+def test_decode_rejects_bare_lf_smuggled_inside_trailer_value() -> None:
+    wire = b"1\r\nx\r\n0\r\nX-A: 1\nContent-Length: 5\r\n\r\n"
+    with pytest.raises(ValueError, match="contains CR, LF, or NUL"):
+        decode_chunked_with_trailers(wire)
+
+
+@pytest.mark.unit
 def test_h11_server_reassembles_chunked_request_body_and_trailers() -> None:
     payload = b'{"event":"deploy","seq":42,"notes":"chunked wire test"}'
     chunked_body = encode_chunked(

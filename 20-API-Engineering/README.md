@@ -80,7 +80,8 @@ Inside a folder, the Learning order list in its README is the order to read.
 
 HTTP and API behavior is checkable in software, so these notes check it.
 Every worked example is a lab under [labs/](labs/README.md) with an automated pytest suite, Ruff formatted and linted, and type-checked under strict Mypy and Pyright.
-Runtime and portability claims are proven across the CPython matrix (3.12, 3.13, 3.14, 3.15, and 3.15t free-threaded) and container images on Debian and Alpine (musl libc).
+Today the gate runs the labs on one interpreter (CPython 3.14, from `labs/.python-version`) and no container images are checked in yet.
+Before a note reaches `solid`, its runtime and portability claims must also be proven across the CPython matrix (3.12, 3.13, 3.14, 3.15, and 3.15t free-threaded) and container images on Debian and Alpine (musl libc), and a note records any leg it could not run in its Portability section.
 Each note is drafted from primary sources and then fact-checked by an independent reviewer before it is marked `solid`; [STYLE.md](STYLE.md) is the contract.
 `python3 tools/check_api_labs.py` gates the labs in CI on every change.
 

@@ -58,7 +58,7 @@ Every executable claim is backed by a deterministic lab in `labs/` and gated in 
 The lab harness is a single uv-locked workspace where every note maps to one pytest test module under `labs/tests/fNN_<slug>/test_<stem>.py`.
 Labs are deterministic and hermetic: every test must be able to fail when the implementation or invariant is broken, and cannot rely on unpinned state or external internet access.
 The worked example in every note is real, runnable lab code from `labs/src/api_labs/`, not pseudocode or unverified snippets.
-Claims are proven across the pinned CPython matrix (3.12.16, 3.13.18, 3.14.10, 3.15.2, and 3.15.2t free-threaded) and container environments (Debian Trixie and Alpine musl libc).
+The CI gate runs the labs on the workspace interpreter (`labs/.python-version`); a note reaches `solid` only after its runtime and portability claims are also proven across the pinned CPython matrix (3.12.16, 3.13.18, 3.14.10, 3.15.2, and 3.15.2t free-threaded) and container environments (Debian Trixie and Alpine musl libc), with any leg it could not run recorded in its Portability section.
 Never invent an HTTP header, status code, RFC section, configuration flag, source function, CVE, library release, benchmark result, or citation.
 Cite RFC sections explicitly, for example `(RFC 9110 Section 9.2.2)`.
 Cite library implementation source as `(<package> <version> <path>, <symbol>)`, for example `(pydantic-core 2.50.4 src/validators/model.rs, validate)`, only after reading the actual source file in that release.
