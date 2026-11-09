@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/"
@@ -25,6 +25,17 @@ sources:
   - "https://github.com/fastapi/fastapi/pull/14301"
   - "https://github.com/encode/starlette"
   - "https://github.com/litestar-org/litestar"
+  - "https://peps.python.org/pep-0255/"
+  - "https://github.com/fastapi/fastapi/pull/4575"
+  - "https://raw.githubusercontent.com/emmett-framework/granian/v2.8.7/README.md"
+  - "https://github.com/pgjones/hypercorn"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.73.0/fastapi/applications.py"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.105.0/fastapi/middleware/asyncexitstack.py"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.110.0/fastapi/routing.py"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.117.1/fastapi/routing.py"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.118.0/fastapi/routing.py"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.121.0/fastapi/dependencies/utils.py"
+  - "https://raw.githubusercontent.com/fastapi/fastapi/0.121.1/fastapi/dependencies/utils.py"
 ---
 
 # Generator (yield) Dependencies in Depth: AsyncExitStack Teardown, Exception Handling, and scope='function' vs scope='request'
@@ -39,7 +50,7 @@ Part of [FastAPI Internals and Patterns](README.md) in [API Engineering](../READ
 - Mechanism: `solve_dependencies()` converts `async def` generator dependencies via `contextlib.asynccontextmanager` and synchronous `def` generator dependencies via `contextmanager_in_threadpool(contextlib.contextmanager(call)(**sub_values))`, pushing their `__aexit__` callbacks onto `scope["fastapi_function_astack"]` (`scope="function"`) or `scope["fastapi_inner_astack"]` (`scope="request"`).
 - Contract rule: In `request_response`, `fastapi_function_astack` exits immediately after the endpoint returns its `Response` object (before `http.response.start`, body streaming, and `BackgroundTasks`), whereas `fastapi_inner_astack` exits only after `await response(scope, receive, send)` finishes both body transmission and `BackgroundTasks`.
 - The trap: Raising a handled exception (such as `HTTPException`) after `yield` in a `scope="request"` dependency on a successful endpoint return triggers `RuntimeError("Caught handled exception, but response already started.")` in Starlette's `wrap_app_handling_exceptions`, while swallowing an endpoint exception in `except` without re-raising triggers `FastAPIError("Response not awaited...")`.
-- Portability fact: FastAPI moved `yield` cleanup before response sending in `0.106.0` (breaking `StreamingResponse`), reverted default `yield` cleanup to post-response in `0.118.0`, and introduced `Depends(..., scope="function" | "request")` in `0.121.0` (`(as of 2026-11)`).
+- Portability fact: FastAPI moved `yield` cleanup before response sending in `0.106.0` (breaking use of those resources in `BackgroundTasks` and `StreamingResponse`), reverted default `yield` cleanup to post-response in `0.118.0`, and introduced `Depends(..., scope="function" | "request")` in `0.121.0` (`(as of 2026-11)`).
 - When not to use it: Do not use `scope="request"` (the default) for database sessions or locks that are only needed inside the endpoint function when the endpoint returns a slow `StreamingResponse` or long `BackgroundTasks`, and never rely on post-`yield` code in `scope="request"` to commit transactions that must turn commit failures into `HTTPException` responses.
 
 ## Mental model
@@ -141,9 +152,9 @@ async def _solve_generator(
 ```
 
 For an `async def` generator dependency (defined by `(PEP 525)`), `contextlib.asynccontextmanager` wraps the async generator in `_AsyncGeneratorContextManager` `(CPython 3.14.10 Lib/contextlib.py, _AsyncGeneratorContextManager)`.
-Calling `await stack.enter_async_context(cm)` invokes `await cm.__aenter__()` (which runs `await anext(self.gen)` to advance the coroutine to its `yield` expression and returns the yielded value) and appends `(False, MethodType(cm.__aexit__, cm))` to `stack._exit_callbacks`, a `collections.deque` `(CPython 3.14.10 Lib/contextlib.py, AsyncExitStack.enter_async_context)`.
+Calling `await stack.enter_async_context(cm)` invokes `await cm.__aenter__()` (which runs `await anext(self.gen)` to advance the coroutine to its `yield` expression and returns the yielded value) and, via `_push_async_cm_exit()`, appends `(False, MethodType(type(cm).__aexit__, cm))` to `stack._exit_callbacks`, a `collections.deque` `(CPython 3.14.10 Lib/contextlib.py, AsyncExitStack.enter_async_context)`.
 
-For a synchronous `def` generator dependency (defined by `(PEP 343)`), `contextlib.contextmanager` produces a synchronous `_GeneratorContextManager`, which FastAPI lifts into an async context manager via `contextmanager_in_threadpool()` (simplified excerpt from `(fastapi 0.162.0 fastapi/concurrency.py, contextmanager_in_threadpool)`):
+For a synchronous `def` generator dependency (generators are defined by `(PEP 255)`; the generator-based context manager template comes from `(PEP 343)`), `contextlib.contextmanager` produces a synchronous `_GeneratorContextManager`, which FastAPI lifts into an async context manager via `contextmanager_in_threadpool()` (simplified excerpt from `(fastapi 0.162.0 fastapi/concurrency.py, contextmanager_in_threadpool)`):
 
 ```python
 @asynccontextmanager
@@ -168,17 +179,18 @@ async def contextmanager_in_threadpool(
 ```
 
 Notice two critical details in `contextmanager_in_threadpool`:
-1. `cm.__enter__` runs via `starlette.concurrency.run_in_threadpool`, which uses AnyIO's default threadpool `CapacityLimiter(40)`.
+1. `cm.__enter__` runs via `starlette.concurrency.run_in_threadpool`, which calls `anyio.to_thread.run_sync(func)` with no limiter and therefore uses AnyIO's default threadpool `CapacityLimiter(40)` `(starlette 1.10.0 starlette/concurrency.py, run_in_threadpool)` `(anyio 4.16.0 anyio/_backends/_asyncio.py, AsyncIOBackend.current_default_thread_limiter)`.
    However, `cm.__exit__` runs with a freshly allocated `exit_limiter = CapacityLimiter(1)` (introduced in FastAPI `0.82.0`, PR `#5122`).
    If `cm.__exit__` shared the default 40-thread limiter, a burst of 40 concurrent requests waiting to acquire a database connection in `cm.__enter__` could starve the `cm.__exit__` calls of in-flight requests trying to *release* connections back to the pool, causing a classic two-pool lock-order deadlock.
    See [[Async-Def-vs-Def-Endpoints-and-AnyIO-Threadpool-Limiter-Semantics]] for threadpool limiter mechanics.
 2. Line 30 catches `except Exception as e:` rather than `except BaseException as e:`.
    Because `asyncio.CancelledError` inherits from `BaseException` rather than `Exception` (since Python 3.8), if a task is cancelled while inside `AsyncExitStack`, `contextmanager_in_threadpool` does not catch `CancelledError` and never schedules `cm.__exit__` in the worker threadpool.
-   Instead, when CPython's reference counter deallocates the abandoned `_GeneratorContextManager` frame, `gen_dealloc` invokes `gen.close()`, throwing `GeneratorExit` into the synchronous generator directly on the main event-loop thread.
+   Instead, when the `contextmanager_in_threadpool` frame unwinds and drops the last reference to the `_GeneratorContextManager`, CPython finalizes the suspended synchronous generator, whose finalizer calls `close()` and throws `GeneratorExit` into it directly on the main event-loop thread.
+   Observed on CPython `3.14.6` (`fastapi 0.162.0`, `anyio 4.16.0`): cancelling a task holding such a dependency on an `AsyncExitStack` logged `GeneratorExit` in the generator on `threading.main_thread()`, followed by its `finally` on the same thread, before the cancelled task finished, and `cm.__exit__` never ran in a worker thread.
 
 ### The two dependency stacks in `request_response` and wire framing constraints
 
-The exact teardown timing of `scope="function"` versus `scope="request"` is governed by the 20 lines of `request_response` in `fastapi/routing.py` (simplified excerpt from `(fastapi 0.162.0 fastapi/routing.py, request_response)`):
+The exact teardown timing of `scope="function"` versus `scope="request"` is governed by the inner `app` closure of `request_response` in `fastapi/routing.py` (simplified excerpt from `(fastapi 0.162.0 fastapi/routing.py, request_response)`):
 
 ```python
 async def app(scope: Scope, receive: Receive, send: Send) -> None:
@@ -242,44 +254,46 @@ Tracing the wire and ASGI state machine across this boundary explains every timi
    If a sub-dependency, request validation, or the endpoint function raises an exception `exc`, `await f(request)` aborts *before* `await response(scope, receive, send)` is reached.
    First, `function_stack.__aexit__(type(exc), exc, exc.__traceback__)` throws `exc` into every active `scope="function"` generator via `gen.athrow(value)` (or `cm.__exit__` in a worker thread).
    Next, the uncaught (or replaced) exception propagates into `request_stack.__aexit__(type(exc), exc, exc.__traceback__)`, throwing it into every active `scope="request"` generator *before* `http.response.start` is ever sent (`response_started == False`).
-   If multiple dependencies in a chain raise during teardown, `AsyncExitStack.__aexit__` chains them via `_fix_exception_context(new_exc, exc)`, setting `new_exc.__context__ = old_exc` so the full failure chain is preserved `(CPython 3.14.10 Lib/contextlib.py, AsyncExitStack.__aexit__)`.
+   If multiple dependencies in a chain raise during teardown, `AsyncExitStack.__aexit__` chains them via `_fix_exception_context(new_exc, exc)`, which walks `new_exc.__context__` to the end of its chain and sets that link to the previous exception so the full failure chain is preserved `(CPython 3.14.10 Lib/contextlib.py, AsyncExitStack.__aexit__)`.
    However, if a `yield` dependency catches `exc` in an `except` block and neither re-raises nor raises a replacement exception, `_AsyncGeneratorContextManager.__aexit__` catches the resulting `StopAsyncIteration` and returns `True` (suppressing the exception per `(PEP 343)` and `(PEP 492)`).
-   `AsyncExitStack.__aexit__` then suppresses the exception, execution resumes after `async with AsyncExitStack() as request_stack:` with `response_awaited == False`, and FastAPI raises `FastAPIError("Response not awaited...")` (added in FastAPI `0.110.0`, PR `#11191`).
+   `AsyncExitStack.__aexit__` then suppresses the exception, execution resumes after `async with AsyncExitStack() as request_stack:` with `response_awaited == False`, and FastAPI raises `FastAPIError("Response not awaited...")`.
+   The guard first appeared in FastAPI `0.110.0` (PR `#11191`) as `FastAPIError("No response object was returned...")` inside `get_request_handler()`; the current `response_awaited` check and message arrived with the `request_response` copy in `0.118.0` (PR `#14099`) `(fastapi 0.110.0 fastapi/routing.py, get_request_handler)` `(fastapi 0.118.0 fastapi/routing.py, request_response)`.
 
 ## Numbers and limits
 
-All runtime measurements below were captured on an Apple M3 Pro (`Darwin 27.2.0 arm64`, macOS `27.2`) under CPython `3.14.10` (`fastapi 0.162.0`, `starlette 1.10.0`, `anyio 4.16.0`) using `uv run --frozen python`.
+All runtime measurements below were re-measured on an Apple M3 Pro (`Darwin 27.2.0 arm64`, macOS `27.2`) under the lab workspace interpreter CPython `3.14.6` (`fastapi 0.162.0`, `starlette 1.10.0`, `anyio 4.16.0`) with a throwaway script run from `labs/` as `uv run --frozen python measure.py`; CPython `3.14.6` and `3.14.10` ship a byte-identical `Lib/contextlib.py`.
 
 | Metric or parameter | Value | Source / measurement | Operational implication |
 |---|---:|---|---|
 | Per-request `AsyncExitStack` instances | `3` (`fastapi_middleware_astack`, `fastapi_inner_astack`, `fastapi_function_astack`) | `(fastapi 0.162.0 fastapi/middleware/asyncexitstack.py, AsyncExitStackMiddleware.__call__)`; `(fastapi 0.162.0 fastapi/routing.py, request_response)` | Allocated on every HTTP and WebSocket request even when an endpoint declares zero `yield` dependencies |
-| Shallow memory per `AsyncExitStack` + `deque` | `808 B` (`48 B` instance + `760 B` `collections.deque`) | Measured via `sys.getsizeof(stack) + sys.getsizeof(stack._exit_callbacks)` on CPython `3.14.10` (`arm64`) | `2,424 B` baseline `AsyncExitStack` allocation per in-flight request across the 3 stacks |
-| Shallow memory per `_AsyncGeneratorContextManager` / `_GeneratorContextManager` | `48 B` | Measured via `sys.getsizeof` on CPython `3.14.10` (`arm64`) | Minimal wrapper overhead; ` __aenter__` deletes `self.args`, `self.kwds`, and `self.func` immediately upon entry `(CPython 3.14.10 Lib/contextlib.py, _AsyncGeneratorContextManager.__aenter__)` |
-| Shallow memory per `Dependant` (`slots=True`) | `184 B` | `(fastapi 0.162.0 fastapi/dependencies/models.py, Dependant)`, measured via `sys.getsizeof` | `19` fixed slot descriptors built at startup and reused across requests (cloned only when `dependency_overrides` is active) |
+| Shallow memory per `AsyncExitStack` + `deque` | `808 B` (`48 B` instance + `760 B` `collections.deque`) | Measured via `sys.getsizeof(stack) + sys.getsizeof(stack._exit_callbacks)` on CPython `3.14.6` (`arm64`) | `2,424 B` baseline `AsyncExitStack` allocation per in-flight request across the 3 stacks |
+| Shallow memory per `_AsyncGeneratorContextManager` / `_GeneratorContextManager` | `48 B` | Measured via `sys.getsizeof` on CPython `3.14.6` (`arm64`) | Minimal wrapper overhead; `__aenter__` deletes `self.args`, `self.kwds`, and `self.func` immediately upon entry `(CPython 3.14.10 Lib/contextlib.py, _AsyncGeneratorContextManager.__aenter__)` |
+| Shallow memory per `Dependant` (`slots=True`) | `184 B` | `(fastapi 0.162.0 fastapi/dependencies/models.py, Dependant)`, measured via `sys.getsizeof(Dependant())` on CPython `3.14.6` | `19` slot fields; the tree is built at route registration and reused across requests, except that `solve_dependencies()` rebuilds overridden sub-dependants via `get_dependant()` on every request while `dependency_overrides` is non-empty `(fastapi 0.162.0 fastapi/dependencies/utils.py, solve_dependencies)` |
 | `_CALLABLE_CLASSIFICATION_CACHE_SIZE` | `4096` entries | `(fastapi 0.162.0 fastapi/dependencies/models.py, _CALLABLE_CLASSIFICATION_CACHE_SIZE)` | Max `@lru_cache` size for `_is_gen_callable_cached`, `_is_async_gen_callable_cached`, and `_is_coroutine_callable_cached`; dynamic per-request callables that exceed `4096` unique object IDs thrash the cache |
-| Default threadpool `CapacityLimiter` (`__enter__`) | `40` tokens | `(anyio 4.16.0)`, used by `run_in_threadpool(cm.__enter__)` | At most 40 synchronous `def` dependency `__enter__` calls execute concurrently per event loop unless overridden |
-| Dedicated teardown `exit_limiter` (`__exit__`) | `1` token per call (`CapacityLimiter(1)`, `64 B`) | `(fastapi 0.162.0 fastapi/concurrency.py, contextmanager_in_threadpool)` | Every sync `def` generator dependency allocates a fresh 1-token limiter so `__exit__` bypasses the 40-thread pool queue and cannot deadlock |
-| `async def` generator dependency enter + exit latency | `1.74 us/op` | Measured over `2,000` iterations (10-trial average) of `AsyncExitStack.enter_async_context(asynccontextmanager(async_dep)())` on Apple M3 Pro, CPython `3.14.10` | Pure coroutine suspension on the event loop with zero thread switches |
-| `def` sync generator dependency enter + exit latency | `160.31 us/op` (`92.0x` slower) | Measured over `2,000` iterations (10-trial average) of `AsyncExitStack.enter_async_context(contextmanager_in_threadpool(contextmanager(sync_dep)()))` on Apple M3 Pro, CPython `3.14.10` | Pays two `anyio.to_thread.run_sync` worker-thread round trips (`__enter__` and `__exit__`) plus `CapacityLimiter(1)` creation |
+| Default threadpool `CapacityLimiter` (`__enter__`) | `40` tokens | `(anyio 4.16.0 anyio/_backends/_asyncio.py, AsyncIOBackend.current_default_thread_limiter)`, used by `run_in_threadpool(cm.__enter__)`; `anyio.to_thread.current_default_thread_limiter().total_tokens == 40` measured on CPython `3.14.6` | At most 40 synchronous `def` dependency `__enter__` calls execute concurrently per event loop unless overridden |
+| Dedicated teardown `exit_limiter` (`__exit__`) | `1` token per call (`CapacityLimiter(1)`, `64 B` by `sys.getsizeof` on CPython `3.14.6`) | `(fastapi 0.162.0 fastapi/concurrency.py, contextmanager_in_threadpool)` | Every sync `def` generator dependency allocates a fresh 1-token limiter so `__exit__` never waits on the shared 40-token limiter and cannot deadlock behind `__enter__` calls |
+| `async def` generator dependency enter + exit latency | `2.27 us/op` (second run `2.34 us/op`) | Mean of 10 trials x `2,000` iterations, each iteration `async with AsyncExitStack() as st: await st.enter_async_context(asynccontextmanager(async_dep)())`, Apple M3 Pro, CPython `3.14.6` | Pure coroutine suspension on the event loop with zero thread switches |
+| `def` sync generator dependency enter + exit latency | `137.67 us/op` (`60.8x` slower; second run `142.87 us/op`, `61.1x`) | Same loop with `contextmanager_in_threadpool(contextmanager(sync_dep)())`, Apple M3 Pro, CPython `3.14.6` | Pays two `anyio.to_thread.run_sync` worker-thread round trips (`__enter__` and `__exit__`) plus `CapacityLimiter(1)` creation |
 
 ## Portability
 
 | Runtime / component | Version / target | Behavior and verification status |
 |---|---|---|
-| CPython `3.12` | `3.12.13` (`macos-aarch64`) | Proven by lab (`uv run --python 3.12 pytest ...`: `7 passed in 0.37s`); `AsyncExitStack` and `_AsyncGeneratorContextManager` semantics identical |
-| CPython `3.13` | `3.13.18` (`macos-aarch64`) | Proven by lab (`uv run --python 3.13 pytest ...`: `7 passed in 0.35s`); `fastapi.dependencies.models` switches to `from inspect import iscoroutinefunction` at `sys.version_info >= (3, 13)` `(fastapi 0.162.0 fastapi/dependencies/models.py, iscoroutinefunction)` |
-| CPython `3.14` | `3.14.6` and `3.14.10` (`macos-aarch64`) | Proven by lab (`uv run --frozen pytest ...`: `7 passed in 0.15s`); `fastapi.dependencies.utils._get_signature` uses `annotationlib.Format.FORWARDREF` fallback at `sys.version_info >= (3, 14)` `(fastapi 0.162.0 fastapi/dependencies/utils.py, _get_signature)` |
-| CPython `3.15` (default GIL) | `3.15.2` (`macos-aarch64`) | Proven by lab (`PYTHONPATH=src uv run --no-project --python /opt/homebrew/bin/python3.15 --with fastapi==0.162.0 ... pytest ...`: `7 passed in 0.21s`) |
-| CPython `3.15t` (free-threaded) | `3.15.0b3+freethreaded` (`macos-aarch64`) | Proven by lab (`PYTHONPATH=src uv run --no-project --python 3.15t --with fastapi==0.162.0 ... pytest ...`: `7 passed in 0.16s`); sync `def` generator dependencies running in `anyio.to_thread` execute without the GIL, requiring thread-safe state in shared objects |
-| FastAPI `< 0.106.0` | `0.42.0` - `0.105.0` | Single `AsyncExitStack` in `AsyncExitStackMiddleware`; `yield` teardown ran *after* response and `BackgroundTasks`, so raising `HTTPException` after `yield` failed (PR `#10831`) |
-| FastAPI `0.106.0` - `0.117.1` | `0.106.0` (PR `#10831`), `0.110.0` (PR `#11191`) | Moved `fastapi_inner_astack` exit *before* `await response(scope, receive, send)`; enabled `HTTPException` after `yield` but closed DB sessions before `StreamingResponse` streamed chunks |
-| FastAPI `0.118.0` - `0.120.4` | `0.118.0` (PR `#14099`) | Moved `await response(scope, receive, send)` back *inside* `fastapi_inner_astack` so `StreamingResponse` kept resources open until streaming completed; no `scope="function"` option yet |
-| FastAPI `0.121.0` - `0.162.0` | `0.121.0` (PR `#14262`), `0.121.1` (PR `#14301`), `0.162.0` `(as of 2026-11)` | Dual-stack architecture (`fastapi_function_astack` for `scope="function"` before response, `fastapi_inner_astack` for `scope="request"` after response and `BackgroundTasks`), proven in lab |
-| ASGI servers (`Uvicorn`, `Hypercorn`, `Granian`) | `uvicorn 0.54.0`, `hypercorn 0.18.0`, `granian 2.8.7` | Both dependency `AsyncExitStack` instances live inside FastAPI's `request_response` ASGI callable; lifecycle order is server-independent across HTTP/1.1, HTTP/2, and HTTP/3, except on abrupt client disconnect where ASGI `send()` raises `OSError` / `ClientDisconnect` (`ASGI spec_version >= 2.4` in `(starlette 1.10.0 starlette/responses.py, StreamingResponse.__call__)`) |
+| CPython `3.12` | `3.12.13` (`macos-aarch64`) | Proven by lab (`PYTHONPATH=src uv run --no-project --python 3.12.13 --with fastapi==0.162.0 --with httpx==0.28.1 --with pytest==9.2.0 --with pytest-asyncio==1.4.1.post1 pytest <test> -q`: `8 passed in 0.19s`); the contract pin `3.12.16` is not installed on this machine and was not run |
+| CPython `3.13` | `3.13.18` (`macos-aarch64`) | Proven by lab (same command with `--python 3.13.18`: `8 passed in 0.27s`); `fastapi.dependencies.models` switches to `from inspect import iscoroutinefunction` at `sys.version_info >= (3, 13)` `(fastapi 0.162.0 fastapi/dependencies/models.py, iscoroutinefunction)` |
+| CPython `3.14` | `3.14.6` (workspace venv) and `3.14.10` (Homebrew) (`macos-aarch64`) | Proven by lab (`uv run --frozen pytest <test> -v` on `3.14.6`: `8 passed in 0.14s`; same `--no-project` command with `--python /opt/homebrew/bin/python3.14` on `3.14.10`: `8 passed in 0.20s`); `fastapi.dependencies.utils._get_signature` uses the `annotationlib.Format.FORWARDREF` fallback at `sys.version_info >= (3, 14)` `(fastapi 0.162.0 fastapi/dependencies/utils.py, _get_signature)` |
+| CPython `3.15` (default GIL) | `3.15.2` (`macos-aarch64`) | Proven by lab (same `--no-project` command with `--python /opt/homebrew/bin/python3.15`: `8 passed in 0.19s`) |
+| CPython `3.15t` (free-threaded) | `3.15.0b3+freethreaded` (`macos-aarch64`; `sys._is_gil_enabled()` is `False`) | Proven by lab (same `--no-project` command with `--python 3.15t`: `8 passed in 0.27s`); the contract pin `3.15.2t` is not installed on this machine and was not run; sync `def` generator dependencies running in `anyio.to_thread` execute without the GIL, requiring thread-safe state in shared objects |
+| FastAPI `< 0.106.0` | `0.42.0` - `0.105.0` | One per-request `AsyncExitStack` in `scope["fastapi_astack"]`, entered in `FastAPI.__call__` through `0.73.x` and in `AsyncExitStackMiddleware` from `0.74.0` (PR `#4575`) `(fastapi 0.73.0 fastapi/applications.py, FastAPI.__call__)` `(fastapi 0.105.0 fastapi/middleware/asyncexitstack.py, AsyncExitStackMiddleware.__call__)`; `yield` teardown ran *after* the response and `BackgroundTasks`, so an `HTTPException` raised after `yield` could not become a response (fixed by PR `#10831`) |
+| FastAPI `0.106.0` - `0.117.1` | `0.106.0` (PR `#10831`), `0.110.0` (PR `#11191`) | `AsyncExitStackMiddleware` removed; dependencies entered a local `async_exit_stack` inside `get_request_handler()` that exits before the `Response` is returned, so before `await response(scope, receive, send)` `(fastapi 0.110.0 fastapi/routing.py, get_request_handler)`; enabled `HTTPException` after `yield` but closed DB sessions before `StreamingResponse` streamed chunks or `BackgroundTasks` ran |
+| FastAPI `0.118.0` - `0.120.4` | `0.118.0` (PR `#14099`) | Added FastAPI's own `request_response` with `scope["fastapi_inner_astack"]` wrapping `await response(scope, receive, send)` and restored `AsyncExitStackMiddleware` as `fastapi_middleware_astack` for files, so `StreamingResponse` kept resources open until streaming completed `(fastapi 0.118.0 fastapi/routing.py, request_response)`; no `scope="function"` option yet |
+| FastAPI `0.121.0` - `0.162.0` | `0.121.0` (PR `#14262`), `0.121.1` (PR `#14301`), `0.162.0` (lab pin); the newest release is `0.162.2` (2026-11-07) `(as of 2026-11)` and was not run | Dual-stack architecture (`fastapi_function_astack` for `scope="function"` before response, `fastapi_inner_astack` for `scope="request"` after response and `BackgroundTasks`), proven in lab on `0.162.0` |
+| ASGI servers (`Uvicorn`, `Hypercorn`, `Granian`) | `uvicorn 0.54.0`, `hypercorn 0.18.0`, `granian 2.8.7` | Both dependency `AsyncExitStack` instances live inside FastAPI's `request_response` ASGI callable, so the order does not depend on the server; the lab app's `/stream-order` produced the exact expected event list over loopback under `uvicorn 0.54.0` (HTTP/1.1) and `hypercorn 0.18.0` (HTTP/1.1 and cleartext HTTP/2 via `httpx` `http2=True`) on CPython `3.14.6`. `granian 2.8.7` (`granian --interface asgi --http 1` and `--http 2`, run via `uv run --frozen` from `labs/` on CPython `3.14.6`, macOS `27.2`) produced the same event list over HTTP/1.1 and over cleartext HTTP/2 (`httpx` `http2=True`, `http1=False`, `response.http_version == "HTTP/2"`); Granian serves only HTTP/1 and HTTP/2 `(granian 2.8.7 README.md, Features)`, so it has no HTTP/3 leg. HTTP/3 over QUIC was proven on `hypercorn 0.18.0` (`--quic-bind` with a self-signed certificate and `aioquic` installed) using an `aioquic 1.7.2` `H3Connection` client on CPython `3.14.6`: `/stream-order` returned `200` and the event list was identical `(hypercorn 0.18.0 hypercorn/protocol/h3.py)`. On client disconnect, `StreamingResponse.__call__` converts an `OSError` from `send()` into `ClientDisconnect` when ASGI `spec_version >= 2.4`, and below `2.4` races `listen_for_disconnect()` against the stream in a task group `(starlette 1.10.0 starlette/responses.py, StreamingResponse.__call__)` |
+| Container environments | Debian Trixie, Alpine musl libc | Not run: no container runtime leg was executed for this note, so no behavior is claimed for musl or Debian beyond the macOS results above; nothing in the dependency teardown order depends on libc, but that is a design inference and not a measurement |
 
 ## Worked example
 
-The lab [implementation](../labs/src/api_labs/f11_fastapi_internals_and_patterns/yield_dependencies_scope.py) and [test](../labs/tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py) verify the exact execution order of `scope="function"` and `scope="request"` dependencies relative to `StreamingResponse` chunks and `BackgroundTasks`, inspect the live `AsyncExitStack` callback counts in `request.scope`, and prove the exception-handling invariants for post-`yield` errors, swallowed exceptions, `DependencyScopeError`, and cache-key scope isolation.
+The lab [implementation](../labs/src/api_labs/f11_fastapi_internals_and_patterns/yield_dependencies_scope.py) and [test](../labs/tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py) verify the exact execution order of `scope="function"` and `scope="request"` dependencies relative to `StreamingResponse` chunks and `BackgroundTasks`, inspect the live `AsyncExitStack` callback counts in `request.scope`, and prove the exception-handling invariants for post-`yield` errors, swallowed exceptions, `DependencyScopeError`, cache-key scope isolation, and the request-time crash of a `Depends` callable decorated with `@contextmanager` or `@asynccontextmanager`.
 
 ### Implementation (`labs/src/api_labs/f11_fastapi_internals_and_patterns/yield_dependencies_scope.py`)
 
@@ -443,7 +457,8 @@ def build_post_yield_error_app(swallowed_log: list[str] | None = None) -> FastAP
 ```python
 """Unit tests for FastAPI yield dependency AsyncExitStack teardown timing and scopes."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Generator
+from contextlib import asynccontextmanager, contextmanager
 from typing import Annotated
 
 import httpx
@@ -629,32 +644,82 @@ async def test_computed_scope_is_part_of_dependency_cache_key() -> None:
         "exit:1",
         "exit:2",
     ]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_contextmanager_decorated_dependency_crashes_at_request_time() -> None:
+    app = FastAPI()
+    entered: list[str] = []
+
+    @contextmanager
+    def decorated_sync() -> Generator[str]:
+        entered.append("sync")
+        yield "never-injected"
+
+    @asynccontextmanager
+    async def decorated_async() -> AsyncGenerator[str]:
+        entered.append("async")
+        yield "never-injected"
+
+    @app.get("/decorated-sync")
+    async def sync_endpoint(
+        val: Annotated[str, Depends(decorated_sync)],
+    ) -> dict[str, str]:
+        return {"val": val}
+
+    @app.get("/decorated-async")
+    async def async_endpoint(
+        val: Annotated[str, Depends(decorated_async)],
+    ) -> dict[str, str]:
+        return {"val": val}
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        # inspect.unwrap() follows __wrapped__, so FastAPI classifies the helper as
+        # a generator and wraps it a second time; the request then crashes.
+        with pytest.raises(
+            AttributeError,
+            match=r"'_GeneratorContextManager' object has no attribute 'throw'",
+        ) as sync_info:
+            await client.get("/decorated-sync")
+        with pytest.raises(
+            TypeError,
+            match=r"'_AsyncGeneratorContextManager' object is not an async iterator",
+        ):
+            await client.get("/decorated-async")
+
+    assert isinstance(sync_info.value.__context__, TypeError)
+    assert "is not an iterator" in str(sync_info.value.__context__)
+    assert entered == []
 ```
 
 ### Captured execution output
 
-Executed from `labs/` with `uv run --frozen pytest tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py -v` on `Darwin 27.2.0 arm64` (macOS `27.2`, Apple M3 Pro, CPython `3.14.10`):
+Executed from `labs/` with `uv run --frozen pytest tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py -v -p no:cacheprovider` on `Darwin 27.2.0 arm64` (macOS `27.2`, Apple M3 Pro, CPython `3.14.6`, the workspace interpreter):
 
 ```text
 ============================= test session starts ==============================
-platform darwin -- Python 3.14.10, pytest-9.2.0, pluggy-1.7.0 -- /Users/shreejitverma/github/The-Distinguished-Engineer/build/api_notes/jobs/Yield-Dependencies-AsyncExitStack-Cleanup-Timing-and-Scope/labs/.venv/bin/python
-cachedir: .pytest_cache
+platform darwin -- Python 3.14.6, pytest-9.2.0, pluggy-1.7.0 -- /Users/shreejitverma/github/The-Distinguished-Engineer/build/api_notes/jobs/Yield-Dependencies-AsyncExitStack-Cleanup-Timing-and-Scope/verify/labs/.venv/bin/python
 hypothesis profile 'default'
-rootdir: /Users/shreejitverma/github/The-Distinguished-Engineer/build/api_notes/jobs/Yield-Dependencies-AsyncExitStack-Cleanup-Timing-and-Scope/labs
+rootdir: /Users/shreejitverma/github/The-Distinguished-Engineer/build/api_notes/jobs/Yield-Dependencies-AsyncExitStack-Cleanup-Timing-and-Scope/verify/labs
 configfile: pyproject.toml
 plugins: platformdirs-4.14.5, schemathesis-4.33.1, cov-7.1.0, hypothesis-6.170.14, inline-snapshot-0.36.1, Faker-40.44.0, locust-2.47.0, typeguard-4.6.0, anyio-4.16.0, asyncio-1.4.1.post1, respx-0.23.1
 asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
-collecting ... collected 7 items
+collecting ... collected 8 items
 
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_yield_cleanup_ordering_across_function_and_request_scopes PASSED [ 14%]
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_yield_dependency_catches_endpoint_exception_and_translates_to_409 PASSED [ 28%]
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_post_yield_http_exception_in_function_scope_returns_503 PASSED [ 42%]
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_post_yield_http_exception_in_request_scope_fails_after_response_start PASSED [ 57%]
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_swallowing_exception_in_yield_dependency_raises_fastapi_error PASSED [ 71%]
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_request_scoped_dependency_rejects_function_scoped_sub_dependency PASSED [ 85%]
-tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_computed_scope_is_part_of_dependency_cache_key PASSED [100%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_yield_cleanup_ordering_across_function_and_request_scopes PASSED [ 12%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_yield_dependency_catches_endpoint_exception_and_translates_to_409 PASSED [ 25%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_post_yield_http_exception_in_function_scope_returns_503 PASSED [ 37%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_post_yield_http_exception_in_request_scope_fails_after_response_start PASSED [ 50%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_swallowing_exception_in_yield_dependency_raises_fastapi_error PASSED [ 62%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_request_scoped_dependency_rejects_function_scoped_sub_dependency PASSED [ 75%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_computed_scope_is_part_of_dependency_cache_key PASSED [ 87%]
+tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_cleanup_timing_and_scope.py::test_contextmanager_decorated_dependency_crashes_at_request_time PASSED [100%]
 
-============================== 7 passed in 0.15s ===============================
+============================== 8 passed in 0.14s ===============================
 ```
 
 ## Pitfalls
@@ -663,15 +728,21 @@ tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_
 > - Trigger: A generator dependency using the default `scope="request"` performs `await session.commit()` after `yield` and catches `IntegrityError` to raise `HTTPException(status_code=409)`.
 > - Symptom: When the endpoint returns normally, `await response(scope, receive, send)` flushes `http.response.start` (`200 OK`) and `http.response.body` *before* `fastapi_inner_astack.__aexit__` executes the code after `yield`; when `HTTPException(409)` is then raised, Starlette's `wrap_app_handling_exceptions` sees `response_started == True` and crashes the ASGI task with `RuntimeError: Caught handled exception, but response already started.` `(starlette 1.10.0 starlette/_exception_handler.py, wrap_app_handling_exceptions)`.
 > - Fix: Commit explicitly inside the endpoint or service layer before returning the response, or if commit-on-exit is mandatory and the resource is never used by `StreamingResponse` or `BackgroundTasks`, declare `Depends(get_db, scope="function")` so teardown runs inside `fastapi_function_astack` before `http.response.start`.
+> - Source: the maintainers moved the exit code back and forth because of exactly this trade-off.
+>   FastAPI `0.106.0` (2023-12-25, PR `#10831`) made `HTTPException` after `yield` work by running the exit code before the response is sent, and its release notes list "Using resources from dependencies with `yield` in background tasks is no longer supported" as a breaking change.
+>   FastAPI `0.118.0` (2025-09-29, PR `#14099`) reverted to after-the-response teardown because, in the release notes' words, a `StreamingResponse` "would not be able to use that session while streaming data because the session would have already been closed" `(https://raw.githubusercontent.com/fastapi/fastapi/master/docs/en/docs/release-notes.md)`.
 
 > [!warning] Swallowing exceptions in `except` inside a `yield` dependency without re-raising
 > - Trigger: Writing `try: yield session except Exception as exc: logger.error(exc)` in a `yield` dependency without a trailing `raise` or replacement `raise HTTPException(...)` (FastAPI PR `#11191`).
 > - Symptom: `_AsyncGeneratorContextManager.__aexit__` or `_GeneratorContextManager.__exit__` returns `True`, causing `AsyncExitStack.__aexit__` to suppress the exception even though `await response(scope, receive, send)` was skipped; `request_response` detects `not response_awaited` and raises `FastAPIError: Response not awaited` (`500 Internal Server Error`), hiding the original traceback from error-reporting middleware `(fastapi 0.162.0 fastapi/routing.py, request_response)`.
+> - Source: PR `#11191` (merged 2024-02-24) describes the underlying production defect as "a bug of growing unhandled memory/memory leak" for internal server errors, which is why `0.110.0` required a `yield` dependency that catches an exception to raise again.
 > - Fix: Use `try: yield resource finally: cleanup()` for unconditional teardown, and whenever an `except` clause is present around `yield`, always re-raise the original exception (`raise`) or raise a domain/HTTP exception (`raise HTTPException(...) from exc`).
 
 > [!warning] Decorating a FastAPI `yield` dependency with `@contextmanager` or `@asynccontextmanager`
 > - Trigger: Applying `@contextlib.contextmanager` or `@contextlib.asynccontextmanager` directly to a function passed to `Depends(...)`.
-> - Symptom: Because `@contextmanager` wraps the generator function in a `helper(*args, **kwds)` function that *returns* a `_GeneratorContextManager` object instead of yielding, `inspect.isgeneratorfunction` and `inspect.isasyncgenfunction` return `False` `(fastapi 0.162.0 fastapi/dependencies/models.py, _is_gen_callable_cached)`; FastAPI calls `helper` as a regular function, injects the raw un-entered `_GeneratorContextManager` instance into the endpoint instead of the yielded value, and never runs `__enter__` or `__exit__`.
+> - Symptom: `@contextmanager` replaces the generator function with a `helper(*args, **kwds)` that *returns* a `_GeneratorContextManager`, so `inspect.isgeneratorfunction(helper)` is `False`, but `functools.wraps` sets `helper.__wrapped__`, and FastAPI's `_unwrapped_call()` follows it with `inspect.unwrap()`, so `_is_gen_callable()` (or `_is_async_gen_callable()`) still returns `True` `(fastapi 0.162.0 fastapi/dependencies/models.py, _is_gen_callable_cached)`.
+>   `_solve_generator()` then wraps `helper` a second time, and the request crashes before the endpoint runs: the sync form raises `TypeError: '_GeneratorContextManager' object is not an iterator` in `__enter__`, which `contextmanager_in_threadpool` passes to `cm.__exit__`, which in turn raises `AttributeError: '_GeneratorContextManager' object has no attribute 'throw'`; the async form raises `TypeError: '_AsyncGeneratorContextManager' object is not an async iterator`.
+>   The client receives `500 Internal Server Error`, and the decorated body never runs (proven by `test_contextmanager_decorated_dependency_crashes_at_request_time` on CPython `3.12.13` through `3.15.2`).
 > - Fix: Never decorate `Depends` callables with `@contextmanager` or `@asynccontextmanager`; write a plain `def` or `async def` function containing a single `yield` statement and let `_solve_generator()` apply the decorator internally.
 
 > [!warning] Blocking I/O in a synchronous `def` generator's `finally` block during task cancellation
@@ -690,7 +761,7 @@ tests/f11_fastapi_internals_and_patterns/test_yield_dependencies_asyncexitstack_
 
 Because `scope="request"` is the default for all `yield` dependencies in FastAPI `>= 0.118.0`, every generator dependency held by an endpoint stays open in `scope["fastapi_inner_astack"]` until the entire HTTP response body and all attached `BackgroundTasks` finish executing `(fastapi 0.162.0 fastapi/routing.py, request_response)`.
 If an endpoint uses a database session dependency (`yield session`) solely to authenticate a caller or load metadata, and then returns a slow `StreamingResponse`, a Server-Sent Events (`EventSourceResponse`) stream, or an in-process `BackgroundTasks` chain that calls an external webhook, that database connection remains checked out from SQLAlchemy's `QueuePool` for the entire duration of the stream or background task.
-An attacker opening `N` slow-reading connections (a Slowloris-style response drain where `N` equals `pool_size + max_overflow`, typically `5 + 10 = 15` in SQLAlchemy) exhausts the database connection pool and causes all other endpoints on the service to fail with `QueuePool limit of size ... overflow ... reached`.
+An attacker opening `N` slow-reading connections (a Slowloris-style response drain where `N` equals `pool_size + max_overflow`; the SQLAlchemy defaults give `5 + 10 = 15`) exhausts the database connection pool and causes all other endpoints on the service to fail with `QueuePool limit of size ... overflow ... reached` `(sqlalchemy 2.1.8 sqlalchemy/pool/impl.py, QueuePool)`.
 
 Defense in depth requires three controls:
 1. Explicitly set `Depends(get_db, scope="function")` whenever a `yield` dependency is not consumed by a `StreamingResponse` generator so the resource is returned to the pool inside `fastapi_function_astack` before the first byte of the response is sent.
@@ -702,6 +773,7 @@ Defense in depth requires three controls:
 Multi-tenant FastAPI services frequently use a `yield` dependency to bind a `contextvars.ContextVar` (such as `current_tenant_id` or a RLS session variable) via `token = tenant_var.set(tenant_id)` before `yield` and reset it via `tenant_var.reset(token)` in `finally:`.
 If that tenant-context dependency is declared with `scope="function"`, `tenant_var.reset(token)` runs *before* `StreamingResponse` body iteration and `BackgroundTasks` execute, causing any streaming chunk generator or `BackgroundTask` that reads `tenant_var.get()` to see the default (unauthenticated or wrong-tenant) value.
 Conversely, if a synchronous `def` generator dependency calls `tenant_var.set()` before `yield`, that mutation occurs inside a worker thread's copied `Context` inside `run_in_threadpool(cm.__enter__)` and is discarded when `cm.__enter__` returns, never propagating back to the event-loop task!
+Both effects were observed with a throwaway script (not part of the lab) run as `uv run --frozen python cv.py` from `labs/` through `httpx.ASGITransport` on CPython `3.14.6`, macOS `27.2` (`fastapi 0.162.0`): a `scope="function"` `async def` dependency that set and reset a `ContextVar` showed the set value in the endpoint and the default in the `StreamingResponse` iterator and the `BackgroundTask`, and a `def` generator dependency's `set()` was invisible to the endpoint.
 Any dependency that mutates a `ContextVar` must be an `async def` generator (so `__aenter__` and `__aexit__` execute directly on the request's event-loop task context) and must use `scope="request"` if `StreamingResponse` or `BackgroundTasks` read that `ContextVar`.
 
 ## The principal's view
@@ -713,8 +785,8 @@ The oscillation of FastAPI's teardown semantics across `0.105.0` (after response
 
 At organizational scale, a principal engineer sets three explicit standards for FastAPI services:
 1. **Separate connection acquisition from transaction commit**: Use `yield` dependencies only to acquire and close/rollback sessions (`try: yield session finally: await session.close()`), never to auto-commit after `yield`, and require explicit `async with session.begin():` or `await uow.commit()` inside the endpoint or application service before returning the response payload.
-2. **Mandate `async def` for all `yield` dependencies**: Synchronous `def` generator dependencies pay a `92x` thread-switching tax (`160.3 us` vs `1.7 us`), allocate a `CapacityLimiter(1)` per invocation, cannot propagate `ContextVar` mutations to the event loop, and fall back to main-thread `GeneratorExit` finalization on task cancellation.
-3. **Evaluate framework trade-offs**: When evaluating frameworks for new services, compare FastAPI's dual-`AsyncExitStack` model with Litestar (`2.25.0`), which separates handler-scoped dependency generators from explicit lifecycle hooks (`after_request`, `after_response`), or raw Starlette (`1.10.0`), where resource lifetimes are scoped explicitly with `async with` blocks inside the endpoint or pure ASGI middleware (see [[FastAPI-Architectural-Limits-and-Comparison-with-Litestar-and-Raw-Starlette]]).
+2. **Mandate `async def` for all `yield` dependencies**: Synchronous `def` generator dependencies pay a roughly `61x` thread-switching tax (`137.7 us` vs `2.3 us` per enter and exit, measured on CPython `3.14.6`, Apple M3 Pro), allocate a `CapacityLimiter(1)` per invocation, cannot propagate `ContextVar` mutations to the event loop, and fall back to main-thread `GeneratorExit` finalization on task cancellation.
+3. **Evaluate framework trade-offs**: When evaluating frameworks for new services, compare FastAPI's dual-`AsyncExitStack` model with Litestar (`2.25.0`), which separates handler-scoped dependency generators (`DependencyCleanupGroup`) from explicit lifecycle hooks (`after_request`, `after_response`) `(litestar 2.25.0 litestar/_kwargs/cleanup.py, DependencyCleanupGroup)` `(litestar 2.25.0 litestar/app.py, Litestar.__init__)`, or raw Starlette (`1.10.0`), where resource lifetimes are scoped explicitly with `async with` blocks inside the endpoint or pure ASGI middleware (see [[FastAPI-Architectural-Limits-and-Comparison-with-Litestar-and-Raw-Starlette]]).
 
 ## Interview questions
 
@@ -730,9 +802,9 @@ At organizational scale, a principal engineer sets three explicit standards for 
 > [!question] L5: Why must you never decorate a FastAPI `yield` dependency function with `@contextlib.contextmanager` or `@contextlib.asynccontextmanager`?
 >
 > > [!success]- Answer
-> > FastAPI identifies `yield` dependencies by calling `inspect.isgeneratorfunction` and `inspect.isasyncgenfunction` in `_is_gen_callable_cached()` and `_is_async_gen_callable_cached()`.
-> > Decorating a generator with `@contextmanager` or `@asynccontextmanager` replaces the generator function with a synchronous wrapper function that returns a `_GeneratorContextManager` or `_AsyncGeneratorContextManager` instance rather than yielding.
-> > Consequently, FastAPI classifies the decorated callable as a regular synchronous function, runs it in the threadpool, injects the un-entered context manager object into your endpoint parameter, and never executes `__enter__` or `__exit__`.
+> > FastAPI identifies `yield` dependencies by calling `inspect.isgeneratorfunction` and `inspect.isasyncgenfunction` in `_is_gen_callable_cached()` and `_is_async_gen_callable_cached()`, on the callable itself and on `inspect.unwrap()` of it.
+> > Decorating a generator with `@contextmanager` or `@asynccontextmanager` replaces it with a wrapper that returns a `_GeneratorContextManager` or `_AsyncGeneratorContextManager` instance, but `functools.wraps` leaves `__wrapped__` pointing at the original generator function, so FastAPI still classifies the wrapper as a generator dependency.
+> > `_solve_generator()` then applies `contextmanager()` or `asynccontextmanager()` to the wrapper a second time, so entering it calls `next()` or `anext()` on a context manager object: the request fails with `TypeError` (sync: `'_GeneratorContextManager' object is not an iterator`, then `AttributeError: ... has no attribute 'throw'` from `cm.__exit__`; async: `'_AsyncGeneratorContextManager' object is not an async iterator`) and returns `500` before the endpoint or the dependency body runs.
 > >
 > > Follow-up: How can you use an existing class-based context manager inside a FastAPI `yield` dependency?
 
@@ -781,7 +853,7 @@ At organizational scale, a principal engineer sets three explicit standards for 
 > > Since Python 3.8, `asyncio.CancelledError` inherits from `BaseException` rather than `Exception`.
 > > In `fastapi/concurrency.py`, `contextmanager_in_threadpool()` wraps `yield await run_in_threadpool(cm.__enter__)` in `try ... except Exception as e: ... else: ...` without a `BaseException` handler or `finally` block.
 > > When `AsyncExitStack.__aexit__` throws `CancelledError` into `contextmanager_in_threadpool` via `athrow()`, the `except Exception` clause does not match, so `cm.__exit__` is never dispatched to the worker threadpool via `anyio.to_thread.run_sync`.
-> > Instead, when CPython's reference counter deallocates the abandoned `_GeneratorContextManager` frame, `gen_dealloc` calls `gen.close()`, which synchronously throws `GeneratorExit` into the `def` generator on the **main event-loop thread**, risking event-loop stalls if the `finally` block performs blocking I/O.
+> > Instead, when the `contextmanager_in_threadpool` frame unwinds and drops the last reference to the `_GeneratorContextManager`, CPython finalizes the suspended generator, whose finalizer calls `close()` and synchronously throws `GeneratorExit` into the `def` generator on the **main event-loop thread**, risking event-loop stalls if the `finally` block performs blocking I/O.
 > >
 > > Follow-up: How would you patch `contextmanager_in_threadpool` to prevent main-thread `GeneratorExit` finalization while still respecting task cancellation?
 
@@ -809,7 +881,7 @@ See also: [[02-Programming-Languages/Python/Python-Backend-Interview-Prep/04-Fas
 - [FastAPI Documentation: Dependencies with yield](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/) - Official specification of `yield` dependencies, `try`/`except`/`finally` rules, and `scope="function"` versus `scope="request"` lifecycle diagrams.
 - [FastAPI Pull Request #14262: Add support for dependencies with scopes](https://github.com/fastapi/fastapi/pull/14262) - Introduces `scope="function"` and `scope="request"`, `fastapi_function_astack`, `_get_computed_scope()`, and `DependencyScopeError` in FastAPI `0.121.0`.
 - [FastAPI Pull Request #14099: Fix support for StreamingResponses with dependencies with yield](https://github.com/fastapi/fastapi/pull/14099) - Moves `await response(scope, receive, send)` back inside `fastapi_inner_astack` in FastAPI `0.118.0`.
-- [FastAPI Pull Request #11191: Refactor dependencies with yield and except to require raising again](https://github.com/fastapi/fastapi/pull/11191) - Fixes memory leaks from unreleased exception tracebacks and adds the `response_awaited` guard raising `FastAPIError` in FastAPI `0.110.0`.
+- [FastAPI Pull Request #11191: Refactor dependencies with yield and except to require raising again](https://github.com/fastapi/fastapi/pull/11191) - Fixes memory leaks from unreleased exception tracebacks and adds the `FastAPIError("No response object was returned...")` guard in FastAPI `0.110.0`; the `response_awaited` form arrived in `0.118.0`.
 - [FastAPI Pull Request #5122: Allow exit code for dependencies with yield to always execute](https://github.com/fastapi/fastapi/pull/5122) - Introduces `exit_limiter = CapacityLimiter(1)` in `contextmanager_in_threadpool` to prevent threadpool starvation deadlocks during teardown in FastAPI `0.82.0`.
 - [Python Standard Library: contextlib - Utilities for with-statement contexts](https://docs.python.org/3/library/contextlib.html) - Reference implementation semantics for `AsyncExitStack`, `@contextmanager`, and `@asynccontextmanager`.
 - [PEP 343: The "with" Statement](https://peps.python.org/pep-0343/) and [PEP 525: Asynchronous Generators](https://peps.python.org/pep-0525/) - Define the synchronous and asynchronous generator context management protocols (`throw()`, `athrow()`, `aclose()`, and boolean exception suppression).
