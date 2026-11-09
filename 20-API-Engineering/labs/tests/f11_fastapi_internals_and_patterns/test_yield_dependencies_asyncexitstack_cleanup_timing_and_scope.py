@@ -1,6 +1,7 @@
 """Unit tests for FastAPI yield dependency AsyncExitStack teardown timing and scopes."""
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Generator
+from contextlib import asynccontextmanager, contextmanager
 from typing import Annotated
 
 import httpx
@@ -186,3 +187,53 @@ async def test_computed_scope_is_part_of_dependency_cache_key() -> None:
         "exit:1",
         "exit:2",
     ]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_contextmanager_decorated_dependency_crashes_at_request_time() -> None:
+    app = FastAPI()
+    entered: list[str] = []
+
+    @contextmanager
+    def decorated_sync() -> Generator[str]:
+        entered.append("sync")
+        yield "never-injected"
+
+    @asynccontextmanager
+    async def decorated_async() -> AsyncGenerator[str]:
+        entered.append("async")
+        yield "never-injected"
+
+    @app.get("/decorated-sync")
+    async def sync_endpoint(
+        val: Annotated[str, Depends(decorated_sync)],
+    ) -> dict[str, str]:
+        return {"val": val}
+
+    @app.get("/decorated-async")
+    async def async_endpoint(
+        val: Annotated[str, Depends(decorated_async)],
+    ) -> dict[str, str]:
+        return {"val": val}
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        # inspect.unwrap() follows __wrapped__, so FastAPI classifies the helper as
+        # a generator and wraps it a second time; the request then crashes.
+        with pytest.raises(
+            AttributeError,
+            match=r"'_GeneratorContextManager' object has no attribute 'throw'",
+        ) as sync_info:
+            await client.get("/decorated-sync")
+        with pytest.raises(
+            TypeError,
+            match=r"'_AsyncGeneratorContextManager' object is not an async iterator",
+        ):
+            await client.get("/decorated-async")
+
+    assert isinstance(sync_info.value.__context__, TypeError)
+    assert "is not an iterator" in str(sync_info.value.__context__)
+    assert entered == []

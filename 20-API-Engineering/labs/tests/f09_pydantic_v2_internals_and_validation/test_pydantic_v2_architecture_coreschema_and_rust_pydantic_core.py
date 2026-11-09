@@ -142,6 +142,11 @@ async def test_fastapi_route_reuses_prebuilt_validator_and_formats_422() -> None
     body_field = routes[0].body_field
     assert body_field is not None
     assert body_field.field_info.annotation is MultiRefBatch
+    route_adapter: Any = vars(body_field)["_type_adapter"]
+    assert route_adapter.validator is not MultiRefBatch.__pydantic_validator__
+    assert repr(route_adapter.validator).startswith(
+        'SchemaValidator(title="MultiRefBatch", validator=Prebuilt('
+    )
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:

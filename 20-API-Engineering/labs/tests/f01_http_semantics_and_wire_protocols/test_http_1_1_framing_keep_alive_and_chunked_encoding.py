@@ -48,6 +48,12 @@ def test_decode_ignores_chunk_extensions() -> None:
 
 
 @pytest.mark.unit
+def test_decode_accepts_uppercase_and_lowercase_hex_chunk_sizes() -> None:
+    wire = b"A\r\n0123456789\r\na\r\nabcdefghij\r\n00\r\n\r\n"
+    assert decode_chunked(wire) == b"0123456789abcdefghij"
+
+
+@pytest.mark.unit
 def test_chunked_trailers_roundtrip_and_forbidden_field_rejection() -> None:
     wire = encode_chunked(
         b"stream-payload",
@@ -61,7 +67,14 @@ def test_chunked_trailers_roundtrip_and_forbidden_field_rejection() -> None:
         (b"x-checksum-sha256", b"deadbeef"),
     )
 
-    for forbidden in (b"Content-Length", b"Transfer-Encoding", b"Host", b"Authorization"):
+    for forbidden in (
+        b"Content-Length",
+        b"Transfer-Encoding",
+        b"Host",
+        b"Authorization",
+        b"Trailer",
+        b"TE",
+    ):
         with pytest.raises(ValueError, match="forbidden trailer field"):
             encode_chunked(b"x", trailers=[(forbidden, b"1")])
         raw_bad_trailer = b"1\r\nx\r\n0\r\n" + forbidden + b": 1\r\n\r\n"
@@ -150,6 +163,40 @@ def test_h11_transfer_encoding_precedence_over_content_length() -> None:
     assert b"Transfer-Encoding: chunked\r\n" in summary.wire_response
     assert b"Content-Length" not in summary.wire_response
     assert b"\r\n8\r\nstreamed\r\n0\r\n\r\n" in summary.wire_response
+
+
+@pytest.mark.unit
+def test_h11_keeps_dual_content_length_and_transfer_encoding_connection_reusable() -> None:
+    # RFC 9112 Section 6.1: the server MUST close after responding; h11 0.16.0 does not.
+    raw_request = (
+        b"POST /v1/ingest HTTP/1.1\r\n"
+        b"Host: api.example.test\r\n"
+        b"Content-Length: 999\r\n"
+        b"Transfer-Encoding: chunked\r\n"
+        b"\r\n" + encode_chunked(b"x")
+    )
+    conn = h11.Connection(h11.SERVER)
+    summary = step_h11_server_exchange(
+        conn, raw_request, response_headers=[(b"content-length", b"0")]
+    )
+    assert summary.body == b"x"
+    assert summary.reusable is True
+    assert b"connection: close" not in summary.wire_response.lower()
+    assert conn.states == {h11.CLIENT: h11.IDLE, h11.SERVER: h11.IDLE}
+
+
+@pytest.mark.unit
+def test_h11_accepts_bare_cr_in_chunk_extension_that_lab_decoder_rejects() -> None:
+    chunked_body = b"5;x=\ry\r\nhello\r\n0\r\n\r\n"
+    conn = h11.Connection(h11.SERVER)
+    summary = step_h11_server_exchange(
+        conn,
+        b"POST /v1/ext HTTP/1.1\r\nHost: api.example.test\r\nTransfer-Encoding: chunked\r\n\r\n"
+        + chunked_body,
+    )
+    assert summary.body == b"hello"
+    with pytest.raises(ValueError, match="bare CR in chunk extension"):
+        decode_chunked(chunked_body)
 
 
 @pytest.mark.unit
