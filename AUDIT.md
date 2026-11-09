@@ -33,7 +33,7 @@ Re-run the script after every structural change; this file is its output and sho
 | `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-08 |
 | `.github` | 1 | 0 | 0 | 0 | 1 | 0.0 | 2026-11-08 |
 | `.obsidian` | 45 | 0 | 0 | 0 | 45 | 0.0 | 2026-10-21 |
-| `00-Start-Here` | 6 | 5 | 0 | 0 | 1 | 0.0 | 2026-10-25 |
+| `00-Start-Here` | 6 | 5 | 0 | 0 | 1 | 0.0 | 2026-11-08 |
 | `01-CS-Foundations` | 507 | 262 | 141 | 0 | 104 | 4.7 | 2026-11-06 |
 | `02-Programming-Languages` | 5828 | 818 | 2860 | 466 | 1684 | 112.2 | 2026-11-08 |
 | `03-Data-Structures-Algorithms` | 8293 | 185 | 7988 | 0 | 120 | 17.3 | 2026-10-25 |
