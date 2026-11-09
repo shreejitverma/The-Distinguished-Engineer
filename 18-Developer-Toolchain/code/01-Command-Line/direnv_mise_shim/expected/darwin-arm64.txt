@@ -1,0 +1,53 @@
+
+=== 1. direnv: allow token, env diff, and exit ===
+Initial check: .envrc authorized = False
+Computed SHA-256 allow token: 1df3e739824750e1c73246131ca0269497f9cb0f2e4a499a3443a438e9838685
+After 'direnv allow': allow file created at allow/1df3e739824750e1...
+Verification: .envrc authorized = True
+After a one-byte edit: .envrc authorized = False
+After moving the file: .envrc authorized = False
+
+Environment delta captured from a child bash:
+  p (previous values): ['PATH', 'USER']
+  n (next values):     ['PATH', 'PROJECT_ENV']
+  DIRENV_DIFF starts with: eJ (base64 of the zlib header 78 9c)
+  DIRENV_DIFF uses the URL-safe alphabet ('-' and '_', never '+' or '/'): True
+  Roundtrip decode integrity: OK (JSON -> zlib -> URL-safe base64 -> JSON verified)
+Restoration upon directory exit: OK (environment restored to baseline)
+
+=== 2. Runtime Tool Pinning: Shims vs Dynamic PATH ===
+Mechanism A: Static Shim Dispatch
+  Shim stderr: [shim-trampoline] intercepting 'tool-cli' -> dispatching to version 2.4.0
+  Shim stdout: tool-cli version 2.4.0
+  Shim stdout: tool-cli config  = attempted_from_shim
+  Observed by the parent: TOOL_CONFIG_PROFILE=<unset>
+  Script that cd's into another project: 1.18.0
+
+Mechanism B: Dynamic PATH Modification (Prompt Hook)
+  Direct PATH stdout: tool-cli version 2.4.0
+  Direct PATH stdout: tool-cli config  = active_in_current_shell
+  Observed by the parent: TOOL_CONFIG_PROFILE=active_in_current_shell
+  Script that cd's into another project: 2.4.0 (the hook does not re-run)
+
+Mechanism C: Non-Interactive Subshell Execution (No Shell Hook)
+  Unhooked subshell with default PATH only: 1.18.0 (misses project pin)
+  Unhooked subshell with shim in PATH:      2.4.0 (honors project pin)
+  Unhooked subshell with no tool on PATH:   exit 127
+
+=== 3. devcontainer.json Lifecycle Hook Execution Order ===
+Order Lifecycle Hook         Context    Exit  Output
+----- ---------------------- ---------- ----- ------------------------------
+1     initializeCommand      HOST       0     host-prep
+2     onCreateCommand        CONTAINER  0     $HOME
+3     updateContentCommand   CONTAINER  0     a_saw_b + b_saw_a
+4     postCreateCommand      CONTAINER  0     build
+5     postStartCommand       CONTAINER  0     daemon
+6     postAttachCommand      CONTAINER  0     attach
+Array form is exec'd without a shell: onCreateCommand printed '$HOME'
+String form runs in /bin/sh: `echo $HOME` would print /home/dev
+Object form ran concurrently: each entry saw the other's start marker (a serial run times out)
+Client unblocked after: updateContentCommand (default waitFor), hooks 1-3 of 6
+With waitFor set: client unblocked after postCreateCommand
+waitFor: postAttachCommand rejected (not in the allowed enum): True
+When postCreateCommand exits 3, later hooks run: []
+Object form with one failing entry: updateContentCommand exit 5, hooks run 3

@@ -1,0 +1,57 @@
+=== [PHASE 1] ATerm Derivation Parsing and Modulo Hashing ===
+Parsed Derivation System:       aarch64-darwin
+Parsed Derivation Builder:      /bin/sh
+Declared Outputs Count:         1
+Declared Input Drvs Count:      0
+Declared Input Srcs Count:      0
+Masked Derivation SHA-256:      1512949690c51abf4d28775bbb911a48eef3163d08ed16e1861fdb51d7bd3db1
+
+=== [PHASE 2] Store Path Hashing and Nix Base32 Encoding ===
+Computed Output Path:           /nix/store/z47bp6az8rj78ngb0g3q43fcmq4qqcvp-test
+Expected Output Path:           /nix/store/z47bp6az8rj78ngb0g3q43fcmq4qqcvp-test
+Output Path Derivation Check:   EXACT MATCH
+Computed .drv Store Path:       /nix/store/v6jb8ivyqx4jwja6x1w2yk5js3074vn6-test.drv
+Expected .drv Store Path:       /nix/store/v6jb8ivyqx4jwja6x1w2yk5js3074vn6-test.drv
+.drv Store Path Check:          EXACT MATCH
+Input-Drv Output Path:          /nix/store/lfpmvd3syq3cxjxhlyi272brmp0gn1kk-app
+Input-Drv .drv Store Path:      /nix/store/ai7s1x13997sd2hn6ap7ia97qkflszcj-app.drv
+Input-Drv Path Checks:          EXACT MATCH
+
+=== [PHASE 3] Fixed-Output Derivation (FOD) Decoupling ===
+Is Fixed Output Derivation:     True
+Computed FOD Output Path:       /nix/store/svgymjq6pwxrc6ajihgxr6lya62wwkgv-fixed-test
+Expected FOD Output Path:       /nix/store/svgymjq6pwxrc6ajihgxr6lya62wwkgv-fixed-test
+FOD Output Path Check:          EXACT MATCH
+Altered FOD Output Path:        /nix/store/svgymjq6pwxrc6ajihgxr6lya62wwkgv-fixed-test
+FOD Platform & Builder Invariance: CONFIRMED
+Control (regular drv, builder changed): path changes: True
+Computed Flat FOD Output Path:  /nix/store/v96xy7krc03131l1gl7rbb197pp6gcpn-fixed-test
+Expected Flat FOD Output Path:  /nix/store/v96xy7krc03131l1gl7rbb197pp6gcpn-fixed-test
+Flat FOD Path Check:            EXACT MATCH (differs from recursive)
+Different outputHash:           path changes: True
+
+=== [PHASE 4] Nix Archive (NAR) Serialization and Determinism ===
+Regular File NAR Size:          168 bytes
+Executable File NAR Size:       200 bytes
+Symlink NAR Size:               128 bytes
+All NAR Lengths Multiple of 8:  True
+Directory NAR Digest (SHA-256): 36fa233b9c286a39a7d996133c8de5fd8e9cf4997700a505b84831b8aaa19985
+Entry Order Independent:        True
+
+=== [PHASE 5] Reference Scanning and Runtime Closure Pruning ===
+Build-Time Inputs (inputDrvs):  3
+Runtime References Found:       2
+  Retained Runtime Ref:         /nix/store/a4b8gp9mw70sn9s8igmjfwmnfi62jsxy-glibc-2.39
+  Retained Runtime Ref:         /nix/store/z47bp6az8rj78ngb0g3q43fcmq4qqcvp-openssl-3.0.13
+Truncated Hash Not Matched:     True
+Compiler Pruning Verification:  PASS (gcc pruned from runtime closure)
+
+=== [PHASE 6] Flake Lock Graph and Input Pinning Audit ===
+Flake Lock Schema Version:      7
+Flake Root Direct Inputs:       flake-utils, nixpkgs
+Node [flake-utils]: rev=b1d9ab7cd6ff type=github
+Node [nixpkgs]: rev=77850a98f5b9 type=github
+Flake Lock Problems Found:      0
+narHash of Directory NAR:       sha256-NvojO5woajmn2ZYTPI3l/Y6c9Jl3AKUFuEgxuKqhmYU=
+Corrupted Lock Problems Found:  4
+Flake Lock Audit:               PASS

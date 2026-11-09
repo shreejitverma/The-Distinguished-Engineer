@@ -1,0 +1,12 @@
+=== macOS Container & VM Hypervisor I/O Benchmark ===
+Guest kernel: Linux aarch64
+Guest root filesystem: overlay
+Host bind mount filesystem: virtiofs
+Native overlayfs case-sensitive: True (2 entries)
+Host bind mount case-sensitive: False (1 entry)
+File count verified: native=500/500, host=500/500
+Metadata latency check: PASS (host bind mount >= 2x native overlayfs)
+Guest sync token written: OK
+Host-side entries matching probe.txt: 1
+Cross-boundary sync token: vm_write_ok
+Host UID translation: VERIFIED (mapped to host process UID)

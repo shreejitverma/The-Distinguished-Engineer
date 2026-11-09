@@ -1,0 +1,77 @@
+=== Step 1: linter on an empty registry ===
+PASS: 0 ADRs validated successfully.
+exit status: 0
+
+=== Step 2: audit on the scaffolded repository ===
+Auditing shell scripts against ADR-001 boundaries...
+PASS: All shell scripts conform to ADR-001 boundaries.
+exit status: 0
+
+=== Step 5: pre-commit hook on the clean repository ===
+==> Running Architectural Decision Record (ADR) Pre-Commit Gates...
+PASS: 3 ADRs validated successfully.
+Auditing shell scripts against ADR-001 boundaries...
+PASS: All shell scripts conform to ADR-001 boundaries.
+==> All Architectural Decision Record checks passed.
+exit status: 0
+git commit through the hook accepted: True
+
+=== Step 5: pre-commit hook with ForwardAgent yes ===
+==> Running Architectural Decision Record (ADR) Pre-Commit Gates...
+PASS: 3 ADRs validated successfully.
+Auditing shell scripts against ADR-001 boundaries...
+PASS: All shell scripts conform to ADR-001 boundaries.
+./ssh/config.bad:2:    ForwardAgent yes
+ERROR: Forbidden 'ForwardAgent yes' detected in repository. Refer to ADR-003.
+exit status: 1
+git commit through the hook rejected: True
+commits on HEAD: 1
+
+=== Step 1 linter: invalid status and missing Confirmation ===
+ERROR: 0004-bad-status.md: Invalid or missing status in 0004-bad-status.md. Must be one of: ['accepted', 'deprecated', 'draft', 'proposed', 'rejected', 'superseded']
+ERROR: 0005-no-confirmation.md: Missing required section matching pattern: ^##\s+Confirmation
+exit status: 1
+
+=== Step 2 audit: skipped vendor directory, then a 120-line script with declare -A ===
+Auditing shell scripts against ADR-001 boundaries...
+PASS: All shell scripts conform to ADR-001 boundaries.
+exit status: 0
+Auditing shell scripts against ADR-001 boundaries...
+VIOLATION [SLOC]: ./tools/legacy-report.sh has 120 lines (exceeds maximum of 100 lines).
+VIOLATION [PATTERN]: ./tools/legacy-report.sh - Associative arrays detected (declare -A). Must migrate to Python or Rust.
+FAILED: 2 ADR-001 violations detected. Migrate offending scripts.
+exit status: 1
+
+=== Step 4: certificate from the note's recipe ===
+dev_user_key-cert.pub:
+        Type: ssh-ed25519-cert-v01@openssh.com user certificate
+        Public key: ED25519-CERT SHA256:...
+        Signing CA: ED25519 SHA256:... (using ssh-ed25519)
+        Key ID: "alice@corp.internal"
+        Serial: 2026110701
+        Valid: from START to END
+        Principals: 
+                dev-user
+                alice
+        Critical Options: (none)
+        Extensions: 
+                permit-port-forwarding
+                permit-pty
+validity span within 8h to 8h05m: True
+
+=== Step 4: the same key signed without -O clear and without -V ===
+        Valid: forever
+        Extensions: 
+                permit-X11-forwarding
+                permit-agent-forwarding
+                permit-port-forwarding
+                permit-pty
+                permit-user-rc
+
+=== Interview: while-read pipeline under set -euo pipefail ===
+bash count.sh: stdout [], exit status 1
+bash count-fixed.sh: stdout [Count: 0], exit status 0
+/bin/bash count.sh: stdout [Count: 0], exit status 0
+/bin/bash count-fixed.sh: stdout [Count: 0], exit status 0
+/bin/zsh count.sh: stdout [], exit status 1
+/bin/zsh count-fixed.sh: stdout [Count: 3], exit status 0

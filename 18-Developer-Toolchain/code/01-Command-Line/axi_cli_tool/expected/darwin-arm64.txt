@@ -1,0 +1,93 @@
+=== 1. Content-First Default (Principle 8) ===
+summary(total:3,open:2,closed:1)
+tasks[3]{id,title,status,priority}:
+  1,Audit SSH bastion host configs,open,high
+  2,Migrate pipeline to Nix flakes,open,medium
+  3,Fix broken pipe in log exporter,closed,low
+no-args output equals 'list': True
+no-args output contains help text: False
+
+=== 2. Minimal Default Schema & Aggregates (Principles 1, 2, 4) ===
+summary(total:3,open:2,closed:1)
+tasks[3]{id,title,status,priority}:
+row count matches tasks[N]: True
+fields per list row: 4
+description in list output: False
+
+=== 3. Content Truncation & --full Escape Hatch (Principle 3) ===
+--- Default Truncated View ---
+task:
+  id: 1
+  title: Audit SSH bastion host configs
+  status: open
+  priority: high
+  description: "Perform comprehensive audit of /etc/ssh/sshd_config across f [truncated 4 lines; use --full to view all 5 lines]"
+--- Full Untruncated View ---
+task:
+  id: 1
+  title: Audit SSH bastion host configs
+  status: open
+  priority: high
+  description: "Perform comprehensive audit of /etc/ssh/sshd_config across fleet.\nEnforce HostKeyAlgorithms and KexAlgorithms per security policy.\nDisable interactive password authentication and root login.\nEnsure AuthorizedKeysCommand verifies cryptographic certificates.\nDeploy automated verification probes across all staging zones."
+
+=== 4. Definitive Empty State (Principle 5) ===
+summary(total:3,open:2,closed:1)
+tasks[1]{id,title,status,priority}:
+  3,Fix broken pipe in log exporter,closed,low
+summary(total:2,open:2,closed:0)
+tasks: []
+result: 0 tasks matching filter status=closed
+
+=== 5. Structured Errors and Standard Exit Codes (Principle 6) ===
+--- Missing Required Flag (EX_USAGE = 64) ---
+{"error":"ERR_MISSING_REQUIRED_FIELD","message":"Missing required flag: --title","exit_code":64}
+exit_status: 64
+--- Unknown Flag Rejected By Name (EX_USAGE = 64) ---
+{"error":"ERR_UNKNOWN_FLAG","message":"Unrecognized option: --bogus","exit_code":64}
+exit_status: 64
+--- Non-Existent Resource (EX_NOINPUT = 66) ---
+{"error":"ERR_NOT_FOUND","message":"Task 999 not found","exit_code":66}
+exit_status: 66
+--- Idempotent Deletion (Success = 0) ---
+deleted: task:999
+exit_status: 0
+
+=== 6. Contextual Disclosure & Stream Separation (Principle 9 & Streams) ===
+stdout (data):
+created: task:3
+stderr (diagnostics & guidance):
+Next: run 'axi-task show 3' to inspect or 'axi-task close 3' to complete
+
+=== 7. Color Precedence (NO_COLOR vs FORCE_COLOR) ===
+piped, no variables: ANSI escapes: False
+FORCE_COLOR=1: ANSI escapes: True
+NO_COLOR=1 alone: ANSI escapes: False
+FORCE_COLOR=1 and NO_COLOR=1 (this lab: NO_COLOR wins): ANSI escapes: False
+NO_COLOR=1 and --color=always (flag wins): ANSI escapes: True
+
+=== 8. Payload Size: Projection vs Format (Principles 1 and 2) ===
+JSON, all fields, indented: 981 bytes
+JSON, 4 fields, indented: 456 bytes
+JSON, 4 fields, compact: 297 bytes
+TOON, 4 fields: 195 bytes
+Projection alone (all fields -> 4 fields, indented JSON): 53.5%
+Format alone (4-field indented JSON -> TOON): 57.2%
+Format alone (4-field compact JSON -> TOON): 34.3%
+
+=== 9. SIGPIPE Pipeline Resilience ===
+list output exceeds 64 KiB: True
+pipeline head received: summary(total:6000,open:6000,closed:0)
+tool killed by SIGPIPE (returncode == -13): True
+no BrokenPipeError on stderr: True
+control without SIG_DFL exits 1 or 120: True
+control without SIG_DFL prints BrokenPipeError: True
+
+=== 10. TOON Quoting of Delimiters, Colons, and Quotes ===
+  4,"Fix, then ship: \"v2\"",open,medium
+
+=== 11. Help Is Explicit and Concise (Principle 10) ===
+exit_status: 0
+help on stdout: True
+help stderr empty: True
+help lines: 27
+help has examples: True
