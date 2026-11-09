@@ -149,7 +149,10 @@ With `gunicorn_h1c 0.6.12` installed and `--http-parser fast`, the C extension r
 ### The lab model
 
 The lab models the recipient's framing decision directly, with no sockets.
-`classify_framing` implements the Section 6.3 cascade with a `strict` flag (reject dual framing and any `Transfer-Encoding` list other than exactly one `chunked`, the Section 6.1 defence) and a `prefer` policy (which header a lenient recipient trusts), and `forward_and_reparse` reproduces the front-end/back-end split by forwarding the front-end's view of message one to the back-end and reparsing it `(request_smuggling.py)`.
+`classify_framing` implements the Section 6.3 request cascade with a `strict` flag (reject dual framing and any `Transfer-Encoding` list other than exactly one `chunked`, the Section 6.1 defence) and a `prefer` policy (which header a lenient recipient trusts), and `forward_and_reparse` reproduces the front-end/back-end split by forwarding the front-end's view of message one to the back-end and reparsing it `(request_smuggling.py)`.
+`Prefer.TE` is the conformant recipient: any `Transfer-Encoding` overrides `Content-Length` (step 3), and a request whose final coding is not `chunked` is rejected (step 4); `Prefer.CL` is a legacy parser that trusts `Content-Length` whenever it is present.
+A message counts as ambiguous when both fields are present, whatever the `Transfer-Encoding` value, so `Content-Length: 4` with `Transfer-Encoding: xchunked` is ambiguous even though neither hop reads it as chunked.
+`forward_and_reparse` separates the two ways the back-end can fail on the forwarded bytes: `starved` when the bytes stop before the body it framed ends (it waits for the next client write), and `rejected` when they are malformed, such as a non-hex chunk-size or garbage where the chunk-data CRLF belongs (it answers `400` and closes).
 
 ## Numbers and limits
 
@@ -166,7 +169,7 @@ The lab models the recipient's framing decision directly, with no sockets.
 | `h11` max `Content-Length` digits | 20 | `(h11 0.16.0 h11/_headers.py, CONTENT_LENGTH_MAX_DIGITS)` |
 | h11 dual-header request | accepts, `Transfer-Encoding` wins, connection reusable | measured, lab `test_h11_server_takes_te_and_leaves_trailing_bytes_without_closing`, h11 0.16.0, CPython 3.14.6, macOS 27.2 arm64 |
 | CL.TE smuggled suffix for the lab payload | `b"G"` (1 octet) | measured, lab `test_cl_te_desync_leaves_smuggled_request_prefix` |
-| Module test coverage | 98% (157 statements, 60 branches, 2 and 2 missed) | measured 2026-11, `uv run --frozen pytest <module> --cov=api_labs.f01_http_semantics_and_wire_protocols.request_smuggling`, CPython 3.14.6, macOS 27.2 arm64 |
+| Module test coverage | 98% (162 statements, 60 branches, 2 and 2 missed) | measured 2026-11, `uv run --frozen pytest <module> --cov=api_labs.f01_http_semantics_and_wire_protocols.request_smuggling`, CPython 3.14.6, macOS 27.2 arm64 |
 
 ## Portability
 
@@ -214,18 +217,22 @@ def forward_and_reparse(
     exactly the bytes it considers that request (``head + body``). The back-end
     reparses those forwarded bytes under its ``back`` policy. If the back-end frames
     a shorter body, the remainder is a smuggled request prefix; if it frames a longer
-    body, it starves waiting for bytes the front-end withheld.
+    body, it starves waiting for bytes the front-end withheld; if it finds the bytes
+    malformed, it rejects the request.
     """
     front_msg = parse_one_message(raw, prefer=front)
     forwarded = raw[: front_msg.end]
     try:
         back_msg = parse_one_message(forwarded, prefer=back)
-    except ValueError:
+    except NeedMoreData:
         # The back-end could not complete the body within the forwarded bytes:
         # it is starved, holding a partial request until the next client write.
-        return DesyncResult(front_msg.body, b"", b"", starved=True)
+        return DesyncResult(front_msg.body, b"", b"", starved=True, rejected=False)
+    except ValueError:
+        # The back-end parsed bytes it cannot accept: it answers 400 and closes.
+        return DesyncResult(front_msg.body, b"", b"", starved=False, rejected=True)
     smuggled = forwarded[back_msg.end :]
-    return DesyncResult(front_msg.body, back_msg.body, smuggled, starved=False)
+    return DesyncResult(front_msg.body, back_msg.body, smuggled, starved=False, rejected=False)
 ```
 
 The CL.TE test asserts the exact smuggled byte (simplified excerpt, assertions verbatim):
@@ -247,6 +254,7 @@ def test_cl_te_desync_leaves_smuggled_request_prefix() -> None:
     assert result.back_body == b"0\r\n\r\n"
     assert result.smuggled == b"G"
     assert result.starved is False
+    assert result.rejected is False
 ```
 
 Captured output (`uv run --frozen pytest ... -q`, CPython 3.14.6, macOS 27.2 arm64):
@@ -261,10 +269,10 @@ Coverage for the module (`uv run --frozen pytest <module> -q -p no:cacheprovider
 ```text
 Name                                                                      Stmts   Miss Branch BrPart  Cover   Missing
 ---------------------------------------------------------------------------------------------------------------------
-src/api_labs/f01_http_semantics_and_wire_protocols/request_smuggling.py     157      2     60      2    98%   131, 242
+src/api_labs/f01_http_semantics_and_wire_protocols/request_smuggling.py     162      2     60      2    98%   141, 250
 ---------------------------------------------------------------------------------------------------------------------
-TOTAL                                                                       157      2     60      2    98%
-31 passed in 0.08s
+TOTAL                                                                       162      2     60      2    98%
+31 passed in 0.10s
 ```
 
 ## Pitfalls

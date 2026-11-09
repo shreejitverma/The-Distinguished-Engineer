@@ -18,6 +18,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 
 from api_labs.f01_http_semantics_and_wire_protocols.extensible_priorities import (
+    H2FrameSizeError,
     H2ProtocolError,
     Priority,
     PriorityScheduler,
@@ -188,18 +189,23 @@ def test_h2_priority_update_wire_layout() -> None:
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("frame", "match"),
+    ("frame", "error", "match"),
     [
-        (bytes.fromhex("00000410000000000100000003"), "must be sent on stream 0"),
-        (bytes.fromhex("00000410000000000000000000"), "stream ID 0"),
-        (bytes.fromhex("0000050200000000030000000010"), "not a well-formed"),
-        (bytes.fromhex("00000910000000000000000003") + b"u=0", "not a well-formed"),
-        (bytes.fromhex("00000510000000000000000003ff"), "not ASCII"),
-        (bytes.fromhex("000003100000000000000000"), "shorter than"),
+        (bytes.fromhex("00000410000000000100000003"), H2ProtocolError, "must be sent on stream 0"),
+        (bytes.fromhex("00000410000000000000000000"), H2ProtocolError, "stream ID 0"),
+        (bytes.fromhex("0000050200000000030000000010"), H2ProtocolError, "not a well-formed"),
+        (
+            bytes.fromhex("00000910000000000000000003") + b"u=0",
+            H2ProtocolError,
+            "not a well-formed",
+        ),
+        (bytes.fromhex("00000510000000000000000003ff"), H2ProtocolError, "not ASCII"),
+        # RFC 9113 Section 4.2: a frame too small for its mandatory data is FRAME_SIZE_ERROR.
+        (bytes.fromhex("000003100000000000000000"), H2FrameSizeError, "shorter than"),
     ],
 )
-def test_h2_priority_update_validation(frame: bytes, match: str) -> None:
-    with pytest.raises(H2ProtocolError, match=match):
+def test_h2_priority_update_validation(frame: bytes, error: type[ValueError], match: str) -> None:
+    with pytest.raises(error, match=match):
         decode_h2_priority_update(frame)
 
 

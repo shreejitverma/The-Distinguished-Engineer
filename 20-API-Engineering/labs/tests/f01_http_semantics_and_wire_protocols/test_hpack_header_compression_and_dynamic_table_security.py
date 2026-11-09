@@ -164,6 +164,12 @@ def test_h2_first_request_pays_literals_and_repeats_collapse_to_indexes() -> Non
     stable = [r for r in second if r.kind is Kind.INDEXED and r.index > STATIC_TABLE_LENGTH]
     assert [r.index for r in stable] == [66, 65, 64, 63]
     assert all(r.octets == 1 for r in stable)
+    # A block past the 16,384-octet default SETTINGS_MAX_FRAME_SIZE spans HEADERS plus
+    # CONTINUATION (RFC 9113 Sections 4.2 and 6.10); the joined fragments decode whole.
+    big = [*REQUESTS[0][:4], (b"x-big", b"a" * 40_000)]
+    (joined,) = h2_request_blocks([big])
+    assert len(joined) > 16_384
+    assert Decoder().decode(joined, raw=True) == big
 
 
 @pytest.mark.unit

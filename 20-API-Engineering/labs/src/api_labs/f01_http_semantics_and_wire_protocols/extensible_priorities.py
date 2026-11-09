@@ -33,6 +33,10 @@ class H2ProtocolError(ValueError):
     """An HTTP/2 connection error of type PROTOCOL_ERROR (RFC 9113 Section 5.4.1)."""
 
 
+class H2FrameSizeError(ValueError):
+    """An HTTP/2 connection error of type FRAME_SIZE_ERROR (RFC 9113 Section 4.2)."""
+
+
 class _Cursor:
     """Mutable view over the field value, mirroring the RFC's "consume input_string"."""
 
@@ -317,11 +321,11 @@ def encode_h2_priority_update(prioritized_stream_id: int, field_value: str) -> b
 
 def decode_h2_priority_update(frame: bytes) -> tuple[int, str]:
     """Validate and decode an HTTP/2 PRIORITY_UPDATE frame received by a server."""
-    if len(frame) < 9 + 4:
-        raise H2ProtocolError("PRIORITY_UPDATE shorter than header plus stream ID")
     length = int.from_bytes(frame[0:3], "big")
-    if frame[3] != H2_FRAME_PRIORITY_UPDATE or length != len(frame) - 9:
+    if len(frame) < 9 or frame[3] != H2_FRAME_PRIORITY_UPDATE or length != len(frame) - 9:
         raise H2ProtocolError("not a well-formed PRIORITY_UPDATE frame")
+    if length < 4:
+        raise H2FrameSizeError("PRIORITY_UPDATE payload shorter than the Prioritized Stream ID")
     (stream_id,) = struct.unpack("!L", frame[5:9])
     if stream_id & 0x7FFFFFFF != 0:
         raise H2ProtocolError("PRIORITY_UPDATE must be sent on stream 0")

@@ -38,6 +38,10 @@ class AmbiguousFraming(ValueError):
     """
 
 
+class NeedMoreData(ValueError):
+    """The buffer ends before the message does: a recipient would wait for more bytes."""
+
+
 class Framing(Enum):
     """Which rule of RFC 9112 Section 6.3 determined the body length."""
 
@@ -49,9 +53,11 @@ class Framing(Enum):
 class Prefer(Enum):
     """Which header a lenient recipient trusts when a message carries both.
 
-    ``TE`` models RFC 9112 Section 6.3 step 3 conformance (Transfer-Encoding
-    overrides Content-Length); ``CL`` models a legacy or HTTP/1.0-only parser
-    that ignores an unknown Transfer-Encoding and falls back to Content-Length.
+    ``TE`` models RFC 9112 Section 6.3 steps 3 and 4 conformance (a present
+    Transfer-Encoding overrides Content-Length, and a request whose final coding
+    is not chunked is rejected); ``CL`` models a legacy or HTTP/1.0-only parser
+    that trusts Content-Length whenever it is present and ignores an unknown
+    Transfer-Encoding.
     """
 
     TE = "te"
@@ -65,12 +71,12 @@ class FramingDecision:
     framing: Framing
     content_length: int | None
     has_content_length: bool
-    has_chunked_te: bool
+    has_transfer_encoding: bool
 
     @property
     def is_ambiguous(self) -> bool:
         """True when both framing headers are present (the CL.TE/TE.CL trigger)."""
-        return self.has_content_length and self.has_chunked_te
+        return self.has_content_length and self.has_transfer_encoding
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,21 +97,25 @@ class DesyncResult:
 
     ``smuggled`` is the suffix of the forwarded bytes that the back-end treats
     as the beginning of a *new* request because it framed the body differently
-    from the front-end. An empty ``smuggled`` with ``starved`` false means the
-    two recipients agree and no request boundary was desynchronized.
+    from the front-end. ``starved`` means the back-end framed a longer body and
+    waits for bytes the front-end withheld; ``rejected`` means the back-end found
+    the forwarded bytes malformed and would answer 400 and close. An empty
+    ``smuggled`` with both flags false means the two recipients agree and no
+    request boundary was desynchronized.
     """
 
     front_body: bytes
     back_body: bytes
     smuggled: bytes
     starved: bool
+    rejected: bool
 
 
 def split_head(raw: bytes) -> tuple[bytes, int]:
     """Return the header block (through the blank line) and the body start offset."""
     sep = raw.find(_HEADER_SEP)
     if sep == -1:
-        raise ValueError("incomplete message: no CRLFCRLF header terminator")
+        raise NeedMoreData("incomplete message: no CRLFCRLF header terminator")
     return raw[:sep], sep + len(_HEADER_SEP)
 
 
@@ -162,13 +172,16 @@ def _content_length(headers: tuple[tuple[bytes, bytes], ...]) -> tuple[bool, int
     return True, int(only)
 
 
-def _chunked_te(headers: tuple[tuple[bytes, bytes], ...], *, strict: bool) -> bool:
+def _transfer_encoding(
+    headers: tuple[tuple[bytes, bytes], ...], *, strict: bool
+) -> tuple[bool, bool]:
+    """Return whether Transfer-Encoding is present and whether its final coding is chunked."""
     values = [v for n, v in headers if n == _TRANSFER_ENCODING]
     if not values:
-        return False
+        return False, False
     # Transfer coding names are case-insensitive, and several field lines combine
-    # into one list (RFC 9112 Section 6.1). A lenient recipient only asks whether
-    # the final coding is chunked (RFC 9112 Section 6.3 step 4).
+    # into one list (RFC 9112 Section 6.1). Framing depends only on whether the
+    # final coding is chunked (RFC 9112 Section 6.3 step 4).
     codings = [c.strip(b" \t").lower() for v in values for c in v.split(b",")]
     if strict and codings != [b"chunked"]:
         # The strict recipient understands only chunked, so any other, stacked, or
@@ -178,44 +191,39 @@ def _chunked_te(headers: tuple[tuple[bytes, bytes], ...], *, strict: bool) -> bo
             f"Transfer-Encoding is not exactly one chunked coding: {values!r} "
             "(RFC 9112 Section 6.1)"
         )
-    return codings[-1] == b"chunked"
+    return True, codings[-1] == b"chunked"
 
 
 def classify_framing(
-    method: bytes,
     headers: tuple[tuple[bytes, bytes], ...],
     *,
     prefer: Prefer = Prefer.TE,
     strict: bool = False,
-    status_code: int | None = None,
 ) -> FramingDecision:
-    """Resolve body framing per the RFC 9112 Section 6.3 precedence cascade.
+    """Resolve request body framing per the RFC 9112 Section 6.3 precedence cascade.
 
-    With ``strict=True`` a message carrying both ``Content-Length`` and a chunked
+    With ``strict=True`` a request carrying both ``Content-Length`` and
     ``Transfer-Encoding`` raises ``AmbiguousFraming`` (RFC 9112 Section 6.1 defence).
     With ``strict=False`` the ``prefer`` policy decides which header wins, which is
     exactly the divergence that CL.TE and TE.CL smuggling exploits.
     """
     has_cl, cl = _content_length(headers)
-    has_te = _chunked_te(headers, strict=strict)
+    has_te, te_chunked = _transfer_encoding(headers, strict=strict)
 
-    # Step 1: HEAD and 204/304 responses are always empty (RFC 9112 Section 6.3 step 1).
-    if status_code is not None and (method == b"HEAD" or status_code in (204, 304)):
-        return FramingDecision(Framing.NONE, 0, has_cl, has_te)
-
-    if has_cl and has_te:
-        if strict:
+    if has_cl and has_te and strict:
+        raise AmbiguousFraming(
+            "both Content-Length and Transfer-Encoding present (RFC 9112 Section 6.3 step 3)"
+        )
+    if prefer is Prefer.TE and has_te:
+        if not te_chunked:
             raise AmbiguousFraming(
-                "both Content-Length and Transfer-Encoding present (RFC 9112 Section 6.3 step 3)"
+                "final transfer coding of a request is not chunked (RFC 9112 Section 6.3 step 4)"
             )
-        if prefer is Prefer.TE:
-            return FramingDecision(Framing.CHUNKED, None, has_cl, has_te)
-        return FramingDecision(Framing.CONTENT_LENGTH, cl, has_cl, has_te)
-
-    if has_te:
         return FramingDecision(Framing.CHUNKED, None, has_cl, has_te)
     if has_cl:
         return FramingDecision(Framing.CONTENT_LENGTH, cl, has_cl, has_te)
+    if te_chunked:
+        return FramingDecision(Framing.CHUNKED, None, has_cl, has_te)
     # Step 7: a request with neither header has a zero-length body.
     return FramingDecision(Framing.NONE, 0, has_cl, has_te)
 
@@ -225,7 +233,7 @@ def _read_chunked(raw: bytes, offset: int) -> int:
     while True:
         line_end = raw.find(_CRLF, offset)
         if line_end == -1:
-            raise ValueError("unterminated chunk-size line")
+            raise NeedMoreData("unterminated chunk-size line")
         size_field = raw[offset:line_end]
         hex_digits = size_field.split(b";", 1)[0].strip()
         if not (1 <= len(hex_digits) <= _MAX_CHUNK_HEX_DIGITS) or any(
@@ -239,13 +247,16 @@ def _read_chunked(raw: bytes, offset: int) -> int:
             while True:
                 tr_end = raw.find(_CRLF, offset)
                 if tr_end == -1:
-                    raise ValueError("unterminated trailer section")
+                    raise NeedMoreData("unterminated trailer section")
                 if tr_end == offset:
                     return offset + len(_CRLF)
                 offset = tr_end + len(_CRLF)
         data_end = offset + size
-        if data_end + len(_CRLF) > len(raw) or raw[data_end : data_end + len(_CRLF)] != _CRLF:
-            raise ValueError("truncated chunk data or missing chunk CRLF")
+        terminator = raw[data_end : data_end + len(_CRLF)]
+        if terminator != _CRLF:
+            if _CRLF.startswith(terminator):
+                raise NeedMoreData("truncated chunk data")
+            raise ValueError("missing chunk CRLF after chunk data")
         offset = data_end + len(_CRLF)
 
 
@@ -258,7 +269,7 @@ def parse_one_message(
     """Parse the first request on *raw* and report the byte offset where it ends."""
     block, body_start = split_head(raw)
     method, target, headers = parse_request_head(block)
-    decision = classify_framing(method, headers, prefer=prefer, strict=strict)
+    decision = classify_framing(headers, prefer=prefer, strict=strict)
 
     if decision.framing is Framing.NONE:
         return ParsedMessage(method, target, headers, b"", decision, body_start)
@@ -266,7 +277,7 @@ def parse_one_message(
         length = decision.content_length if decision.content_length is not None else 0
         end = body_start + length
         if end > len(raw):
-            raise ValueError("incomplete body: fewer bytes than Content-Length")
+            raise NeedMoreData("incomplete body: fewer bytes than Content-Length")
         return ParsedMessage(method, target, headers, raw[body_start:end], decision, end)
     end = _read_chunked(raw, body_start)
     return ParsedMessage(method, target, headers, raw[body_start:end], decision, end)
@@ -284,18 +295,22 @@ def forward_and_reparse(
     exactly the bytes it considers that request (``head + body``). The back-end
     reparses those forwarded bytes under its ``back`` policy. If the back-end frames
     a shorter body, the remainder is a smuggled request prefix; if it frames a longer
-    body, it starves waiting for bytes the front-end withheld.
+    body, it starves waiting for bytes the front-end withheld; if it finds the bytes
+    malformed, it rejects the request.
     """
     front_msg = parse_one_message(raw, prefer=front)
     forwarded = raw[: front_msg.end]
     try:
         back_msg = parse_one_message(forwarded, prefer=back)
-    except ValueError:
+    except NeedMoreData:
         # The back-end could not complete the body within the forwarded bytes:
         # it is starved, holding a partial request until the next client write.
-        return DesyncResult(front_msg.body, b"", b"", starved=True)
+        return DesyncResult(front_msg.body, b"", b"", starved=True, rejected=False)
+    except ValueError:
+        # The back-end parsed bytes it cannot accept: it answers 400 and closes.
+        return DesyncResult(front_msg.body, b"", b"", starved=False, rejected=True)
     smuggled = forwarded[back_msg.end :]
-    return DesyncResult(front_msg.body, back_msg.body, smuggled, starved=False)
+    return DesyncResult(front_msg.body, back_msg.body, smuggled, starved=False, rejected=False)
 
 
 def te_obfuscations() -> tuple[tuple[str, bytes], ...]:

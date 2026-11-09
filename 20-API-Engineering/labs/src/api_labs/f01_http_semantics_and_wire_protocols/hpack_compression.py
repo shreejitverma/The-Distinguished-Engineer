@@ -14,7 +14,7 @@ import h2.exceptions
 from h2.settings import SettingCodes
 from hpack import Encoder
 from hpack.hpack import decode_integer
-from hyperframe.frame import Frame, GoAwayFrame, HeadersFrame
+from hyperframe.frame import ContinuationFrame, Frame, GoAwayFrame, HeadersFrame
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -144,7 +144,10 @@ def h2_request_blocks(
     peer_header_table_size: int | None = None,
     split_outbound_cookies: bool = False,
 ) -> list[bytes]:
-    """Send each header list on a new stream of one h2 client; return each HEADERS field block.
+    """Send each header list on a new stream of one h2 client; return each field block.
+
+    A field block larger than the peer's frame size spans one HEADERS frame and its
+    CONTINUATION frames (RFC 9113 Section 4.3); the fragments are joined in order.
 
     `peer_header_table_size` is the server's `SETTINGS_HEADER_TABLE_SIZE`, which bounds the
     client's HPACK encoder (RFC 9113 Section 4.3.1).
@@ -158,10 +161,14 @@ def h2_request_blocks(
     for headers in requests:
         stream_id = client.get_next_available_stream_id()
         client.send_headers(stream_id, list(headers), end_stream=True)
-        frames = [f for f in split_frames(client.data_to_send()) if isinstance(f, HeadersFrame)]
-        if len(frames) != 1:
-            raise ValueError(f"expected one HEADERS frame, got {len(frames)}")
-        blocks.append(bytes(frames[0].data))
+        frames = [
+            f
+            for f in split_frames(client.data_to_send())
+            if isinstance(f, HeadersFrame | ContinuationFrame)
+        ]
+        if sum(isinstance(f, HeadersFrame) for f in frames) != 1:
+            raise ValueError("expected one HEADERS frame per request")
+        blocks.append(b"".join(bytes(f.data) for f in frames))
     return blocks
 
 

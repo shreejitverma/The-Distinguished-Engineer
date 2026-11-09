@@ -138,6 +138,7 @@ Until a client sees the server's `SETTINGS`, it SHOULD send both schemes (RFC 92
 | RFC 7540 weight range and default | `1..256`, default `16`, sent as weight - 1 | RFC 7540 Sections 5.3.2, 5.3.5, and 6.3 |
 | `PRIORITY` frame payload | exactly 5 octets, else `FRAME_SIZE_ERROR` | RFC 9113 Section 6.3 |
 | HTTP/2 `PRIORITY_UPDATE` type | `0x10`, stream 0 only | RFC 9218 Section 7.1 |
+| HTTP/2 `PRIORITY_UPDATE` payload | at least 4 octets (the Prioritized Stream ID), else `FRAME_SIZE_ERROR` | RFC 9113 Section 4.2 and RFC 9218 Section 7.1 |
 | HTTP/2 `PRIORITY_UPDATE` for `u=0` | 16 bytes (9 header + 4 stream ID + 3 value) | lab `test_h2_priority_update_wire_layout` |
 | HTTP/3 `PRIORITY_UPDATE` types | `0xF0700` request, `0xF0701` push | RFC 9218 Section 7.2 |
 | `SETTINGS_NO_RFC7540_PRIORITIES` | code `0x9`, initial `0`, values `0` or `1` | RFC 9218 Sections 2.1 and 16 |

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from api_labs.f01_http_semantics_and_wire_protocols.request_smuggling import (
     AmbiguousFraming,
     Framing,
+    NeedMoreData,
     Prefer,
     classify_framing,
     forward_and_reparse,
@@ -57,6 +58,7 @@ def test_cl_te_desync_leaves_smuggled_request_prefix() -> None:
     assert result.back_body == b"0\r\n\r\n"
     assert result.smuggled == b"G"
     assert result.starved is False
+    assert result.rejected is False
 
 
 @pytest.mark.unit
@@ -108,9 +110,9 @@ def test_cl_preference_vs_te_preference_disagree_on_boundary() -> None:
 def test_strict_recipient_rejects_dual_content_length_and_transfer_encoding() -> None:
     _m, _t, headers = parse_request_head(CL_TE.split(b"\r\n\r\n", 1)[0])
     with pytest.raises(AmbiguousFraming, match="both Content-Length and Transfer-Encoding"):
-        classify_framing(b"POST", headers, strict=True)
+        classify_framing(headers, strict=True)
     # The lenient recipient instead silently picks a winner, which is the hazard.
-    lenient = classify_framing(b"POST", headers, prefer=Prefer.TE, strict=False)
+    lenient = classify_framing(headers, prefer=Prefer.TE, strict=False)
     assert lenient.framing is Framing.CHUNKED
     assert lenient.is_ambiguous is True
 
@@ -119,13 +121,13 @@ def test_strict_recipient_rejects_dual_content_length_and_transfer_encoding() ->
 def test_strict_recipient_rejects_conflicting_duplicate_content_length() -> None:
     headers = ((b"content-length", b"1"), (b"content-length", b"2"))
     with pytest.raises(AmbiguousFraming, match="conflicting Content-Length"):
-        classify_framing(b"POST", headers, strict=True)
+        classify_framing(headers, strict=True)
 
 
 def _strict_frame(raw_request: bytes) -> Framing:
     """Run the strict head parse plus framing classification, raising on ambiguity."""
     _m, _t, headers = parse_request_head(raw_request)
-    return classify_framing(b"POST", headers, strict=True).framing
+    return classify_framing(headers, strict=True).framing
 
 
 @pytest.mark.unit
@@ -169,22 +171,31 @@ def test_strict_recipient_accepts_only_a_single_chunked_coding(
 ) -> None:
     headers = tuple((b"transfer-encoding", v) for v in te_values)
     with pytest.raises(AmbiguousFraming, match="not exactly one chunked coding"):
-        classify_framing(b"POST", headers, strict=True)
-    # A lenient recipient frames by the final coding only (RFC 9112 Section 6.3 step 4).
-    lenient = classify_framing(b"POST", headers, prefer=Prefer.TE, strict=False)
-    assert (lenient.framing is Framing.CHUNKED) is lenient_chunked
+        classify_framing(headers, strict=True)
+    # A lenient recipient frames by the final coding only and must reject a request
+    # whose final coding is not chunked (RFC 9112 Section 6.3 step 4).
+    if lenient_chunked:
+        lenient = classify_framing(headers, prefer=Prefer.TE, strict=False)
+        assert lenient.framing is Framing.CHUNKED
+    else:
+        with pytest.raises(AmbiguousFraming, match="final transfer coding"):
+            classify_framing(headers, prefer=Prefer.TE, strict=False)
     # The token is case-insensitive, so a single "Chunked" is accepted strictly.
-    single = classify_framing(b"POST", ((b"transfer-encoding", b"Chunked"),), strict=True)
+    single = classify_framing(((b"transfer-encoding", b"Chunked"),), strict=True)
     assert single.framing is Framing.CHUNKED
 
 
 @pytest.mark.unit
-def test_head_and_no_content_responses_are_always_empty() -> None:
-    # RFC 9112 Section 6.3 step 1: HEAD and 204/304 frame no body whatever the headers.
-    headers = ((b"content-length", b"42"),)
-    assert classify_framing(b"HEAD", headers, status_code=200).framing is Framing.NONE
-    assert classify_framing(b"GET", headers, status_code=204).framing is Framing.NONE
-    assert classify_framing(b"GET", headers, status_code=304).framing is Framing.NONE
+def test_transfer_encoding_presence_makes_a_message_ambiguous_even_if_not_chunked() -> None:
+    # The prefixed-token TE.TE obfuscation: a Transfer-Encoding is present, so step 3
+    # makes it override Content-Length, but its final coding is not chunked (step 4).
+    headers = ((b"content-length", b"4"), (b"transfer-encoding", b"xchunked"))
+    with pytest.raises(AmbiguousFraming, match="final transfer coding"):
+        classify_framing(headers, prefer=Prefer.TE)
+    legacy = classify_framing(headers, prefer=Prefer.CL)
+    assert legacy.framing is Framing.CONTENT_LENGTH
+    assert legacy.content_length == 4
+    assert legacy.is_ambiguous is True
     # A request with neither header frames a zero-length body (step 7).
     empty = parse_one_message(b"GET / HTTP/1.1\r\nHost: t\r\n\r\n")
     assert empty.decision.framing is Framing.NONE
@@ -200,26 +211,29 @@ def test_malformed_messages_are_rejected() -> None:
     with pytest.raises(ValueError, match="malformed field-line"):
         parse_request_head(b"GET / HTTP/1.1\r\nnot-a-header")
     with pytest.raises(AmbiguousFraming, match="invalid Content-Length"):
-        classify_framing(b"POST", ((b"content-length", b"1_000"),))
+        classify_framing(((b"content-length", b"1_000"),))
     with pytest.raises(ValueError, match="incomplete body"):
         parse_one_message(b"POST / HTTP/1.1\r\nHost: t\r\nContent-Length: 50\r\n\r\nshort")
 
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("bad_body", "match"),
+    ("bad_body", "error", "match"),
     [
-        (b"zz\r\nabc\r\n0\r\n\r\n", "invalid chunk-size"),
-        (b"3\r\nabc", "missing chunk CRLF"),
-        (b"3\r\nabc\r\n", "unterminated chunk-size"),
+        (b"zz\r\nabc\r\n0\r\n\r\n", ValueError, "invalid chunk-size"),
+        (b"3\r\nabc\r", NeedMoreData, "truncated chunk data"),
+        (b"3\r\nabc\r\n", NeedMoreData, "unterminated chunk-size"),
         # CVE-2025-43859 shape: two garbage octets where the chunk-data CRLF belongs.
-        (b"3\r\nabcXX0\r\n\r\n", "missing chunk CRLF"),
+        (b"3\r\nabcXX0\r\n\r\n", ValueError, "missing chunk CRLF"),
     ],
 )
-def test_chunked_parser_rejects_malformed_bodies(bad_body: bytes, match: str) -> None:
+def test_chunked_parser_tells_truncated_from_malformed_bodies(
+    bad_body: bytes, error: type[ValueError], match: str
+) -> None:
     raw = b"POST / HTTP/1.1\r\nHost: t\r\nTransfer-Encoding: chunked\r\n\r\n" + bad_body
-    with pytest.raises(ValueError, match=match):
+    with pytest.raises(ValueError, match=match) as exc_info:
         parse_one_message(raw, prefer=Prefer.TE)
+    assert exc_info.type is error
 
 
 _CHUNKED_HEAD = b"POST / HTTP/1.1\r\nHost: t\r\nTransfer-Encoding: chunked\r\n\r\n"
@@ -230,7 +244,7 @@ def test_chunk_size_is_capped_to_prevent_integer_overflow() -> None:
     # RFC 9112 Section 7.1: a recipient MUST prevent overflow on a huge chunk-size.
     # 16 hex digits is the last accepted width (the failure is then the missing data);
     # 17 digits is rejected as an invalid chunk-size before any conversion.
-    with pytest.raises(ValueError, match="missing chunk CRLF"):
+    with pytest.raises(NeedMoreData, match="truncated chunk data"):
         parse_one_message(_CHUNKED_HEAD + b"0000000000000010\r\nabc\r\n", prefer=Prefer.TE)
     with pytest.raises(ValueError, match="invalid chunk-size"):
         parse_one_message(_CHUNKED_HEAD + b"00000000000000010\r\nabc\r\n", prefer=Prefer.TE)
@@ -248,7 +262,7 @@ def test_chunked_parser_consumes_trailers_and_ignores_chunk_extensions() -> None
 
 
 @pytest.mark.unit
-def test_back_end_starves_when_it_frames_a_longer_body() -> None:
+def test_back_end_starves_on_a_longer_body_but_rejects_a_malformed_one() -> None:
     # Front-end frames with chunked (forwards a short terminating chunk); back-end
     # trusts a large Content-Length and blocks waiting for bytes never forwarded.
     raw = (
@@ -257,7 +271,19 @@ def test_back_end_starves_when_it_frames_a_longer_body() -> None:
     )
     result = forward_and_reparse(raw, front=Prefer.TE, back=Prefer.CL)
     assert result.starved is True
+    assert result.rejected is False
     assert result.smuggled == b""
+    # The front-end forwards all nine Content-Length octets, but "zz" is not a
+    # chunk-size: a chunked back-end answers 400 and closes instead of waiting.
+    malformed = (
+        b"POST / HTTP/1.1\r\nHost: t\r\n"
+        b"Content-Length: 9\r\nTransfer-Encoding: chunked\r\n\r\nzz\r\nabcde"
+    )
+    rejected = forward_and_reparse(malformed, front=Prefer.CL, back=Prefer.TE)
+    assert rejected.front_body == b"zz\r\nabcde"
+    assert rejected.rejected is True
+    assert rejected.starved is False
+    assert rejected.smuggled == b""
 
 
 @pytest.mark.unit
