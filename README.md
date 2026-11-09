@@ -76,6 +76,7 @@ Every knowledge note carries typed frontmatter (type, track, level, status), and
 17-Cloud-AI-Engineering/       Cloud AI Engineering: Zero to Godhood (16 volumes, AWS and Google Cloud)
 18-Developer-Toolchain/        Developer toolchain knowledge base (12 pillar folders, labs checked by make verify)
 19-Shell-and-Unix-Engineering/ Shell and Unix knowledge base (27 topic folders, labs run in a 13-shell matrix)
+20-API-Engineering/            API engineering knowledge base (27 topic folders, labs gated by tools/check_api_labs.py)
 INDEX.md                       Phased table of contents with direct links
 CS-Subjects/                   Legacy index that now points into 01-CS-Foundations
 tools/                         Vault audit, link repair, and guard scripts (see tools/README.md)
@@ -180,6 +181,7 @@ The papers themselves are not stored here; 82 of them link to a legitimate publi
 - [09 - Engineering Leadership](./09-Engineering-Leadership/README.md), [10 - Development Practices](./10-Development-Practices/README.md), [11 - Security and Cryptography](./11-Security-And-Cryptography/README.md), [12 - Performance Engineering](./12-Performance-Engineering/README.md).
 - [18 - Developer Toolchain](./18-Developer-Toolchain/README.md): program execution, the command line, Git, debugging, profiling, build systems, and packaging and shipping in C++, Python, and Rust.
 - [19 - Shell and Unix Engineering](./19-Shell-and-Unix-Engineering/README.md): a separate book on the shell and the Unix userland, overlapping 18 on the process model and the command line.
+- [20 - API Engineering](./20-API-Engineering/README.md): a separate book on APIs, HTTP, and the Python API stack, from wire framing and TLS through ASGI, FastAPI, Pydantic, and database transactions, with pytest labs.
 - [16 - Interview Command Center](./16-Interview-Command-Center/00-Dashboard.md): the Obsidian homepage; role hubs, macros, dashboards, and the review loop.
 - [CS-Subjects](./CS-Subjects/README.md): a legacy index kept for old links; everything it lists lives in `01-CS-Foundations`.
 

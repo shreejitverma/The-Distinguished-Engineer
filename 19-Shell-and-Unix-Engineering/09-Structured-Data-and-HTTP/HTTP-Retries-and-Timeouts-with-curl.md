@@ -40,4 +40,6 @@ Prerequisites: [[curl-in-Depth]]
 
 Next: [[When-to-Stop-Using-Text-Tools]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/16-Resilience-Rate-Limiting-and-Idempotency/README|Resilience Rate Limiting and Idempotency]], [[20-API-Engineering/02-TLS-Connections-and-Intermediaries/README|TLS Connections and Intermediaries]]; start with [[Timeout-Taxonomy-Connect-Read-Write-Pool-and-Deadline-Propagation]], [[Retries-Exponential-Backoff-Full-vs-Decorrelated-Jitter-and-Stamina]].
+
 ## Further reading

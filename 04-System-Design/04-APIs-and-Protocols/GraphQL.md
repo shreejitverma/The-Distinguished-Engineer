@@ -728,6 +728,7 @@ Over 70 independent backend microservices publish subgraphs, which the federated
 - [[REST-APIs|REST APIs]]: Traditional resource-oriented alternative.
 - [[API-Fundamentals|API Fundamentals]]: Rate limiting, versioning, and idempotency.
 - [[gRPC-and-Protocol-Buffers|gRPC and Protocol Buffers]]: High-performance binary RPC protocol.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/20-GraphQL-JSON-RPC-and-Event-APIs/README|GraphQL JSON RPC and Event APIs]], [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]], [[20-API-Engineering/24-API-Failure-Case-Studies/README|API Failure Case Studies]]; start with [[GraphQL-Specification-September-2025-SDL-AST-and-Execution-Engine]], [[Strawberry-GraphQL-with-FastAPI-Types-Context-Mutations-and-Subscriptions]], [[The-GraphQL-N-Plus-1-Problem-and-DataLoader-Tick-Batching-Internals]].
 
 ## Further Reading
 - GraphQL Foundation. "GraphQL: A query language for APIs." *Official Specification* (2021).

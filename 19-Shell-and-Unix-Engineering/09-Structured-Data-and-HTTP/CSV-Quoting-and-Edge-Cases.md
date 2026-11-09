@@ -40,4 +40,6 @@ Prerequisites: [[XML-with-xmlstarlet]]
 
 Next: [[Miller]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/01-HTTP-Semantics-and-Wire-Protocols/README|HTTP Semantics and Wire Protocols]], [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]]; start with [[Content-Negotiation-Media-Types-and-Charsets]].
+
 ## Further reading

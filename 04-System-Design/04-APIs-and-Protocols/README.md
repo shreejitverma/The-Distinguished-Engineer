@@ -82,3 +82,7 @@ graph TD
 2. Master how HTTP/2 multiplexing differs from HTTP/1.1 pipelining and how QUIC addresses transport head-of-line blocking.
 3. Be prepared to implement cursor pagination schemas and explain why `OFFSET` degrades linearly with offset depth at scale.
 4. Practice drawing complete OAuth 2.0 authorization code flows with PKCE and explaining JWT revocation strategies.
+
+## Related
+
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/20-GraphQL-JSON-RPC-and-Event-APIs/README|GraphQL JSON RPC and Event APIs]], [[20-API-Engineering/17-API-Gateways-Proxies-and-Edge-Architecture/README|API Gateways Proxies and Edge Architecture]]; start with [[Real-Time-Push-Protocols-Compared-WebSockets-vs-SSE-vs-HTTP-2-3-Streaming-vs-Long-Polling]], [[Architectural-Paradigm-Selection-REST-vs-gRPC-vs-GraphQL-vs-JSON-RPC-vs-Events]].

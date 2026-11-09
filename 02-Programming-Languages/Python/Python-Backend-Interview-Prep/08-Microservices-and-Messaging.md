@@ -883,3 +883,7 @@ Official docs:
 - [Debezium outbox event router](https://debezium.io/documentation/reference/transformations/outbox-event-router.html)
 - [Timeouts, retries, and backoff with jitter (AWS Builders' Library)](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/)
 - [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/)
+
+## Related
+
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/16-Resilience-Rate-Limiting-and-Idempotency/README|Resilience Rate Limiting and Idempotency]], [[20-API-Engineering/17-API-Gateways-Proxies-and-Edge-Architecture/README|API Gateways Proxies and Edge Architecture]], [[20-API-Engineering/18-Observability-Profiling-and-Operations/README|Observability Profiling and Operations]]; start with [[Atomic-Idempotency-Phases-and-Failure-Recovery-Across-Network-Drops]], [[Retry-Budgets-and-Preventing-Cascading-Retry-Amplification-Storms]], [[Circuit-Breakers-State-Machines-Half-Open-Probing-and-When-Not-to-Use-Them]].

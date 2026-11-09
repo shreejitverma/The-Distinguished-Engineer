@@ -928,3 +928,7 @@ Official references:
 - [OpenAPI Specification](https://spec.openapis.org/oas/latest.html).
 - [AWS Builders' Library: Timeouts, retries, and backoff with jitter](https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/).
 - [SQLite row values](https://www.sqlite.org/rowvalue.html) (the keyset comparison used in R6).
+
+## Related
+
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/04-REST-and-Resource-Modeling/README|REST and Resource Modeling]], [[20-API-Engineering/05-Pagination-Filtering-and-Query-Patterns/README|Pagination Filtering and Query Patterns]], [[20-API-Engineering/07-Versioning-Evolution-and-API-Guidelines/README|Versioning Evolution and API Guidelines]]; start with [[Fieldings-Dissertation-and-the-Six-Constraints-of-REST]], [[Richardson-Maturity-Model-HATEOAS-and-Web-Linking-RFC-8288]], [[Resource-Oriented-Design-Collections-Resources-and-Subresources]].

@@ -612,6 +612,7 @@ Extensively leverages hypermedia links (HATEOAS) for pagination (`Link: <...page
 - [[gRPC-and-Protocol-Buffers|gRPC and Protocol Buffers]]: High-performance binary RPC alternative.
 - [[HTTP-Evolution-HTTP1-HTTP2-HTTP3|HTTP Evolution]]: Transport protocols underlying REST APIs.
 - [[05-REST-API-Design|Python REST API Design]]: Vault backend implementation recipes.
+- [[20-API-Engineering/README|API Engineering]] goes deeper: [[20-API-Engineering/04-REST-and-Resource-Modeling/README|REST and Resource Modeling]], [[20-API-Engineering/03-HTTP-Caching-and-Conditional-Requests/README|HTTP Caching and Conditional Requests]], [[20-API-Engineering/01-HTTP-Semantics-and-Wire-Protocols/README|HTTP Semantics and Wire Protocols]]; start with [[Fieldings-Dissertation-and-the-Six-Constraints-of-REST]], [[Richardson-Maturity-Model-HATEOAS-and-Web-Linking-RFC-8288]], [[Resource-Oriented-Design-Collections-Resources-and-Subresources]].
 
 ## Further Reading
 - Fielding, Roy Thomas. "Architectural styles and the design of network-based software architectures." *Doctoral dissertation, University of California, Irvine* (2000).

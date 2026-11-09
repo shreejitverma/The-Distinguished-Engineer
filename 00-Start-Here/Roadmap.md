@@ -136,6 +136,7 @@ The [review queue](Review-Queue.md) brings a note back after 7, 21, or 60 days, 
 | 17 | Cloud and AI infrastructure on AWS and Google Cloud, from the hardware up | [Cloud AI engineering](../17-Cloud-AI-Engineering/README.md) |
 | 18 | Program execution, the command line, Git, debugging, profiling, build systems, and packaging and shipping in C++, Python, and Rust, with labs checked by make verify | [Developer toolchain](../18-Developer-Toolchain/README.md) |
 | 19 | The shell from the system call up: POSIX, bash, zsh, the userland, filesystems, networking, robustness, security, production, and organizational scale | [Shell and Unix engineering](../19-Shell-and-Unix-Engineering/README.md) |
+| 20 | APIs, HTTP, and the Python API stack: wire framing, TLS, REST, ASGI servers, FastAPI, Pydantic, database transactions, resilience, and governance, with pytest labs | [API engineering](../20-API-Engineering/README.md) |
 
 Private application data is not in this repository.
 The Command Center links that point at companies, pipeline, and retrospectives resolve only in a local checkout that has those folders.

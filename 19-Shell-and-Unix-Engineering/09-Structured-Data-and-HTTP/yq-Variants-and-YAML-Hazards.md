@@ -42,4 +42,6 @@ Next: [[XML-with-xmlstarlet]]
 
 See also: [[Structured-Data-Wrangling-Jq-Yq-and-Coreutils]]
 
+API Engineering goes deeper in [[20-API-Engineering/README|API Engineering]]: [[20-API-Engineering/08-OpenAPI-JSON-Schema-and-Contracts/README|OpenAPI JSON Schema and Contracts]]; start with [[YAML-Media-Type-RFC-9512-and-OpenAPI-YAML-Parser-Hazards]].
+
 ## Further reading
