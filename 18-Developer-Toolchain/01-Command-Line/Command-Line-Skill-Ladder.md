@@ -37,7 +37,7 @@ Defines observable, testable engineering capabilities across shell engineering a
 
 ## Level 6 (L6)
 
-- Rebuilds a minimal POSIX-compliant shell in C++ or Rust supporting lexical tokenization, pipelines, file redirections, and job control with `tcsetpgrp` as completed in [[Rebuild-a-Minimal-Shell-With-Job-Control]].
+- Rebuilds a minimal POSIX-compliant shell in C supporting lexical tokenization, pipelines, file redirections, and job control with `tcsetpgrp` as completed in [[Rebuild-a-Minimal-Shell-With-Job-Control]].
 - Identifies and rewrites pathological regular expressions vulnerable to catastrophic backtracking (ReDoS) into linear-time automata patterns as demonstrated in [[Drill-Command-Line-Catastrophic-Backtracking-and-Stream-Bottleneck]].
 - Provisions corporate OpenSSH Certificate Authorities, issues short-lived user and host certificates, and maintains Key Revocation Lists as engineered in [[Harden-SSH-Access-With-Certificates-and-Hardware-Keys]].
 - Inspects system call boundaries and kernel state of wedged processes using `strace`, `lsof`, and `/proc` without causing thread stalls as detailed in [[System-Inspection-and-Syscall-Tracing-From-the-Shell]].

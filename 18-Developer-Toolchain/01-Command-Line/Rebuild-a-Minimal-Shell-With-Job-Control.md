@@ -34,7 +34,7 @@ sources:
 # Rebuild a Minimal Shell With Job Control
 
 > [!summary] Scope
-> Owns the architecture, implementation milestones, and verification tests for rebuilding a functional POSIX-style command shell in C++ or Rust.
+> Owns the architecture, implementation milestones, and verification tests for rebuilding a functional POSIX-style command shell in C.
 > Guides implementation of lexical tokenization, multi-stage pipelines with pipe and dup2, file descriptor redirections, child process fork-exec execution, process group assignment, terminal control acquisition via tcsetpgrp, and SIGCHLD/SIGTSTP job control.
 > Reaches Rebuild, putting process and pipeline concepts into code.
 
