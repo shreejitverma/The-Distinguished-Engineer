@@ -165,11 +165,11 @@ They come from a one-off `timeit` script, not a lab test; treat them as orders o
 
 | Dimension | Version | Behavior | Evidence |
 |---|---|---|---|
-| CPython | `3.12.13` | 85 passed; 2160 of 2160 suite records | lab, `UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python 3.12.13 pytest ...`; the matrix pin `3.12.16` is not available to uv on this machine |
-| CPython | `3.13.18` | 85 passed; 2160 of 2160 | lab, same command with `--python 3.13.18` |
-| CPython | `3.14.6` (workspace `.venv`) | 85 passed; 2160 of 2160 | lab, `uv run --frozen pytest ...` |
-| CPython | `3.14.10` | 85 passed; 2160 of 2160 | lab, `--python 3.14.10` |
-| CPython | `3.15.2` | 85 passed; 2160 of 2160 | lab, frozen workspace: `UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python /opt/homebrew/bin/python3.15 pytest ...` (the locked `hypothesis` 6.170.14 imports on 3.15.2) |
+| CPython | `3.12.13` | 91 passed; 2160 of 2160 suite records | lab, `UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python 3.12.13 pytest ...`; the matrix pin `3.12.16` is not available to uv on this machine |
+| CPython | `3.13.18` | 91 passed; 2160 of 2160 | lab, same command with `--python 3.13.18` |
+| CPython | `3.14.6` (workspace `.venv`) | 91 passed; 2160 of 2160 | lab, `uv run --frozen pytest ...` |
+| CPython | `3.14.10` | 91 passed; 2160 of 2160 | lab, `--python 3.14.10` |
+| CPython | `3.15.2` | 91 passed; 2160 of 2160 | lab, frozen workspace: `UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python /opt/homebrew/bin/python3.15 pytest ...` (the locked `hypothesis` 6.170.14 imports on 3.15.2) |
 | CPython | `3.15.0b3` free-threaded (`Py_GIL_DISABLED=1`, `sys._is_gil_enabled()` is `False`) | 85 passed; 2160 of 2160 | lab via `PYTHONPATH=src uv run --no-project --python 3.15t` with the locked `pytest`, `pytest-asyncio`, `anyio`, `h11`, `httpx`, `httpcore`, `starlette`, `idna`, `certifi`; the frozen workspace cannot install because `psycopg-binary==3.3.8` has no wheel for 3.15t; the matrix pin `3.15.2t` is not available to uv here |
 | Containers | Debian 13 Trixie (glibc 2.41) and Alpine Linux 3.24 (musl), both CPython `3.14.10` aarch64 | 85 passed; 2160 of 2160 on each | lab via `docker run` of `python:3.14-slim-trixie` and `python:3.14-alpine` with the locked `pytest`, `pytest-asyncio`, `anyio`, `h11`, `httpx`, `httpcore`, `starlette`, `idna`, `certifi` installed by `pip` and `PYTHONPATH=src` |
 | Python language | all of the above | `bool` is a subclass of `int`, so a serializer must test `bool` first and a profile must use `type(v) is int` | lab mutations M1 and M5 |
@@ -181,6 +181,8 @@ They come from a one-off `timeit` script, not a lab test; treat them as orders o
 | HTTP/1.1 | RFC 9112 | textual field lines, combined per RFC 9110 Section 5.3 | RFC 9651 Section 4.2 |
 | HTTP/2, HTTP/3 | RFC 9113, RFC 9114 | the same algorithms apply to the field value as it is before header compression | RFC 9651 Section 4 names HTTP/2 before HPACK compression; HTTP/2 and HTTP/3 also carry hop-by-hop `PRIORITY_UPDATE` frames whose priority parameters use the same Dictionary encoding (RFC 9218 Sections 4 and 7) |
 | Spec revision | RFC 8941 vs RFC 9651 | an RFC 9651 parser accepts every valid RFC 8941 field, but a field defined against RFC 8941 must not use Date or Display String | RFC 9651 Section 2.4 |
+
+The 3.12.13, 3.13.18, 3.14.6, 3.14.10, and 3.15.2 rows were rerun on 2026-11-09 after six out-of-range and boundary `Deprecation` Date vectors were added; the free-threaded and container rows predate those vectors and so count six fewer.
 
 ## Worked example
 
@@ -363,14 +365,14 @@ async def test_starlette_getitem_sees_only_the_first_priority_field_line() -> No
     assert httpx.Headers([("priority", "u=1"), ("priority", "u=6")])["priority"] == "u=1, u=6"
 ```
 
-The other tests cover RFC 9421 `sf` re-serialization, 34 hand-written conformance vectors (10 verbatim from `httpwg/structured-field-tests`, including HTAB inside an Inner List), Python `bool` versus Integer, Token versus String, duplicate keys, String and Token splitting across lines, h11 line delivery and obs-text, `Priority` type and range rules, Decimal half-even rounding, Integer and Date range, Byte Sequence padding and pad bits (including the `RateLimit-Policy` example `pk=:cHsdsRa894==:` from draft-ietf-httpapi-ratelimit-headers-11 Section 3.2, which has non-zero pad bits and re-serializes as `:cHsdsRa89w==:`), Display String encoding, `Deprecation`, `RateLimit`, serializer refusal of invalid keys, Tokens, and control characters, empty containers, and the RFC 9651 minimum sizes.
+The other tests cover RFC 9421 `sf` re-serialization, 34 hand-written conformance vectors (10 verbatim from `httpwg/structured-field-tests`, including HTAB inside an Inner List), Python `bool` versus Integer, Token versus String, duplicate keys, String and Token splitting across lines, h11 line delivery and obs-text, `Priority` type and range rules, Decimal half-even rounding, Integer and Date range, Byte Sequence padding and pad bits (including the `RateLimit-Policy` example `pk=:cHsdsRa894==:` from draft-ietf-httpapi-ratelimit-headers-11 Section 3.2, which has non-zero pad bits and re-serializes as `:cHsdsRa89w==:`), Display String encoding, `Deprecation` (a Date outside years 1 to 9999 is ignored rather than raised), `RateLimit`, serializer refusal of invalid keys, Tokens, and control characters, empty containers, and the RFC 9651 minimum sizes.
 
 Captured run, command `uv run --frozen pytest tests/f01_http_semantics_and_wire_protocols/test_structured_field_values_for_http_rfc_9651.py -q` from `labs/`, CPython 3.14.6, `macOS-27.2-arm64-arm-64bit-Mach-O`:
 
 ```text
-........................................................................ [ 84%]
-.............                                                            [100%]
-85 passed in 0.09s
+........................................................................ [ 79%]
+...................                                                      [100%]
+91 passed in 0.09s
 ```
 
 ## Pitfalls

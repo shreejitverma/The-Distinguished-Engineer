@@ -322,10 +322,32 @@ def test_display_string_percent_encodes_utf8_with_lowercase_hex() -> None:
         (b"1688169599", None),
         (b"@1688169599.5", None),
         (b"Fri, 30 Jun 2023 23:59:59 GMT", None),
+        (b"@-62135596800", datetime(1, 1, 1, tzinfo=UTC)),
+        (b"@253402300799", datetime(9999, 12, 31, 23, 59, 59, tzinfo=UTC)),
+        (b"@-62135596801", None),
+        (b"@253402300800", None),
+        (b"@999999999999999", None),
+        (b"@-999999999999999", None),
     ],
-    ids=["rfc9745-example", "unknown-param", "token", "boolean", "integer", "decimal", "imf"],
+    ids=[
+        "rfc9745-example",
+        "unknown-param",
+        "token",
+        "boolean",
+        "integer",
+        "decimal",
+        "imf",
+        "year-1-start",
+        "year-9999-end",
+        "year-0",
+        "year-10000",
+        "max-15-digit",
+        "min-15-digit",
+    ],
 )
 def test_deprecation_accepts_only_an_sf_date(value: bytes, expected: datetime | None) -> None:
+    # RFC 9651 Section 3.3.7 only requires years 1 to 9999; a Date outside the
+    # datetime range is well-formed but unrepresentable, so it is ignored, not raised.
     assert deprecation_from_field(value) == expected
 
 

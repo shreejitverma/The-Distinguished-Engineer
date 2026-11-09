@@ -526,16 +526,19 @@ async def _download(request: Request) -> Response:
 def build_demo_app(*, minimum_size: int = 500) -> Starlette:
     """Build the Starlette worked-example app with gzip negotiation.
 
-    ``GZipMiddleware`` applies gzip only when the request's ``Accept-Encoding``
-    allows it and the body is at least *minimum_size* bytes, and it adds
-    ``Vary: Accept-Encoding`` so caches key on the negotiated coding (starlette
-    1.10.0 starlette/middleware/gzip.py, GZipMiddleware).
+    On ``/report`` and ``/tiny``, ``GZipMiddleware`` applies gzip only when the
+    request's ``Accept-Encoding`` contains ``gzip`` and the body is at least
+    *minimum_size* bytes, and it adds ``Vary: Accept-Encoding`` so caches key on
+    the negotiated coding (starlette 1.10.0 starlette/middleware/gzip.py,
+    GZipMiddleware).  ``/download`` negotiates with q-values itself, so it is
+    routed outside the middleware, whose substring test would otherwise gzip a
+    response to ``gzip;q=0``.
     """
+    gzip_middleware = [Middleware(GZipMiddleware, minimum_size=minimum_size)]
     return Starlette(
         routes=[
-            Route("/report", _report),
-            Route("/tiny", _tiny),
+            Route("/report", _report, middleware=gzip_middleware),
+            Route("/tiny", _tiny, middleware=gzip_middleware),
             Route("/download", _download),
         ],
-        middleware=[Middleware(GZipMiddleware, minimum_size=minimum_size)],
     )

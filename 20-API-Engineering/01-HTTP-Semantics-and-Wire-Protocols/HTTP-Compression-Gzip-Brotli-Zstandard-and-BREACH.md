@@ -73,7 +73,8 @@ Because `br` has no magic number, a receiver cannot sniff the coding from the by
 The lab makes this concrete: `detect_coding` recognizes gzip and zstd from their magic prefixes but returns `None` for brotli.
 
 Server-side, Starlette chooses gzip when the request's `Accept-Encoding` contains the substring `gzip` (starlette 1.10.0 starlette/middleware/gzip.py, `GZipMiddleware.__call__`), then compresses only when the body reaches `minimum_size` (default 500 bytes) and the content type is not in `DEFAULT_EXCLUDED_CONTENT_TYPES`; it adds `Vary: Accept-Encoding` and, for a streaming body, drops `Content-Length` because the final size is unknown until the stream ends (starlette 1.10.0 starlette/middleware/gzip.py, `IdentityResponder.send_with_compression`).
-The substring test ignores q-values: the lab's `test_starlette_gzip_middleware_ignores_q_zero` shows Starlette 1.10.0 still gzips a response to `Accept-Encoding: gzip;q=0`, which RFC 9110 Section 12.5.3 Rule 3 defines as "not acceptable", so put a q-value-aware negotiator such as `negotiate_content_coding` in front of it when clients may send `q=0`.
+The substring test ignores q-values: the lab's `test_starlette_gzip_middleware_ignores_q_zero` shows Starlette 1.10.0 still gzips a response to `Accept-Encoding: gzip;q=0`, which RFC 9110 Section 12.5.3 Rule 3 defines as "not acceptable", so when clients may send `q=0` a q-value-aware negotiator such as `negotiate_content_coding` must replace or bypass the middleware, not sit inside it.
+A route behind `GZipMiddleware` that negotiates `identity` still gets gzipped, because the middleware sees `gzip` in the header and an uncompressed body over `minimum_size`; the lab therefore attaches `GZipMiddleware` per route (`Route(..., middleware=[...])`) and leaves `/download` outside it, and `test_asgi_download_honors_gzip_q_zero` checks that `/download` answers `gzip;q=0` with no `Content-Encoding`.
 Streaming compression flushes each chunk with `Z_SYNC_FLUSH` so the client receives data incrementally (starlette 1.10.0 starlette/middleware/gzip.py, `GZipResponder._compress_body`), which the lab mirrors in `GzipStreamCompressor`.
 In HTTP/2 the `chunked` transfer coding cannot be used (RFC 9113 Section 8.1) and in HTTP/3 transfer codings are not defined at all (RFC 9114 Section 4.1), but `Content-Encoding` is unchanged because it lives above framing: it is message semantics, so it survives every wire serialization.
 
@@ -105,11 +106,11 @@ Every row ran the same test module with the dependencies pinned to `labs/uv.lock
 
 | Environment | CPython | zlib | Result | zstd path |
 |---|---|---|---|---|
-| macOS 27.2 arm64, uv | 3.12.13 | system | 51 passed | gated off |
-| macOS 27.2 arm64, Homebrew | 3.13.18 | system | 51 passed | gated off |
-| macOS 27.2 arm64, uv (workspace `.venv`) | 3.14.6 | system | 56 passed | stdlib |
-| macOS 27.2 arm64, Homebrew | 3.14.10 | system | 56 passed | stdlib |
-| macOS 27.2 arm64, Homebrew | 3.15.2 | system | 56 passed | stdlib |
+| macOS 27.2 arm64, uv | 3.12.13 | system | 52 passed | gated off |
+| macOS 27.2 arm64, Homebrew | 3.13.18 | system | 52 passed | gated off |
+| macOS 27.2 arm64, uv (workspace `.venv`) | 3.14.6 | system | 57 passed | stdlib |
+| macOS 27.2 arm64, Homebrew | 3.14.10 | system | 57 passed | stdlib |
+| macOS 27.2 arm64, Homebrew | 3.15.2 | system | 57 passed | stdlib |
 | macOS 27.2 arm64, uv | 3.15.0b3 | system | 56 passed | stdlib |
 | macOS 27.2 arm64, uv, free-threaded | 3.15.0b3t | system | 56 passed, 1 `RuntimeWarning` | stdlib |
 | macOS 27.2 arm64, uv, free-threaded | 3.14.6t | system | 56 passed, 1 `RuntimeWarning` | stdlib |
@@ -119,6 +120,8 @@ Every row ran the same test module with the dependencies pinned to `labs/uv.lock
 | Docker `python:3.14-slim-trixie` (glibc 2.41) | 3.14.10 | 1.3.1 | 56 passed | stdlib |
 | Docker `python:3.14-alpine` (musl) | 3.14.10 | 1.3.2 | 56 passed | stdlib |
 | Docker `python:3.15-slim-trixie` (glibc 2.41) | 3.15.2 | 1.3.1 | 56 passed | stdlib |
+
+The 3.12.13, 3.13.18, 3.14.6, 3.14.10, and 3.15.2 macOS rows were rerun on 2026-11-09 after `test_asgi_download_honors_gzip_q_zero` was added; the 3.15.0b3, free-threaded, and Docker rows are from the 2026-11-08 run, which predates that test and so counts one fewer.
 
 | Behavior | Result | Proof |
 |---|---|---|
@@ -286,8 +289,8 @@ Running the test module from `labs/` on CPython 3.14.6, macOS 27.2 (Darwin 27.2.
 
 ```text
 $ uv run --frozen pytest tests/f01_http_semantics_and_wire_protocols/test_http_compression_gzip_brotli_zstandard_and_breach.py -q
-........................................................                 [100%]
-56 passed in 0.74s
+.........................................................                [100%]
+57 passed in 0.74s
 ```
 
 ## Pitfalls
@@ -376,7 +379,7 @@ Choose a different tool when the payload is already compressed (images, video, `
 > > [!success]- Answer
 > > On 3.13 the import raises `ModuleNotFoundError: No module named 'compression'`, because `compression.zstd` was added in 3.14 by PEP 784, so the whole module fails to import and every codec including gzip becomes unusable.
 > > The fix is to import `compression.zstd` inside a `try`/`except ModuleNotFoundError`, set a `HAS_STDLIB_ZSTD` flag, advertise `zstd` only when present, and raise a clear error from the zstd path otherwise.
-> > The lab does exactly this and passes all 51 tests it generates on 3.13.18 (56 on 3.14+): the five zstd-parametrized cases are not generated, and the two gate tests assert the `RuntimeError` branch.
+> > The lab does exactly this and passes all 52 tests it generates on 3.13.18 (57 on 3.14+): the five zstd-parametrized cases are not generated, and the two gate tests assert the `RuntimeError` branch.
 > >
 > > Follow-up: Why is gating on a capability flag better than catching the error at each call site?
 

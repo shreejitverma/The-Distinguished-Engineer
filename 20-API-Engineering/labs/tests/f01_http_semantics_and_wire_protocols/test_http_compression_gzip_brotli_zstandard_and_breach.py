@@ -408,6 +408,21 @@ async def test_starlette_gzip_middleware_ignores_q_zero() -> None:
     assert resp.headers["content-encoding"] == "gzip"
 
 
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_asgi_download_honors_gzip_q_zero() -> None:
+    # RFC 9110 Section 12.5.3 Rule 3: gzip;q=0 makes gzip "not acceptable", and
+    # identity stays acceptable, so the 4 KB body must go out uncompressed.
+    app = build_demo_app(minimum_size=500)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/download", headers={"Accept-Encoding": "gzip;q=0"})
+    assert resp.status_code == 200
+    assert "content-encoding" not in resp.headers
+    assert resp.headers["vary"] == "Accept-Encoding"
+    assert resp.json() == {"artifact": "A" * 4096}
+
+
 def _h2_pair() -> tuple[h2.connection.H2Connection, h2.connection.H2Connection]:
     """Return a client and server H2Connection with the preface exchange done in memory."""
     client = h2.connection.H2Connection(h2.config.H2Configuration(client_side=True))

@@ -554,7 +554,10 @@ def deprecation_from_field(value: bytes) -> datetime | None:
         return None
     if not isinstance(item.value, Date):
         return None
-    return datetime.fromtimestamp(item.value.seconds, tz=UTC)
+    try:
+        return datetime.fromtimestamp(item.value.seconds, tz=UTC)
+    except (ValueError, OverflowError, OSError):
+        return None
 
 
 @dataclass(frozen=True, slots=True)
