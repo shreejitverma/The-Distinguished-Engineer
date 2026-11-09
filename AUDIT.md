@@ -1,6 +1,6 @@
 # Vault Audit
 
-Generated 2026-11-08 by `python3 tools/audit_vault.py` over git-tracked files.
+Generated 2026-11-09 by `python3 tools/audit_vault.py` over git-tracked files.
 Re-run the script after every structural change; this file is its output and should not be hand-edited.
 0 files in private locations (`tools/private_paths.py`) are excluded; `tools/audit_pii.py` inventories them into a private path.
 
@@ -8,9 +8,9 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Check | Result |
 | :--- | ---: |
-| Tracked files | 18155 |
+| Tracked files | 18173 |
 | Markdown notes | 3348 |
-| Internal links checked | 26025 |
+| Internal links checked | 26113 |
 | Broken links (links into private locations are not counted) | 0 |
 | Wikilink aliases that split a table cell | 0 |
 | Broken wikilinks fixable by unique basename | 0 |
@@ -30,7 +30,7 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Folder | Files | Notes | Code | Papers | Other | MB | Last touched |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-08 |
+| `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-09 |
 | `.github` | 1 | 0 | 0 | 0 | 1 | 0.0 | 2026-11-08 |
 | `.obsidian` | 45 | 0 | 0 | 0 | 45 | 0.0 | 2026-10-21 |
 | `00-Start-Here` | 6 | 5 | 0 | 0 | 1 | 0.0 | 2026-11-08 |
@@ -53,7 +53,7 @@ Re-run the script after every structural change; this file is its output and sho
 | `17-Cloud-AI-Engineering` | 162 | 162 | 0 | 0 | 0 | 9.8 | 2026-11-01 |
 | `18-Developer-Toolchain` | 620 | 343 | 197 | 0 | 80 | 5.3 | 2026-11-08 |
 | `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-08 |
-| `20-API-Engineering` | 482 | 404 | 74 | 0 | 4 | 2.1 | 2026-11-08 |
+| `20-API-Engineering` | 500 | 404 | 92 | 0 | 4 | 2.9 | 2026-11-09 |
 | `CS-Subjects` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
 | `tools` | 28 | 1 | 25 | 0 | 2 | 0.3 | 2026-11-08 |
 
