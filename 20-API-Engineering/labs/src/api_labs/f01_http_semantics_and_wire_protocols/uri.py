@@ -156,7 +156,8 @@ def _normalize_authority(authority: str, scheme: str) -> str:
         raise ValueError(f"invalid port {port!r}")
     if port is not None and (not port or port == DEFAULT_PORTS.get(scheme)):
         port = None
-    host = normalize_percent_encoding(host.lower())
+    head, *triplets = normalize_percent_encoding(host).split("%")
+    host = head.lower() + "".join("%" + t[:2] + t[2:].lower() for t in triplets)
     prefix = normalize_percent_encoding(userinfo) + at
     return prefix + host + ("" if port is None else ":" + port)
 
@@ -294,9 +295,16 @@ def _expand_variable(
         if not pairs:
             return None
         if explode:
+            if op.named:
+                return op.sep.join(
+                    _encode(key, allow_reserved=True)
+                    + ("=" + _encode(member, allow_reserved=reserved) if member else op.ifemp)
+                    for key, member in pairs
+                )
             return op.sep.join(
                 _encode(key, allow_reserved=reserved)
-                + ("=" + _encode(member, allow_reserved=reserved) if member else op.ifemp)
+                + "="
+                + _encode(member, allow_reserved=reserved)
                 for key, member in pairs
             )
         joined = ",".join(

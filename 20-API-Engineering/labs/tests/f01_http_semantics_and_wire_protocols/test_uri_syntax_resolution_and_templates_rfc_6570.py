@@ -362,6 +362,13 @@ def test_unreserved_decoding_runs_before_dot_segment_removal() -> None:
 
 
 @pytest.mark.unit
+def test_host_is_lowercased_after_unreserved_octets_are_decoded() -> None:
+    # RFC 3986 Sections 6.2.2.1 and 6.2.2.2: lowercase host, uppercase triplet hex digits.
+    assert normalize_uri("http://%41.com/") == normalize_uri("http://a.com/") == "http://a.com/"
+    assert normalize_uri("http://%c3%a9X.com/") == "http://%C3%A9x.com/"
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("uri", "match"),
     [
@@ -510,6 +517,12 @@ def test_undefined_composites_and_empty_explode_members() -> None:
     assert expand("{;m*}", {"m": {"a": ""}}) == ";a"
     assert expand("{?l*}", {"l": ("", "x")}) == "?l=&l=x"
     assert expand("{;l*}", {"l": ("", "x")}) == ";l;l=x"
+    # RFC 6570 Appendix A: unnamed operators always append a pair as "name=value".
+    assert expand("{m*}", {"m": {"a": ""}}) == "a="
+    assert expand("{/m*}", {"m": {"a": "", "b": "x"}}) == "/a=/b=x"
+    assert expand("{#m*}", {"m": {"a": ""}}) == "#a="
+    # Named operators encode a pair name like a literal, and its value with the allow set.
+    assert expand("{?m*}", {"m": {"a/b": "c/d"}}) == "?a/b=c%2Fd"
 
 
 @pytest.mark.unit

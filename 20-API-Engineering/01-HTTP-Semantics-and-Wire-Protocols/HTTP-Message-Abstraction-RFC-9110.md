@@ -177,18 +177,27 @@ HTTP/1.1 uses an h11 client and server, HTTP/2 uses a connected pair of h2 state
 The translator rule from RFC 9110 Section 7.6.1, excerpt (verbatim from the implementation):
 
 ```python
-def strip_connection_specific(fields: Iterable[Field]) -> tuple[Field, ...]:
-    """Drop Connection, every field it names, and the fixed hop-by-hop set (RFC 9110 7.6.1)."""
-    materialized = tuple(fields)
+def strip_connection_specific(
+    headers: Iterable[Field], trailers: Iterable[Field]
+) -> tuple[tuple[Field, ...], tuple[Field, ...]]:
+    """Drop Connection, every header or trailer field it names, and the fixed hop-by-hop set.
+
+    The connection options come from the header section and apply to both sections
+    (RFC 9110 Section 7.6.1).
+    """
+    header_fields = tuple(headers)
     options = {
         option.strip().lower()
-        for name, value in materialized
+        for name, value in header_fields
         if name == b"connection"
         for option in value.split(b",")
         if option.strip()
     }
     dropped = CONNECTION_SPECIFIC | options
-    return tuple((name, value) for name, value in materialized if name not in dropped)
+    return (
+        tuple((name, value) for name, value in header_fields if name not in dropped),
+        tuple((name, value) for name, value in trailers if name not in dropped),
+    )
 ```
 
 Mapping HTTP/2 or HTTP/3 pseudo-headers back to control data, excerpt (verbatim):
@@ -199,14 +208,15 @@ def _request_from_block(
 ) -> HttpRequest:
     """Map HTTP/2 or HTTP/3 request pseudo-headers back to control data (RFC 9113 8.3.1)."""
     pseudo, regular = _split_pseudo(block)
+    headers, end_to_end_trailers = _end_to_end(regular, trailers)
     return HttpRequest(
         method=_require(pseudo, b":method"),
         scheme=_require(pseudo, b":scheme"),
         authority=_require(pseudo, b":authority"),
         path=_require(pseudo, b":path"),
-        headers=_end_to_end(regular),
+        headers=headers,
         content=content,
-        trailers=_end_to_end(trailers),
+        trailers=end_to_end_trailers,
     )
 ```
 

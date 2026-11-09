@@ -212,7 +212,7 @@ def remove_dot_segments(path: str) -> str:
     return "".join(output)
 ```
 
-Excerpt of `uri.py`, byte-identical to lines 164 to 213: normalization decodes unreserved octets before removing dot segments, and the server-side parser splits before it decodes.
+Excerpt of `uri.py`, byte-identical to lines 165 to 214: normalization decodes unreserved octets before removing dot segments, and the server-side parser splits before it decodes.
 
 ```python
 def normalize_uri(uri: str) -> str:
@@ -267,7 +267,7 @@ def parse_path_segments(raw_path: bytes) -> tuple[str, ...]:
     return tuple(segments)
 ```
 
-Excerpt of `uri.py`, byte-identical to lines 234 to 246: the RFC 6570 Appendix A table as data.
+Excerpt of `uri.py`, byte-identical to lines 235 to 247: the RFC 6570 Appendix A table as data.
 
 ```python
 _OPERATORS: Mapping[str, _Operator] = {

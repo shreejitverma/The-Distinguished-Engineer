@@ -209,6 +209,24 @@ def test_connection_option_fields_are_removed_before_relaying_to_h2() -> None:
 
 
 @pytest.mark.unit
+def test_connection_options_also_remove_named_trailer_fields() -> None:
+    # RFC 9110 Section 7.6.1: remove "any header or trailer field(s)" a connection-option names.
+    body = b"3\r\nabc\r\n0\r\nX-Hop: secret\r\nX-Sum: 1\r\n\r\n"
+    request, _ = parse_h1_request(
+        b"POST /v1/items HTTP/1.1\r\nHost: api.example.test\r\nConnection: X-Hop\r\n"
+        b"Transfer-Encoding: chunked\r\n\r\n" + body,
+        secure=True,
+    )
+    assert request.content == b"abc"
+    assert request.trailers == ((b"x-sum", b"1"),)
+    response, _, _ = parse_h1_response(
+        b"HTTP/1.1 200 OK\r\nConnection: X-Hop\r\nTransfer-Encoding: chunked\r\n\r\n" + body,
+        request_method=b"GET",
+    )
+    assert response.trailers == ((b"x-sum", b"1"),)
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("field", "match"),
     [

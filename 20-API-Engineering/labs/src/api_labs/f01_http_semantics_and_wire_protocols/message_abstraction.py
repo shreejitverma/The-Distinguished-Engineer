@@ -87,18 +87,27 @@ def combine_field_values(fields: Iterable[Field], name: bytes) -> bytes | None:
     return separator.join(values)
 
 
-def strip_connection_specific(fields: Iterable[Field]) -> tuple[Field, ...]:
-    """Drop Connection, every field it names, and the fixed hop-by-hop set (RFC 9110 7.6.1)."""
-    materialized = tuple(fields)
+def strip_connection_specific(
+    headers: Iterable[Field], trailers: Iterable[Field]
+) -> tuple[tuple[Field, ...], tuple[Field, ...]]:
+    """Drop Connection, every header or trailer field it names, and the fixed hop-by-hop set.
+
+    The connection options come from the header section and apply to both sections
+    (RFC 9110 Section 7.6.1).
+    """
+    header_fields = tuple(headers)
     options = {
         option.strip().lower()
-        for name, value in materialized
+        for name, value in header_fields
         if name == b"connection"
         for option in value.split(b",")
         if option.strip()
     }
     dropped = CONNECTION_SPECIFIC | options
-    return tuple((name, value) for name, value in materialized if name not in dropped)
+    return (
+        tuple((name, value) for name, value in header_fields if name not in dropped),
+        tuple((name, value) for name, value in trailers if name not in dropped),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,8 +191,14 @@ def _split_pseudo(block: tuple[Field, ...]) -> tuple[dict[bytes, bytes], tuple[F
     return pseudo, regular
 
 
-def _end_to_end(fields: tuple[Field, ...]) -> tuple[Field, ...]:
-    return tuple(f for f in strip_connection_specific(fields) if f[0] not in _NOT_IN_TABLE)
+def _end_to_end(
+    headers: tuple[Field, ...], trailers: tuple[Field, ...]
+) -> tuple[tuple[Field, ...], tuple[Field, ...]]:
+    kept_headers, kept_trailers = strip_connection_specific(headers, trailers)
+    return (
+        tuple(f for f in kept_headers if f[0] not in _NOT_IN_TABLE),
+        tuple(f for f in kept_trailers if f[0] not in _NOT_IN_TABLE),
+    )
 
 
 def _require(pseudo: dict[bytes, bytes], name: bytes) -> bytes:
@@ -197,14 +212,15 @@ def _request_from_block(
 ) -> HttpRequest:
     """Map HTTP/2 or HTTP/3 request pseudo-headers back to control data (RFC 9113 8.3.1)."""
     pseudo, regular = _split_pseudo(block)
+    headers, end_to_end_trailers = _end_to_end(regular, trailers)
     return HttpRequest(
         method=_require(pseudo, b":method"),
         scheme=_require(pseudo, b":scheme"),
         authority=_require(pseudo, b":authority"),
         path=_require(pseudo, b":path"),
-        headers=_end_to_end(regular),
+        headers=headers,
         content=content,
-        trailers=_end_to_end(trailers),
+        trailers=end_to_end_trailers,
     )
 
 
@@ -212,11 +228,12 @@ def _response_from_block(
     block: tuple[Field, ...], content: bytes, trailers: tuple[Field, ...]
 ) -> HttpResponse:
     pseudo, regular = _split_pseudo(block)
+    headers, end_to_end_trailers = _end_to_end(regular, trailers)
     return HttpResponse(
         status=int(_require(pseudo, b":status")),
-        headers=_end_to_end(regular),
+        headers=headers,
         content=content,
-        trailers=_end_to_end(trailers),
+        trailers=end_to_end_trailers,
     )
 
 
@@ -260,14 +277,15 @@ def parse_h1_request(wire: bytes, *, secure: bool) -> tuple[HttpRequest, tuple[F
         scheme = b"https" if secure else b"http"
         authority = dict(raw).get(b"host", b"")
         path = head.target
+    headers, end_to_end_trailers = _end_to_end(raw, trailers)
     request = HttpRequest(
         method=head.method,
         scheme=scheme,
         authority=authority,
         path=path,
-        headers=_end_to_end(raw),
+        headers=headers,
         content=content,
-        trailers=_end_to_end(trailers),
+        trailers=end_to_end_trailers,
     )
     return request, raw
 
@@ -285,11 +303,12 @@ def parse_h1_response(
         raise ValueError(f"expected a final response head, got {head!r}")
     content, trailers = _h1_body(conn)
     raw = _plain(head.headers)
+    headers, end_to_end_trailers = _end_to_end(raw, trailers)
     response = HttpResponse(
         status=head.status_code,
-        headers=_end_to_end(raw),
+        headers=headers,
         content=content,
-        trailers=_end_to_end(trailers),
+        trailers=end_to_end_trailers,
     )
     return response, raw, bytes(head.reason)
 
