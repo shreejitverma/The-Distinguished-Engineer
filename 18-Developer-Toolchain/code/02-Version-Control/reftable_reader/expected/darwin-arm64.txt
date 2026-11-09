@@ -1,0 +1,69 @@
+=== REFTABLE BINARY FORMAT & STACK LAB ===
+
+--- Varint Vectors (7-bit groups, big-endian, +1 bias per continuation) ---
+  0 -> 00 -> 0 (consumed 1)
+  127 -> 7f -> 127 (consumed 1)
+  128 -> 8000 -> 128 (consumed 2)
+  129 -> 8001 -> 129 (consumed 2)
+  16511 -> ff7f -> 16511 (consumed 2)
+  16512 -> 808000 -> 16512 (consumed 3)
+Header: version=2 block_size=4096 min_idx=1 max_idx=2 hash=sha1
+Footer: ref_idx_pos=0 log_pos=4096 obj_pos=0 CRC32=VALID
+
+--- Binary Search Trace: 'refs/heads/main' ---
+  Restart count: 3
+    restart[0]: offset=32 key='HEAD'
+    restart[1]: offset=97 key='refs/heads/feature/login'
+    restart[2]: offset=172 key='refs/tags/v1.0.0'
+  Binary search step: lo=0 hi=2 mid=1 cand='refs/heads/feature/login'
+  Binary search step: lo=2 hi=2 mid=2 cand='refs/tags/v1.0.0'
+  Bounded restart: index=1 (key='refs/heads/feature/login', offset=97)
+  Linear scan examine: 'refs/heads/feature/login'
+  Linear scan examine: 'refs/heads/main'
+  Found match: 'refs/heads/main'
+Result: RefRecord('refs/heads/main', update_index=1, OID=3333333333333333333333333333333333333333)
+
+--- Binary Search Miss: 'refs/heads/gone' ---
+  Linear scan examine: 'refs/heads/main'
+  Sorted past target: 'refs/heads/main' > 'refs/heads/gone'
+  Target not found
+Result: None
+
+--- All Records in Table 1 (No D/F Conflict) ---
+  RefRecord('HEAD', update_index=1, SYMREF=refs/heads/main)
+  RefRecord('refs/heads/feature', update_index=1, OID=1111111111111111111111111111111111111111)
+  RefRecord('refs/heads/feature/login', update_index=1, OID=2222222222222222222222222222222222222222)
+  RefRecord('refs/heads/main', update_index=1, OID=3333333333333333333333333333333333333333)
+  RefRecord('refs/tags/v1.0.0', update_index=2, OID=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, PEELED=3333333333333333333333333333333333333333)
+
+--- Reflog Records in Table 1 (Deflated Log Block) ---
+  LogRecord(refs/heads/main@2: 33333333 -> 44444444 by Alice Engineer <alice@example.com> at 1700000100 [-0500]: commit: second release)
+  LogRecord(refs/heads/main@1: 00000000 -> 33333333 by Alice Engineer <alice@example.com> at 1700000000 [-0500]: commit: initial production release)
+
+--- Stack Resolution (tables.list with Tombstone Masking) ---
+Active tables in stack: 2
+  table min_update_index=1 max_update_index=2 suffix=1111aaaa.ref
+  table min_update_index=3 max_update_index=3 suffix=2222bbbb.ref
+Query 'refs/heads/feature': None (Masked by tombstone in Table 2)
+Query 'refs/heads/feature/login': RefRecord('refs/heads/feature/login', update_index=1, OID=2222222222222222222222222222222222222222) (Preserved from Table 1)
+Query 'refs/heads/main': RefRecord('refs/heads/main', update_index=3, OID=4444444444444444444444444444444444444444) (Updated by Table 2)
+Stack rejected a malformed name: True
+Stack rejected a name that disagrees with the header: True
+
+--- Geometric Compaction Analysis ---
+Stack sizes as Git feeds them to the search (file - footer - header overhead): [8169, 4073]
+Compaction segment for the 2-table stack: None
+Compaction segment for sizes [64, 32, 16, 8, 4, 2, 1]: None
+Compaction segment for sizes [64, 32, 16, 8, 4, 3, 1]: (0, 6)
+Compaction segment for sizes [128, 32, 16, 8, 4, 3, 1]: (1, 6)
+
+Temporary stack directory removed: True
+
+--- Hand-Assembled v1 Table (Spec-Derived, Not Written by git) ---
+Header: version=1 block_size=4096 min_idx=1 max_idx=1 hash=sha1
+Lookup 'refs/heads/main': RefRecord('refs/heads/main', update_index=1, OID=5555555555555555555555555555555555555555)
+Lookup 'refs/heads/zzz': None
+
+--- Integrity Verification: Bit-Flip Corruption Detection ---
+Flip in a footer pointer byte: rejected, calculated != stored is True
+Flip in the stored CRC-32 byte: rejected, calculated != stored is True

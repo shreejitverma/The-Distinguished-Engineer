@@ -1,0 +1,83 @@
+=== PHASE 1: STDIO PIPE BUFFERING AND STDBUF OVERRIDE ===
+--- Direct pipe buffer check ---
+STREAM_STDOUT_ISATTY: 0
+STREAM_STDOUT_BUFFER_MODE: BLOCK_BUFFERED
+STREAM_STDOUT_BUFFER_BYTES: 4096
+--- stdbuf -oL pipe buffer check ---
+STREAM_STDOUT_ISATTY: 0
+STREAM_STDOUT_BUFFER_MODE: LINE_BUFFERED
+STREAM_STDOUT_BUFFER_BYTES: 4096
+--- Real-time delivery probe without stdbuf ---
+PIPELINE_DELIVERY_MODE: BLOCK_BUFFERED_STALL
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: False
+TOTAL_RECORDS_RECEIVED: 5
+--- Real-time delivery probe with stdbuf -oL ---
+PIPELINE_DELIVERY_MODE: REALTIME_STREAMING
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: True
+TOTAL_RECORDS_RECEIVED: 5
+--- Python sys.stdout probe without -u ---
+PIPELINE_DELIVERY_MODE: BLOCK_BUFFERED_STALL
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: False
+TOTAL_RECORDS_RECEIVED: 5
+--- Python sys.stdout probe under stdbuf -oL (no -u) ---
+PIPELINE_DELIVERY_MODE: BLOCK_BUFFERED_STALL
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: False
+TOTAL_RECORDS_RECEIVED: 5
+--- Python sys.stdout probe with -u ---
+PIPELINE_DELIVERY_MODE: REALTIME_STREAMING
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: True
+TOTAL_RECORDS_RECEIVED: 5
+
+=== PHASE 2: CATASTROPHIC BACKTRACKING COMPLEXITY ===
+CLOSED-FORM BRANCH COUNTS (arithmetic, not measured):
+N_CHARS | NESTED_BRANCHES | LINEAR_STEPS | RATIO
+      5 |              16 |            6 |        2.7x
+     10 |             512 |           11 |       46.5x
+     15 |           16384 |           16 |     1024.0x
+     20 |          524288 |           21 |    24966.1x
+
+MEASURED ON THE LAB PATTERNS (CPython re, best of 3, N = 16, 18, 20, 22):
+VULN_PATTERN_TIME_GROWS_4X_PER_2_CHARS: True
+LINEAR_PATTERN_TIME_DOUBLES_WITH_INPUT: True
+
+--- GNU grep -P (PCRE2) safety limit evaluation ---
+GREP_PCRE_NORMAL_EXIT: 0
+grep: (standard input): exceeded PCRE's backtracking limit
+GREP_PCRE_VULN_EXIT: 2
+GREP_PCRE_LINEAR_EXIT: 1
+
+=== PHASE 3: PRODUCTION PIPELINE STALL REPRODUCTION ===
+[PARSED] status=200 route=users/profile_1
+[PARSED] status=200 route=users/profile_2
+[PARSED] status=200 route=users/profile_3
+[PARSED] status=200 route=users/profile_4
+[PARSED] status=200 route=users/profile_5
+VULNERABLE_PIPELINE_EXIT: 124
+--- Wedged filter /proc probe ---
+FILTER_ALIVE_AFTER_1S: True
+FILTER_STATE_IS_RUNNING: True
+FILTER_IN_SYSCALL: False
+FILTER_CPU_FRACTION_AT_LEAST_0.9: True
+
+=== PHASE 4: REMEDIATED PIPELINE EXECUTION ===
+[PARSED] status=200 route=users/profile_1
+[PARSED] status=200 route=users/profile_2
+[PARSED] status=200 route=users/profile_3
+[PARSED] status=200 route=users/profile_4
+[PARSED] status=200 route=users/profile_5
+[REJECTED] malformed_or_unauthorized_route
+[PARSED] status=200 route=billing/invoice_7
+[PARSED] status=200 route=billing/invoice_8
+[PARSED] status=200 route=billing/invoice_9
+[PARSED] status=200 route=billing/invoice_10
+[PARSED] status=200 route=billing/invoice_11
+[SUMMARY] total_processed=11 valid=10 rejected=1
+--- End-to-end delivery through the unremediated pipeline ---
+PIPELINE_DELIVERY_MODE: BLOCK_BUFFERED_STALL
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: False
+TOTAL_RECORDS_RECEIVED: 6
+--- End-to-end delivery through the remediated pipeline ---
+PIPELINE_DELIVERY_MODE: REALTIME_STREAMING
+EARLY_ARRIVALS_DURING_PRODUCER_RUN: True
+TOTAL_RECORDS_RECEIVED: 6
+DRILL_STATUS: PASS

@@ -51,7 +51,7 @@ Re-run the script after every structural change; this file is its output and sho
 | `15-Technical-Whitepapers` | 44 | 44 | 0 | 0 | 0 | 0.3 | 2026-10-25 |
 | `16-Interview-Command-Center` | 51 | 51 | 0 | 0 | 0 | 0.1 | 2026-10-25 |
 | `17-Cloud-AI-Engineering` | 162 | 162 | 0 | 0 | 0 | 9.8 | 2026-11-01 |
-| `18-Developer-Toolchain` | 588 | 343 | 171 | 0 | 74 | 4.7 | 2026-11-08 |
+| `18-Developer-Toolchain` | 602 | 343 | 185 | 0 | 74 | 4.7 | 2026-11-08 |
 | `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-05 |
 | `CS-Subjects` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
 | `tools` | 26 | 1 | 23 | 0 | 2 | 0.2 | 2026-11-01 |

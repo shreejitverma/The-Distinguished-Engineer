@@ -64,7 +64,7 @@ flowchart TD
 22. [[Containers-and-VMs-for-macOS-Development]] - Hypervisor virtualization, bind-mount filesystem latency, Rosetta 2, and virtual networks.
 23. [[CLI-Design-and-Agent-Friendly-Interfaces-AXI]] - Human-first CLI design standards and the 10 AXI principles for AI agents.
 24. [[Command-Line-Decision-Records]] - Architectural decision records for language migration, dev environments, and remote access.
-25. [[Rebuild-a-Minimal-Shell-With-Job-Control]] - Implementation blueprint for rebuilding a POSIX shell with job control in C++ or Rust.
+25. [[Rebuild-a-Minimal-Shell-With-Job-Control]] - Implementation blueprint for rebuilding a POSIX shell with job control in C.
 26. [[Drill-Command-Line-Quoting-and-Signal-Trap-Race]] - Problem drill: resolving quoting hazards, subshell variable leaks, and trap races.
 27. [[Drill-Command-Line-Catastrophic-Backtracking-and-Stream-Bottleneck]] - Problem drill: mitigating catastrophic regex backtracking and stdio buffer deadlocks.
 28. [[Drill-Command-Line-SSH-Multiplexing-and-Broken-PTY]] - Problem drill: recovering hung SSH multiplexing sockets and wedged raw terminal states.

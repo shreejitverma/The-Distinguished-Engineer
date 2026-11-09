@@ -1,0 +1,53 @@
+=== Stage 1: Static Analysis with ShellCheck ===
+ShellCheck version: 0.11.0
+--- ShellCheck analysis of deploy_brittle.sh ---
+deploy_brittle.sh:15:11: warning: Declare and assign separately to avoid masking return values. [SC2155]
+deploy_brittle.sh:25:16: error: Iterating over ls output is fragile. Use globs. [SC2045]
+deploy_brittle.sh:25:21: note: Double quote to prevent globbing and word splitting. [SC2086]
+deploy_brittle.sh:27:18: note: Double quote to prevent globbing and word splitting. [SC2086]
+deploy_brittle.sh:37:54: note: read without -r will mangle backslashes. [SC2162]
+deploy_brittle.sh:37:59: warning: line appears unused. Verify use (or export if used externally). [SC2034]
+deploy_brittle.sh:38:9: note: Modification of DEPLOYED_COUNT is local (to subshell caused by pipeline). [SC2030]
+deploy_brittle.sh:41:33: note: DEPLOYED_COUNT was modified in a subshell. That change might be lost. [SC2031]
+--- ShellCheck analysis of deploy_fixed.sh ---
+deploy_fixed.sh ShellCheck exit code: 0 (clean, 0 warnings)
+
+=== Stage 2: Command Substitution Masking (SC2155) & Word Splitting ===
+--- Testing SC2155 exit code masking on missing config ---
+Loaded cluster config: []
+Brittle script exit code with missing config: 0 (masked failure)
+Fixed script exit code with missing config: 1 (aborted as expected)
+--- Testing IFS word splitting on artifact extraction ---
+Brittle artifact extraction:
+Processing artifact: ./test_stage/data
+ERROR: failed to extract ./test_stage/data
+Processing artifact: service-v2.1.tar.gz
+ERROR: failed to extract service-v2.1.tar.gz
+Processing artifact: ./test_stage/web_frontend.tar.gz
+Fixed artifact extraction:
+Processing artifact: ./test_stage/data service-v2.1.tar.gz
+Processing artifact: ./test_stage/web_frontend.tar.gz
+
+=== Stage 3: Subshell Scoping & Background Child Leaks ===
+--- Testing pipeline subshell variable modification ---
+Brittle subshell count:
+Total deployed count: 0
+Fixed subshell count:
+Total deployed count: 2
+--- Testing background daemon cleanup on SIGTERM ---
+Testing brittle deployment script trap behavior:
+Brittle deploy script exit status: 1
+Brittle workspace after SIGTERM: REMOVED
+Brittle daemon state after SIGTERM: LEAKED (process still running)
+Testing fixed deployment script trap behavior:
+Fixed deploy script exit status: 143 (128 + 15 = 143 SIGTERM)
+Fixed workspace after SIGTERM: REMOVED
+Fixed daemon state after SIGTERM: TERMINATED (cleanly shut down)
+--- Testing the SIGINT and re-entrancy paths of the fixed script ---
+Fixed deploy script exit status after SIGINT: 130 (128 + 2 = 130 SIGINT)
+Fixed workspace after SIGINT: REMOVED
+Fixed daemon state after SIGINT: TERMINATED (cleanly shut down)
+Fixed deploy script exit status after TERM then HUP during cleanup: 143 (128 + 15 = 143 SIGTERM)
+Fixed cleanup runs after TERM then HUP: 1
+Fixed workspace after TERM then HUP: REMOVED
+Fixed daemon state after TERM then HUP: TERMINATED (cleanly shut down)

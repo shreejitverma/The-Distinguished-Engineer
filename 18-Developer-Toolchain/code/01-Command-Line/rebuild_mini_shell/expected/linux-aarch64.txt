@@ -1,0 +1,53 @@
+=== Milestone 1: Basic Execution and Builtins ===
+external command output (echo): yes
+cd persists in the shell process (pwd): yes
+shell is its own process group leader: yes
+shell holds the terminal foreground: yes
+
+=== Milestone 2: Pipelines and Write-End Closure ===
+pipe 3 stages: CHARLIE BRAVO ALPHA
+prompt returned and no job left behind: yes
+
+=== Milestone 3: I/O Redirection ===
+output truncation (>): yes
+output append (>>): yes
+input redirection (<): yes
+stderr merge (2>&1): yes
+
+=== Milestone 4: Dual setpgid and Process Isolation ===
+child in distinct process group: yes
+child has terminal foreground during execution: yes
+shell reclaims terminal foreground after child exit: yes
+child setpgid alone suffices when the parent is delayed: yes
+parent setpgid alone suffices when the child is delayed: yes
+
+=== Milestone 5: Pipeline Process Group Unification ===
+pipeline stages share one pgid: yes
+pipeline pgid is a stage pid and differs from shell pgid: yes
+
+=== Milestone 6: Job Suspension via SIGTSTP ===
+job stopped notification: received
+jobs list status: Stopped
+shell owns terminal foreground while job is stopped: yes
+shell restores its own terminal modes on stop: yes
+
+=== Milestone 7: Background Continuation via bg ===
+bg reports the job's process group: yes
+bg returned the prompt while the job kept running: yes
+jobs list status after bg: Running
+every pipeline stage resumed and finished: yes
+asynchronous job done notification: received
+a bg job that stops again is reported again: yes
+re-stopped job finished under fg: yes
+
+=== Milestone 8: Foreground Resumption via fg ===
+job suspended again: yes
+fg echoes the command line: yes
+every pipeline stage resumed with the job's terminal modes: yes
+job completed in the foreground: yes
+shell reclaimed terminal foreground: yes
+shell terminal modes restored after fg: yes
+
+=== Session hygiene ===
+shell exits with status 0 on exit: yes
+shell diagnostics on stderr: none
