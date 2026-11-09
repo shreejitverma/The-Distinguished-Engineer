@@ -42,7 +42,10 @@ def pump(fd: int, seconds: float) -> bool:
 def main() -> int:
     sock, session, var, want = sys.argv[1:5]
     env = dict(os.environ)
-    env.setdefault("TERM", "xterm-256color")
+    # An unset or empty TERM (cron, CI, agent shells) makes tmux refuse to attach:
+    # "open terminal failed: terminal does not support clear".
+    if not env.get("TERM") or env["TERM"] == "dumb":
+        env["TERM"] = "xterm-256color"
     pid, fd = pty.fork()
     if pid == 0:
         os.execvpe("tmux", ["tmux", "-S", sock, "attach-session", "-t", session], env)
