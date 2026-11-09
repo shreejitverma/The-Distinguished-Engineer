@@ -8,9 +8,9 @@ Re-run the script after every structural change; this file is its output and sho
 
 | Check | Result |
 | :--- | ---: |
-| Tracked files | 17639 |
-| Markdown notes | 2944 |
-| Internal links checked | 23270 |
+| Tracked files | 18143 |
+| Markdown notes | 3348 |
+| Internal links checked | 25951 |
 | Broken links (links into private locations are not counted) | 0 |
 | Wikilink aliases that split a table cell | 0 |
 | Broken wikilinks fixable by unique basename | 0 |
@@ -31,13 +31,13 @@ Re-run the script after every structural change; this file is its output and sho
 | Folder | Files | Notes | Code | Papers | Other | MB | Last touched |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `(root)` | 11 | 6 | 0 | 0 | 5 | 0.1 | 2026-11-08 |
-| `.github` | 1 | 0 | 0 | 0 | 1 | 0.0 | 2026-11-05 |
+| `.github` | 1 | 0 | 0 | 0 | 1 | 0.0 | 2026-11-08 |
 | `.obsidian` | 45 | 0 | 0 | 0 | 45 | 0.0 | 2026-10-21 |
 | `00-Start-Here` | 6 | 5 | 0 | 0 | 1 | 0.0 | 2026-10-25 |
 | `01-CS-Foundations` | 507 | 262 | 141 | 0 | 104 | 4.7 | 2026-11-06 |
-| `02-Programming-Languages` | 5828 | 818 | 2860 | 466 | 1684 | 112.2 | 2026-11-01 |
+| `02-Programming-Languages` | 5828 | 818 | 2860 | 466 | 1684 | 112.2 | 2026-11-08 |
 | `03-Data-Structures-Algorithms` | 8293 | 185 | 7988 | 0 | 120 | 17.3 | 2026-10-25 |
-| `04-System-Design` | 991 | 177 | 657 | 0 | 157 | 9.8 | 2026-10-25 |
+| `04-System-Design` | 991 | 177 | 657 | 0 | 157 | 9.8 | 2026-11-08 |
 | `05-Quantitative-Finance` | 9 | 2 | 7 | 0 | 0 | 0.0 | 2026-10-07 |
 | `06-Interview-Prep` | 13 | 12 | 0 | 0 | 1 | 0.2 | 2026-10-07 |
 | `07-Project-Portfolio` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
@@ -51,10 +51,11 @@ Re-run the script after every structural change; this file is its output and sho
 | `15-Technical-Whitepapers` | 44 | 44 | 0 | 0 | 0 | 0.3 | 2026-10-25 |
 | `16-Interview-Command-Center` | 51 | 51 | 0 | 0 | 0 | 0.1 | 2026-10-25 |
 | `17-Cloud-AI-Engineering` | 162 | 162 | 0 | 0 | 0 | 9.8 | 2026-11-01 |
-| `18-Developer-Toolchain` | 602 | 343 | 185 | 0 | 74 | 4.7 | 2026-11-08 |
-| `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-05 |
+| `18-Developer-Toolchain` | 620 | 343 | 197 | 0 | 80 | 5.3 | 2026-11-08 |
+| `19-Shell-and-Unix-Engineering` | 583 | 406 | 107 | 0 | 70 | 4.3 | 2026-11-08 |
+| `20-API-Engineering` | 470 | 404 | 62 | 0 | 4 | 1.7 | 2026-11-08 |
 | `CS-Subjects` | 1 | 1 | 0 | 0 | 0 | 0.0 | 2026-09-21 |
-| `tools` | 26 | 1 | 23 | 0 | 2 | 0.2 | 2026-11-01 |
+| `tools` | 28 | 1 | 25 | 0 | 2 | 0.3 | 2026-11-08 |
 
 ## 2. Duplicate and overlapping sections
 
@@ -80,6 +81,9 @@ Re-run the script after every structural change; this file is its output and sho
 - **command line**: `18-Developer-Toolchain/01-Command-Line`, `18-Developer-Toolchain/code/01-Command-Line`
 - **control version**: `18-Developer-Toolchain/02-Version-Control`, `18-Developer-Toolchain/code/02-Version-Control`
 - **packaging release**: `18-Developer-Toolchain/07-Packaging-and-Release`, `18-Developer-Toolchain/code/07-Packaging-and-Release`
+- **history primary source**: `19-Shell-and-Unix-Engineering/24-History-and-Primary-Sources`, `20-API-Engineering/23-History-and-Primary-Sources`
+- **reference**: `19-Shell-and-Unix-Engineering/27-Reference`, `20-API-Engineering/27-Reference`
+- **lab**: `19-Shell-and-Unix-Engineering/labs`, `20-API-Engineering/labs`
 
 ### Folder pairs sharing the most identical files
 

@@ -39,6 +39,7 @@ This repository is a structured knowledge base designed to take you from a Junio
 *   **[Performance](./12-Performance-Engineering):** Profiling (Valgrind), False Sharing.
 *   **[Developer Toolchain](./18-Developer-Toolchain/README.md):** Program execution (ELF, linking, DWARF), the command line, Git internals, debugging and profiling in C++, Python, and Rust, build systems, packaging and release, supply chain, and engineering systems at scale.
 *   **[Shell and Unix Engineering](./19-Shell-and-Unix-Engineering/README.md):** A separate book on the shell, from the Unix process model and POSIX grammar to production scripting, security, and incident response.
+*   **[API Engineering](./20-API-Engineering/README.md):** A separate book on APIs, HTTP, and the Python API stack, from wire framing and TLS through ASGI servers, FastAPI, Pydantic, database transactions, resilience, and governance.
 *   **[Cloud AI Engineering](./17-Cloud-AI-Engineering/README.md):** AWS and Google Cloud internals, Kubernetes, IaC, SRE, security, FinOps, and AI infrastructure and serving (16 volumes).
 *   **[Technical Whitepapers](./15-Technical-Whitepapers):** Systems Performance (Gregg), Kernel Internals, Memory Hierarchy (Drepper), Exploitation & Hardening, plus Seminal Computer Science & Low-Latency Systems Canon (~159 papers).
 
