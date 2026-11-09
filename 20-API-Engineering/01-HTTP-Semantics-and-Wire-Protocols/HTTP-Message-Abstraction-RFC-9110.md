@@ -152,13 +152,13 @@ They show compression of one cold exchange only and say nothing about throughput
 
 | Dimension | Behavior | Evidence |
 |---|---|---|
-| CPython 3.12.13 | 37 passed | lab run, `UV_PROJECT_ENVIRONMENT=<scratch> uv run --frozen --python 3.12`; the matrix's 3.12.16 is not installed on this machine |
-| CPython 3.13.18 | 37 passed | lab run, `uv run --frozen --python 3.13` with a scratch environment |
-| CPython 3.14.6 and 3.14.10 | 37 passed on both; all five gate commands pass on 3.14.6, the workspace interpreter | lab run; 3.14.10 via `--python 3.14.10` with a scratch environment |
-| CPython 3.15.2 and 3.15.0b3 | 37 passed on 3.15.2 with no workaround; 3.15.0b3 passes only with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 -p pytest_asyncio.plugin` | lab run; on 3.15.0b3 the pinned `hypothesis` 6.170.14 fails to import (`No module named 'hypothesis._native'`), unrelated to this lab |
+| CPython 3.12.13 | 38 passed | lab run, `UV_PROJECT_ENVIRONMENT=<scratch> uv run --frozen --python 3.12`; the matrix's 3.12.16 is not installed on this machine |
+| CPython 3.13.18 | 38 passed | lab run, `uv run --frozen --python 3.13` with a scratch environment |
+| CPython 3.14.6 and 3.14.10 | 38 passed on both; all five gate commands pass on 3.14.6, the workspace interpreter | lab run; 3.14.10 via `--python 3.14.10` with a scratch environment |
+| CPython 3.15.2 and 3.15.0b3 | 38 passed on 3.15.2 with no workaround; 3.15.0b3 passes only with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 -p pytest_asyncio.plugin` | lab run; on 3.15.0b3 the pinned `hypothesis` 6.170.14 fails to import (`No module named 'hypothesis._native'`), unrelated to this lab |
 | CPython 3.15 free-threaded (3.15t) | not run: 3.15.2t is not installed here, and 3.15.0b3t cannot install the lab | `uv sync` fails: no `psycopg-binary` 3.3.8 wheel; a minimal install of the locked h11, h2, aioquic, and pylsqpack fails building aioquic 1.7.2, whose C extension is compiled with `-DPy_LIMITED_API=0x030B0000` and fails against the 3.15t headers (`call to undeclared function 'Py_IS_TYPE'`) |
-| Debian 13 (Trixie), glibc 2.41, aarch64 | 37 passed on CPython 3.14.10 | lab run in `ghcr.io/astral-sh/uv:python3.14-trixie` (OrbStack on macOS), `uv run --frozen pytest <test path> -q` against a copy of `labs/` |
-| Alpine, musl libc, aarch64 | 37 passed on CPython 3.14.10 | lab run in `ghcr.io/astral-sh/uv:python3.14-alpine`, same command; `platform.libc_ver()` reported `('musl', '1')` |
+| Debian 13 (Trixie), glibc 2.41, aarch64 | 38 passed on CPython 3.14.10 | lab run in `ghcr.io/astral-sh/uv:python3.14-trixie` (OrbStack on macOS), `uv run --frozen pytest <test path> -q` against a copy of `labs/` |
+| Alpine, musl libc, aarch64 | 38 passed on CPython 3.14.10 | lab run in `ghcr.io/astral-sh/uv:python3.14-alpine`, same command; `platform.libc_ver()` reported `('musl', '1')` |
 | h11 0.16.0 | validates names and values on send; requires `Host`; refuses trailers with `Content-Length` | lab tests and h11 0.16.0 source |
 | h2 4.4.1 | sends CR or LF in values unscreened; receiver rejects and sends `GOAWAY` | `test_h2_sender_does_not_screen_values_but_receiver_tears_down_the_connection` |
 | aioquic 1.7.2 | request validation omits the `:scheme` and `:path` requirement and demands `:authority` | `test_aioquic_1_7_2_request_pseudo_header_rules_differ_from_rfc_9114` |
@@ -268,8 +268,8 @@ Captured on CPython 3.14.6, macOS 27.2 arm64, from `labs/`:
 
 ```text
 $ uv run --frozen pytest tests/f01_http_semantics_and_wire_protocols/test_http_message_abstraction_rfc_9110.py -q
-.....................................                                    [100%]
-37 passed in 0.09s
+......................................                                   [100%]
+38 passed in 0.11s
 ```
 
 Every test was checked by mutation: 22 deliberate breaks of the mechanism in an earlier pass (swapping `:authority` and `:path`, ignoring `Connection` options, dropping the CR/LF check, ignoring absolute-form, forgetting the request method when parsing a response, rejoining cookies with a comma, misreading QUIC varints, and others) each made at least one test fail.
