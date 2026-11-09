@@ -160,7 +160,7 @@ Implementations MUST support 2048-byte IDs and SHOULD NOT generate longer ones, 
 Section 2.4 calls the scheme and trust domain case-insensitive while Section 2.1 requires the trust domain be lowercase `(SPIFFE-ID Section 2.4)`; the lab resolves the tension by accepting only the canonical form, so authorization is a byte comparison and `SPIFFE://` is rejected, at the cost of refusing IDs a lenient peer might emit.
 The ID is placed in the certificate as the single `uniformResourceIdentifier` SAN, any other SAN types are allowed, and two URI SANs MUST be rejected `(X509-SVID Section 2)`; RFC 5280 requires the URI be absolute and says the scheme and host are case-insensitive `(RFC 5280 Section 4.2.1.6)`.
 Leaf SVIDs MUST have a non-root path, an empty Subject requires the SAN be critical `(X509-SVID Section 3.1)`, leaves MUST set `digitalSignature` and MUST NOT set `keyCertSign` or `cRLSign` `(X509-SVID Section 4.3)`, and when an EKU is present both `id-kp-serverAuth` and `id-kp-clientAuth` MUST be set `(X509-SVID Section 4.4)`.
-The lab's `verify_svid_chain` picks the bundle by the leaf's claimed trust domain, verifies the chain (leaf, then any intermediates) with `cryptography`'s client verifier, and returns a `VerifiedSvid` holding the chain the verifier built, anchor last (`PolicyBuilder().store(...).time(...).build_client_verifier()`, `cryptography 50.0.2 cryptography/hazmat/bindings/_rust/x509.pyi, PolicyBuilder`), which also enforces `clientAuth` and validity in the lab.
+The lab's `verify_svid_chain` picks the bundle by the leaf's claimed trust domain, verifies the chain (leaf, then any intermediates) with `cryptography`'s client verifier, and returns a `VerifiedSvid` holding the chain the verifier built, anchor last (`PolicyBuilder().store(...).time(...).build_client_verifier()`, `cryptography 50.0.2 cryptography/hazmat/bindings/_rust/x509.pyi, PolicyBuilder`), which enforces validity and the issuer in the lab; `leaf_svid_id` runs first and already rejects a leaf with no `digitalSignature` or with an EKU that lacks `serverAuth` or `clientAuth`.
 
 ### Pinning: key pins versus certificate thumbprints
 
@@ -286,10 +286,18 @@ def leaf_svid_id(cert: x509.Certificate) -> SpiffeId:
         usage = extensions.get_extension_for_class(x509.KeyUsage).value
     except x509.ExtensionNotFound:
         usage = None
-    if usage is not None and usage.key_cert_sign:
+    if usage is None or not usage.digital_signature:
+        raise SvidError("digitalSignature is not set on a leaf")
+    if usage.key_cert_sign:
         raise SvidError("keyCertSign is set on a leaf")
-    if usage is not None and usage.crl_sign:
+    if usage.crl_sign:
         raise SvidError("cRLSign is set on a leaf")
+    try:
+        purposes = set(extensions.get_extension_for_class(x509.ExtendedKeyUsage).value)
+    except x509.ExtensionNotFound:
+        purposes = None
+    if purposes is not None and not set(_BOTH_EKU) <= purposes:
+        raise SvidError("an EKU on a leaf must include both serverAuth and clientAuth")
     try:
         spiffe_id = parse_spiffe_id(uris[0])
     except SpiffeIdError as exc:
@@ -489,10 +497,12 @@ Captured run, from `labs/`, CPython 3.14.6 with OpenSSL 3.5.7, macOS 27.2 arm64:
 
 ```text
 $ uv run --frozen pytest tests/f02_tls_connections_and_intermediaries/test_mutual_tls_mtls_handshake_and_spiffe_identity.py -q
-........................................................................ [ 93%]
-.....                                                                    [100%]
-77 passed in 0.66s
+........................................................................ [ 90%]
+........                                                                 [100%]
+80 passed in 0.60s
 ```
+
+The matrix and container runs below used the earlier 77-test module, before the leaf rules gained the `digitalSignature` and two-purpose EKU checks (four new leaf cases, and the `serverAuth`-only case moved from the chain-verifier test into them); the 80-test module was re-run only in the 3.14.6 workspace venv above.
 
 Captured matrix, same machine, one job-local venv per interpreter (`UV_PROJECT_ENVIRONMENT=<venv> uv run --frozen --python <v> pytest <test> -q -p no:cacheprovider`; the free-threaded line ran as `PYTHONPATH=src <venv>/bin/python -m pytest <test> -q -p no:cacheprovider` in the minimal venv described under Portability):
 

@@ -122,6 +122,16 @@ def test_decoder_skips_unknown_extensions_and_rejects_truncation() -> None:
         decode_new_session_ticket(frame(body + unknown_then_early[:-1]))
     with pytest.raises(TicketFormatError, match="length does not match"):
         decode_new_session_ticket(frame(body + unknown_then_early)[:-1])
+    # RFC 9846 Section 4.7.1: early_data here is a uint32, so a zero-length one is malformed.
+    empty_early_then_unknown = bytes.fromhex("000a" + "002a0000" + "fafa0002ffff")
+    with pytest.raises(TicketFormatError, match="uint32"):
+        decode_new_session_ticket(frame(body + empty_early_then_unknown))
+    # An extensions length that stops inside an extension, or before the message ends.
+    understated = bytes.fromhex("0004" + "002a0004" + "00001000")
+    with pytest.raises(TicketFormatError, match="overruns"):
+        decode_new_session_ticket(frame(body + understated))
+    with pytest.raises(TicketFormatError, match="inconsistent"):
+        decode_new_session_ticket(frame(body + bytes.fromhex("0000" + "00")))
 
 
 @pytest.mark.unit

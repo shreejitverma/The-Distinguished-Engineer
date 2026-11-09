@@ -76,6 +76,7 @@ ALERT = "TLS_ALERT_" if ssl.OPENSSL_VERSION_INFO[0] >= 4 else "SSLV3_ALERT_"
 #          key_agreement, key_cert_sign, crl_sign, encipher_only, decipher_only)
 CERT_SIGN_ONLY = x509.KeyUsage(True, False, False, False, False, True, False, False, False)
 CRL_SIGN_ONLY = x509.KeyUsage(True, False, False, False, False, False, True, False, False)
+ENCIPHER_ONLY = x509.KeyUsage(False, False, True, False, False, False, False, False, False)
 BUNDLES = {"prod.example": [PROD_CA.cert], "partner.example": [PARTNER_CA.cert]}
 
 
@@ -85,6 +86,14 @@ def duplicate_extension(cert: x509.Certificate) -> x509.Certificate:
     akid_oid, skid_oid = b"\x06\x03\x55\x1d\x23", b"\x06\x03\x55\x1d\x0e"
     assert der.count(akid_oid) == 1
     return x509.load_der_x509_certificate(der.replace(akid_oid, skid_oid))
+
+
+def without_key_usage(cert: x509.Certificate) -> x509.Certificate:
+    """Rewrite the keyUsage OID (2.5.29.15) to an unassigned 2.5.29.127: no keyUsage left."""
+    der = cert.public_bytes(serialization.Encoding.DER)
+    ku_oid, unknown_oid = b"\x06\x03\x55\x1d\x0f", b"\x06\x03\x55\x1d\x7f"
+    assert der.count(ku_oid) == 1
+    return x509.load_der_x509_certificate(der.replace(ku_oid, unknown_oid))
 
 
 def write_identity(directory: Path, ident: Identity) -> tuple[Path, Path]:
@@ -222,6 +231,8 @@ def test_spiffe_id_length_limit_is_2048_bytes_inclusive() -> None:
 def test_leaf_svid_id_reads_the_single_uri_san_and_ignores_dns_sans() -> None:
     assert leaf_svid_id(SERVER.cert) == SpiffeId("prod.example", "/ns/default/sa/api")
     assert leaf_svid_id(CLIENT.cert) == parse_spiffe_id(ORDERS)
+    # X509-SVID Section 4.4: a leaf SHOULD carry an EKU, so leaving it out is still valid.
+    assert leaf_svid_id(issue_leaf(PROD_CA, 3111, uris=[ORDERS], eku=()).cert).path
 
 
 @pytest.mark.unit
@@ -233,6 +244,16 @@ def test_leaf_svid_id_reads_the_single_uri_san_and_ignores_dns_sans() -> None:
         (issue_leaf(PROD_CA, 3103, uris=[ORDERS], ca=True), "cA is true"),
         (issue_leaf(PROD_CA, 3106, uris=[ORDERS], usage=CERT_SIGN_ONLY), "keyCertSign is set"),
         (issue_leaf(PROD_CA, 3107, uris=[ORDERS], usage=CRL_SIGN_ONLY), "cRLSign is set"),
+        (issue_leaf(PROD_CA, 3108, uris=[ORDERS], usage=ENCIPHER_ONLY), "digitalSignature is not"),
+        (Identity(without_key_usage(CLIENT.cert), CLIENT.key), "digitalSignature is not"),
+        (
+            issue_leaf(PROD_CA, 3109, uris=[ORDERS], eku=[ExtendedKeyUsageOID.CLIENT_AUTH]),
+            "both serverAuth and clientAuth",
+        ),
+        (
+            issue_leaf(PROD_CA, 3110, uris=[ORDERS], eku=[ExtendedKeyUsageOID.SERVER_AUTH]),
+            "both serverAuth and clientAuth",
+        ),
         (Identity(duplicate_extension(CLIENT.cert), CLIENT.key), "malformed extensions"),
         (issue_leaf(PROD_CA, 3104, uris=["spiffe://prod.example"]), "non-root path"),
         (issue_leaf(PROD_CA, 3105, uris=["https://prod.example/orders"]), "not a SPIFFE ID"),
@@ -244,6 +265,10 @@ def test_leaf_svid_id_reads_the_single_uri_san_and_ignores_dns_sans() -> None:
         "ca-leaf",
         "cert-sign-leaf",
         "crl-sign-leaf",
+        "key-encipherment-only-leaf",
+        "no-key-usage",
+        "client-auth-only-eku",
+        "server-auth-only-eku",
         "duplicate-extension",
         "root-id",
         "https-uri",
@@ -301,14 +326,13 @@ def test_federated_ca_cannot_mint_ids_for_another_trust_domain(files: Path) -> N
 @pytest.mark.parametrize(
     ("ident", "at"),
     [
-        (issue_leaf(PROD_CA, 3301, uris=[ORDERS], eku=[ExtendedKeyUsageOID.SERVER_AUTH]), NOW),
         (CLIENT, dt.datetime(2036, 1, 2, tzinfo=dt.UTC)),
         (CLIENT, dt.datetime(2025, 12, 31, tzinfo=dt.UTC)),
         (issue_leaf(ROGUE_CA, 3302, uris=[ORDERS]), NOW),
     ],
-    ids=["server-auth-only-eku", "expired", "not-yet-valid", "unknown-issuer"],
+    ids=["expired", "not-yet-valid", "unknown-issuer"],
 )
-def test_chain_verifier_enforces_eku_validity_and_issuer(ident: Identity, at: dt.datetime) -> None:
+def test_chain_verifier_enforces_validity_and_issuer(ident: Identity, at: dt.datetime) -> None:
     with pytest.raises(SvidError, match="does not verify"):
         verify_svid_chain([ident.cert], BUNDLES, at=at)
 

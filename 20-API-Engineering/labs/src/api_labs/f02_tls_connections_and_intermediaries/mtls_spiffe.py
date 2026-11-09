@@ -106,10 +106,18 @@ def leaf_svid_id(cert: x509.Certificate) -> SpiffeId:
         usage = extensions.get_extension_for_class(x509.KeyUsage).value
     except x509.ExtensionNotFound:
         usage = None
-    if usage is not None and usage.key_cert_sign:
+    if usage is None or not usage.digital_signature:
+        raise SvidError("digitalSignature is not set on a leaf")
+    if usage.key_cert_sign:
         raise SvidError("keyCertSign is set on a leaf")
-    if usage is not None and usage.crl_sign:
+    if usage.crl_sign:
         raise SvidError("cRLSign is set on a leaf")
+    try:
+        purposes = set(extensions.get_extension_for_class(x509.ExtendedKeyUsage).value)
+    except x509.ExtensionNotFound:
+        purposes = None
+    if purposes is not None and not set(_BOTH_EKU) <= purposes:
+        raise SvidError("an EKU on a leaf must include both serverAuth and clientAuth")
     try:
         spiffe_id = parse_spiffe_id(uris[0])
     except SpiffeIdError as exc:

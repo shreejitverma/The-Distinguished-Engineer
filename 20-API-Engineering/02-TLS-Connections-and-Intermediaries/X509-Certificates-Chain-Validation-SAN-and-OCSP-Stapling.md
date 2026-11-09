@@ -132,6 +132,7 @@ CPython exposes the certificate's OCSP responder URI, `caIssuers` URI, and `crlD
 
 An OCSP response is `OCSPResponse ::= SEQUENCE { responseStatus OCSPResponseStatus, responseBytes [0] EXPLICIT ResponseBytes OPTIONAL }`, where `responseStatus` is `successful (0)`, `malformedRequest (1)`, `internalError (2)`, `tryLater (3)`, `sigRequired (5)`, or `unauthorized (6)`, and for the basic type the bytes are a DER `BasicOCSPResponse` of `tbsResponseData`, `signatureAlgorithm`, `signature`, and optional `certs` `(RFC 6960 Section 4.2.1)`.
 Each single response carries a CertID, a status of `good`, `revoked`, or `unknown`, and a validity interval `thisUpdate` to `nextUpdate` `(RFC 6960 Section 2.2, Section 2.4)`.
+`tbsResponseData` holds `responses SEQUENCE OF SingleResponse` `(RFC 6960 Section 4.2.1)`, so one staple may cover several certificates, and the lab reads the status and both times only from the single response whose CertID matches the leaf; a staple with no such entry is `cert-id-mismatch`.
 `good` means, at a minimum, that no certificate with that serial currently within its validity interval is revoked; it "does not necessarily mean that the certificate was ever issued" `(RFC 6960 Section 2.2)`.
 Before accepting a response the client SHALL confirm that the CertID matches, the signature is valid, the signer is the intended responder and is authorized, `thisUpdate` is sufficiently recent, and `nextUpdate`, when available, is later than now `(RFC 6960 Section 3.2)`.
 An authorized signer is a locally configured trusted responder, the issuing CA itself, or a certificate issued directly by that CA with `id-kp-OCSPSigning` in its extended key usage, signed by the same key that signed the certificate being checked `(RFC 6960 Section 4.2.2.2)`.
@@ -162,7 +163,7 @@ Let's Encrypt stopped accepting must-staple requests on 2025-01-30 (except for a
 | `cryptography` verifier defaults | 8 intermediates, 128 signature checks, `2^20` name-constraint checks | `cryptography` 50.0.2 `policy/mod.rs` and `lib.rs` |
 | Lab DER sizes, P-256 ECDSA profile: leaf / intermediate / root / staple | 454-457 / 406-409 / 364-367 / 313-316 bytes (min-max over 200 freshly generated PKIs; ECDSA signature length varies) | measured 2026-11-09 with a scratch script (not committed) run from `labs/` as `uv run --frozen python bench.py`, Apple M3 Pro, macOS 27.2 (`uname -r` 27.2.0), CPython 3.14.6 and 3.14.10 |
 | `verify_server_chain` (3-certificate path, cryptography 50.0.2) | median 122.4 us (3.14.6), 123.2 us (3.14.10); p99 126.5 us, 127.2 us | same script: `time.perf_counter_ns`, 200 samples after 10 warm-ups |
-| `evaluate_staple` (parse, ECDSA verify, checks) | median 56.7 us (3.14.6), 57.0 us (3.14.10); p99 61.5 us, 58.4 us | measured as above |
+| `evaluate_staple` (parse, ECDSA verify, checks) | median 53.5 us (3.14.6), p99 60.4 us, after the per-SingleResponse CertID lookup; 3.14.10 measured 57.0 us median and 58.4 us p99 before that change and was not re-run | measured as above |
 | In-memory TLS 1.3 handshake with chain validation (`handshake_in_memory`, prebuilt contexts) | median 496.2 us (3.14.6, OpenSSL 3.5.7), 539.1 us (3.14.10, OpenSSL 4.1.0); p99 593.6 us, 559.8 us | measured as above |
 | Let's Encrypt 2020 CAA bug: affected / revoked by deadline | 3,048,289 / 1,711,396 (56%) | Let's Encrypt community post "Revoking certain certificates on March 4"; Mozilla Bugzilla 1619179 comment 7 |
 
@@ -172,6 +173,7 @@ They show that validation CPU is negligible next to one network round trip, not 
 ## Portability
 
 Every CPython cell below was run in this lab: `test_x509_certificates_chain_validation_san_and_ocsp_stapling.py`, 51 tests, all passed on each interpreter, re-run by an independent verifier on 2026-11-09 with `UV_PROJECT_ENVIRONMENT=<env> uv run --frozen --python <version> pytest <module> -q`; the tests branch on `sys.version_info` and `ssl.OPENSSL_VERSION_INFO`, so a pass on each interpreter proves its cells.
+Those 51-test runs, and the container legs below, predate six later OCSP tests (several SingleResponses in one staple and unknown CertID or signature algorithm identifiers); the 57-test module was re-run only in the CPython 3.14.6 workspace venv, in the captured run under Worked example.
 The `cryptography` verifier and OCSP code are Rust inside the `cryptography` 50.0.2 wheel (which bundles OpenSSL 4.0.3 on this machine) and behaved identically on every interpreter; the rows that differ are those decided by the OpenSSL that CPython's `ssl` links.
 
 | Behavior | 3.12.13 (OpenSSL 3.5.7) | 3.13.18 (3.5.9) | 3.14.6 (3.5.7) | 3.14.10 (4.1.0) | 3.15.2 (4.1.0) | 3.15.0b3t free-threaded (3.5.7) |
@@ -239,9 +241,28 @@ def dns_id_matches(presented: str, reference: str) -> bool:
     return p_labels == r_labels
 ```
 
-The stapled-response acceptance checks (real code):
+The stapled-response CertID lookup and acceptance checks (real code):
 
 ```python
+def _single_response_for(
+    response: ocsp.OCSPResponse, leaf: x509.Certificate, issuer: x509.Certificate
+) -> ocsp.OCSPSingleResponse:
+    """Pick the SingleResponse for the leaf's CertID (RFC 6960 Section 4.2.1: SEQUENCE OF)."""
+    for single in response.responses:
+        try:
+            algorithm = single.hash_algorithm
+            expected = ocsp.OCSPRequestBuilder().add_certificate(leaf, issuer, algorithm).build()
+        except (UnsupportedAlgorithm, ValueError):
+            raise StapleRejected("unsupported-algorithm") from None
+        if (
+            single.serial_number == expected.serial_number
+            and single.issuer_name_hash == expected.issuer_name_hash
+            and single.issuer_key_hash == expected.issuer_key_hash
+        ):
+            return single
+    raise StapleRejected("cert-id-mismatch")
+
+
 def evaluate_staple(
     der: bytes,
     leaf: x509.Certificate,
@@ -262,31 +283,26 @@ def evaluate_staple(
     if response.response_status is not ocsp.OCSPResponseStatus.SUCCESSFUL:
         raise StapleRejected("not-successful")
     signer = _authorized_signer(response, issuer, at)
-    public_key = signer.public_key()
-    hash_algorithm = response.signature_hash_algorithm
+    try:
+        public_key = signer.public_key()
+        hash_algorithm = response.signature_hash_algorithm
+    except UnsupportedAlgorithm:
+        raise StapleRejected("unsupported-algorithm") from None
     if not isinstance(public_key, ec.EllipticCurvePublicKey) or hash_algorithm is None:
         raise StapleRejected("unsupported-algorithm")
     try:
         public_key.verify(response.signature, response.tbs_response_bytes, ec.ECDSA(hash_algorithm))
     except InvalidSignature:
         raise StapleRejected("bad-signature") from None
-    expected = (
-        ocsp.OCSPRequestBuilder().add_certificate(leaf, issuer, response.hash_algorithm).build()
-    )
-    if (
-        response.serial_number != expected.serial_number
-        or response.issuer_name_hash != expected.issuer_name_hash
-        or response.issuer_key_hash != expected.issuer_key_hash
-    ):
-        raise StapleRejected("cert-id-mismatch")
-    if response.this_update_utc > at:
+    single = _single_response_for(response, leaf, issuer)
+    if single.this_update_utc > at:
         raise StapleRejected("not-yet-valid")
-    if at - response.this_update_utc > max_age:
+    if at - single.this_update_utc > max_age:
         raise StapleRejected("stale")
-    next_update = response.next_update_utc
+    next_update = single.next_update_utc
     if next_update is not None and next_update <= at:
         raise StapleRejected("expired")
-    status = response.certificate_status
+    status = single.certificate_status
     if status is ocsp.OCSPCertStatus.GOOD:
         return "good"
     if status is ocsp.OCSPCertStatus.REVOKED:
@@ -321,8 +337,8 @@ Captured run, from `labs/`, CPython 3.14.6 with OpenSSL 3.5.7, macOS 27.2 on App
 
 ```text
 $ uv run --frozen pytest tests/f02_tls_connections_and_intermediaries/test_x509_certificates_chain_validation_san_and_ocsp_stapling.py -q
-...................................................                      [100%]
-51 passed in 0.16s
+.........................................................                [100%]
+57 passed in 0.13s
 ```
 
 ## Pitfalls

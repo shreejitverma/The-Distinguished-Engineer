@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 from cryptography import x509
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509 import ocsp
@@ -282,17 +282,42 @@ def _authorized_signer(
     if _is_responder(response, issuer):
         return issuer
     for cert in response.certificates:
-        if not _is_responder(response, cert):
-            continue
         try:
+            if not _is_responder(response, cert):
+                continue
             cert.verify_directly_issued_by(issuer)
             eku = cert.extensions.get_extension_for_class(x509.ExtendedKeyUsage).value
-        except (ValueError, TypeError, InvalidSignature, x509.ExtensionNotFound):
+        except (
+            ValueError,
+            TypeError,
+            InvalidSignature,
+            UnsupportedAlgorithm,
+            x509.ExtensionNotFound,
+        ):
             continue
         in_validity = cert.not_valid_before_utc <= at <= cert.not_valid_after_utc
         if ExtendedKeyUsageOID.OCSP_SIGNING in eku and in_validity:
             return cert
     raise StapleRejected("unauthorized-responder")
+
+
+def _single_response_for(
+    response: ocsp.OCSPResponse, leaf: x509.Certificate, issuer: x509.Certificate
+) -> ocsp.OCSPSingleResponse:
+    """Pick the SingleResponse for the leaf's CertID (RFC 6960 Section 4.2.1: SEQUENCE OF)."""
+    for single in response.responses:
+        try:
+            algorithm = single.hash_algorithm
+            expected = ocsp.OCSPRequestBuilder().add_certificate(leaf, issuer, algorithm).build()
+        except (UnsupportedAlgorithm, ValueError):
+            raise StapleRejected("unsupported-algorithm") from None
+        if (
+            single.serial_number == expected.serial_number
+            and single.issuer_name_hash == expected.issuer_name_hash
+            and single.issuer_key_hash == expected.issuer_key_hash
+        ):
+            return single
+    raise StapleRejected("cert-id-mismatch")
 
 
 def evaluate_staple(
@@ -315,31 +340,26 @@ def evaluate_staple(
     if response.response_status is not ocsp.OCSPResponseStatus.SUCCESSFUL:
         raise StapleRejected("not-successful")
     signer = _authorized_signer(response, issuer, at)
-    public_key = signer.public_key()
-    hash_algorithm = response.signature_hash_algorithm
+    try:
+        public_key = signer.public_key()
+        hash_algorithm = response.signature_hash_algorithm
+    except UnsupportedAlgorithm:
+        raise StapleRejected("unsupported-algorithm") from None
     if not isinstance(public_key, ec.EllipticCurvePublicKey) or hash_algorithm is None:
         raise StapleRejected("unsupported-algorithm")
     try:
         public_key.verify(response.signature, response.tbs_response_bytes, ec.ECDSA(hash_algorithm))
     except InvalidSignature:
         raise StapleRejected("bad-signature") from None
-    expected = (
-        ocsp.OCSPRequestBuilder().add_certificate(leaf, issuer, response.hash_algorithm).build()
-    )
-    if (
-        response.serial_number != expected.serial_number
-        or response.issuer_name_hash != expected.issuer_name_hash
-        or response.issuer_key_hash != expected.issuer_key_hash
-    ):
-        raise StapleRejected("cert-id-mismatch")
-    if response.this_update_utc > at:
+    single = _single_response_for(response, leaf, issuer)
+    if single.this_update_utc > at:
         raise StapleRejected("not-yet-valid")
-    if at - response.this_update_utc > max_age:
+    if at - single.this_update_utc > max_age:
         raise StapleRejected("stale")
-    next_update = response.next_update_utc
+    next_update = single.next_update_utc
     if next_update is not None and next_update <= at:
         raise StapleRejected("expired")
-    status = response.certificate_status
+    status = single.certificate_status
     if status is ocsp.OCSPCertStatus.GOOD:
         return "good"
     if status is ocsp.OCSPCertStatus.REVOKED:

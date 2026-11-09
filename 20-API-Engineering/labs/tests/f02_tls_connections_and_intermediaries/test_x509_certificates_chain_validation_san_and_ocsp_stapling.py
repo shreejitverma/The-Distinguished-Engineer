@@ -13,6 +13,7 @@ import httpx
 import pytest
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509 import ocsp
 from cryptography.x509.oid import NameOID
 from cryptography.x509.verification import VerificationError
@@ -332,6 +333,121 @@ def staple(
 
 def evaluate(pki: Pki, der: bytes) -> CertStatus:
     return evaluate_staple(der, pki.leaf.cert, pki.intermediate.cert, at=NOW, max_age=MAX_AGE)
+
+
+def der_children(der: bytes) -> list[bytes]:
+    """Split the content of the DER constructed value `der` into its full child TLVs."""
+
+    def header(pos: int) -> tuple[int, int]:
+        length, pos = der[pos + 1], pos + 2
+        if length & 0x80:
+            size = length & 0x7F
+            length, pos = int.from_bytes(der[pos : pos + size], "big"), pos + size
+        return pos, pos + length
+
+    pos, end = header(0)
+    children: list[bytes] = []
+    while pos < end:
+        _, stop = header(pos)
+        children.append(der[pos:stop])
+        pos = stop
+    return children
+
+
+def der_tlv(tag: int, content: bytes) -> bytes:
+    if len(content) < 0x80:
+        return bytes([tag, len(content)]) + content
+    size = len(content).to_bytes((len(content).bit_length() + 7) // 8, "big")
+    return bytes([tag, 0x80 | len(size)]) + size + content
+
+
+def single_responses(der: bytes) -> list[bytes]:
+    tbs = ocsp.load_der_ocsp_response(der).tbs_response_bytes
+    return der_children(next(f for f in der_children(tbs) if f[0] == 0x30))
+
+
+def restaple(template: bytes, singles: Sequence[bytes], signer: Issued) -> bytes:
+    """RFC 6960 Section 4.2.1: re-sign `template` with `singles` as its SEQUENCE OF SingleResponse.
+
+    `OCSPResponseBuilder` emits exactly one SingleResponse, so the DER is rebuilt by hand.
+    """
+    status, response_bytes = der_children(template)
+    oid, octets = der_children(der_children(response_bytes)[0])
+    _, sig_alg, _, *certs = der_children(der_children(octets)[0])
+    tbs = ocsp.load_der_ocsp_response(template).tbs_response_bytes
+    fields = [der_tlv(0x30, b"".join(singles)) if f[0] == 0x30 else f for f in der_children(tbs)]
+    new_tbs = der_tlv(0x30, b"".join(fields))
+    signature = signer.key.sign(new_tbs, ec.ECDSA(hashes.SHA256()))
+    basic = der_tlv(0x30, new_tbs + sig_alg + der_tlv(0x03, b"\x00" + signature) + b"".join(certs))
+    inner = der_tlv(0x30, oid + der_tlv(0x04, basic))
+    return der_tlv(0x30, status + der_tlv(0xA0, inner))
+
+
+@pytest.mark.unit
+def test_restaple_round_trips_a_single_response(pki: Pki) -> None:
+    der = staple(pki, "revoked")
+    rebuilt = restaple(der, single_responses(der), pki.intermediate)
+    assert ocsp.load_der_ocsp_response(rebuilt).tbs_response_bytes == (
+        ocsp.load_der_ocsp_response(der).tbs_response_bytes
+    )
+    assert evaluate(pki, rebuilt) == "revoked"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("leaf_first", [True, False], ids=["leaf-first", "leaf-second"])
+def test_multi_response_staple_reports_the_leafs_own_status(pki: Pki, leaf_first: bool) -> None:
+    # RFC 6960 Section 4.2.1 allows several SingleResponses; only the leaf's CertID counts.
+    sibling = make_leaf(
+        pki.intermediate, sans=[x509.DNSName(HOST)], not_before=NOW - DAY, not_after=NOW + DAY
+    )
+    (own,) = single_responses(staple(pki, "revoked"))
+    (other,) = single_responses(staple(pki, "good", leaf=sibling.cert))
+    singles = [own, other] if leaf_first else [other, own]
+    der = restaple(staple(pki), singles, pki.intermediate)
+    assert len(list(ocsp.load_der_ocsp_response(der).responses)) == 2
+    assert evaluate(pki, der) == "revoked"
+    decision = revocation_decision(
+        pki.leaf.cert, pki.intermediate.cert, der, at=NOW, max_age=MAX_AGE
+    )
+    assert decision == "reject"
+
+
+@pytest.mark.unit
+def test_multi_response_staple_without_the_leaf_is_a_cert_id_mismatch(pki: Pki) -> None:
+    others = [
+        make_leaf(pki.intermediate, sans=[], not_before=NOW - DAY, not_after=NOW + DAY).cert
+        for _ in range(2)
+    ]
+    singles = [s for leaf in others for s in single_responses(staple(pki, leaf=leaf))]
+    der = restaple(staple(pki), singles, pki.intermediate)
+    with pytest.raises(StapleRejected) as excinfo:
+        evaluate(pki, der)
+    assert excinfo.value.reason == "cert-id-mismatch"
+
+
+@pytest.mark.unit
+def test_unknown_cert_id_hash_algorithm_is_rejected_not_raised(pki: Pki) -> None:
+    # CertID hashAlgorithm id-sha256 (2.16.840.1.101.3.4.2.1) rewritten to the unassigned .99.
+    sha256_oid = bytes.fromhex("0609608648016503040201")
+    (single,) = single_responses(staple(pki))
+    assert single.count(sha256_oid) == 1
+    unknown = single.replace(sha256_oid, sha256_oid[:-1] + b"\x63")
+    der = restaple(staple(pki), [unknown], pki.intermediate)
+    with pytest.raises(StapleRejected) as excinfo:
+        evaluate(pki, der)
+    assert excinfo.value.reason == "unsupported-algorithm"
+
+
+@pytest.mark.unit
+def test_unknown_signature_algorithm_is_rejected_not_raised(pki: Pki) -> None:
+    # ecdsa-with-SHA256 (1.2.840.10045.4.3.2) rewritten to the unassigned 1.2.840.10045.4.3.99.
+    ecdsa_sha256 = bytes.fromhex("06082a8648ce3d040302")
+    der = staple(pki)
+    assert der.count(ecdsa_sha256) == 1
+    tampered = der.replace(ecdsa_sha256, ecdsa_sha256[:-1] + b"\x63")
+    with pytest.raises(StapleRejected) as excinfo:
+        evaluate(pki, tampered)
+    assert excinfo.value.reason == "unsupported-algorithm"
 
 
 @pytest.mark.unit

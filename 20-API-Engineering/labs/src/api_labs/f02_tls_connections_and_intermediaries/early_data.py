@@ -107,12 +107,16 @@ def decode_new_session_ticket(data: bytes) -> NewSessionTicket:
         max_early: int | None = None
         while pos < end:
             ext_type, length = struct.unpack_from("!HH", data, pos)
+            if pos + 4 + length > end:
+                raise TicketFormatError("extension overruns the extensions block")
             if ext_type == EXTENSION_EARLY_DATA:
+                if length != 4:
+                    raise TicketFormatError("early_data in NewSessionTicket is a uint32")
                 (max_early,) = struct.unpack_from("!I", data, pos + 4)
             pos += 4 + length  # Section 4.7.1: clients MUST ignore unrecognized extensions
     except struct.error as exc:
         raise TicketFormatError("truncated NewSessionTicket") from exc
-    if pos != len(data) or len(nonce) != nonce_len or len(ticket) != ticket_len or not ticket:
+    if end != len(data) or len(nonce) != nonce_len or len(ticket) != ticket_len or not ticket:
         raise TicketFormatError("NewSessionTicket length fields are inconsistent")
     if lifetime > MAX_TICKET_LIFETIME_SECONDS:
         raise TicketFormatError("ticket_lifetime must be <= 604800 seconds")
