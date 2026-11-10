@@ -143,7 +143,7 @@ def decide_storage(
         return StoreDecision(None, "authorization")  # RFC 9111 Section 3.5
     for directive in ("s-maxage", "max-age"):  # s-maxage overrides max-age in a shared cache
         argument = cc.get(directive)
-        if argument is not None and argument.isdigit():
+        if argument is not None and argument.isascii() and argument.isdigit():
             return StoreDecision(float(argument), directive)
     if extension is not None:
         return StoreDecision(policy.static_ttl, f"extension rule {extension}")

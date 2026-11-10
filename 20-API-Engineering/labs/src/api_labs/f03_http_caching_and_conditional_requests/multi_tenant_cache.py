@@ -93,6 +93,8 @@ def refusal_reason(
         return "no-store"
     if "private" in directives:
         return "private"
+    if "no-cache" in directives:
+        return "no-cache"
     if request_has_authorization and not AUTHORIZATION_OVERRIDES & directives.keys():
         return "authorization"
     if shared_lifetime(directives) <= 0:
@@ -147,20 +149,23 @@ class StoredResponse:
 
 @dataclass(slots=True)
 class SharedCache:
-    """A shared cache keyed on path and query, then on the response's `Vary` fields."""
+    """A shared cache keyed on method, host, path, and query, then on the `Vary` fields."""
 
     app: ASGIApp
     clock: Callable[[], float]
     target_fields: tuple[str, ...] = ()
     name: str = "lab"
-    entries: dict[tuple[str, bytes], list[StoredResponse]] = field(default_factory=lambda: {})
+    entries: dict[tuple[str, str, str, bytes], list[StoredResponse]] = field(
+        default_factory=lambda: {}
+    )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or scope["method"] != "GET":
             await self.app(scope, receive, send)
             return
         request_headers = combined_headers(scope["headers"])
-        key = (scope["path"], scope["query_string"])
+        host = request_headers.get("host", "").lower()
+        key = (scope["method"], host, scope["path"], scope["query_string"])
         now = self.clock()
         candidates = self.entries.get(key, [])
         for entry in reversed(candidates):

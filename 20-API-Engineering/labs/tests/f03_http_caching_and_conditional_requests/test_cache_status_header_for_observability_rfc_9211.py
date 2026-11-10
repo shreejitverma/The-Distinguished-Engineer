@@ -76,7 +76,10 @@ def make_origin(
             await gate.wait()
         if fail_first and len(calls) == 1:
             raise RuntimeError("origin crashed")
-        headers = [(b"content-type", b"text/plain"), (b"cache-control", cache_control.encode())]
+        headers = [
+            (b"content-type", b"text/plain"),
+            (b"cache-control", cache_control.encode("latin-1")),
+        ]
         await send({"type": "http.response.start", "status": 200, "headers": headers})
         await send({"type": "http.response.body", "body": f"v{len(calls)}".encode()})
 
@@ -441,6 +444,8 @@ async def test_freshness_boundary_hit_then_stale_forward() -> None:
         ("max-age=abc", "Edge;fwd=uri-miss;stored=?0"),
         ("no-store, max-age=60", "Edge;fwd=uri-miss;stored=?0"),
         ("private, max-age=60", "Edge;fwd=uri-miss;stored=?0"),
+        ("no-cache, max-age=60", "Edge;fwd=uri-miss;stored=?0"),
+        ("max-age=\xb2", "Edge;fwd=uri-miss;stored=?0"),
         ("public", "Edge;fwd=uri-miss;stored=?0"),
     ],
 )

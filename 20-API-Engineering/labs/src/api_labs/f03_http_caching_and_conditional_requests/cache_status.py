@@ -497,12 +497,12 @@ def _cache_control(raw_headers: Iterable[tuple[bytes, bytes]]) -> dict[str, str]
 def _freshness_lifetime(raw_headers: list[tuple[bytes, bytes]]) -> int | None:
     """Shared-cache freshness lifetime: `s-maxage`, else `max-age` (RFC 9111 Section 4.2.1)."""
     directives = _cache_control(raw_headers)
-    if "no-store" in directives or "private" in directives:
+    if "no-store" in directives or "private" in directives or "no-cache" in directives:
         return None
     for name in ("s-maxage", "max-age"):
         if name in directives:
             argument = directives[name]
-            return int(argument) if argument.isdigit() else None
+            return int(argument) if argument.isascii() and argument.isdigit() else None
     return None
 
 

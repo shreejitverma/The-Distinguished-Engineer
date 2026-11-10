@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 
 SIGNING_KEY = "lab-only-signing-key"
+INVOICES_KEY = ("GET", "test", "/v1/invoices", b"")
 
 
 class FakeClock:
@@ -87,6 +88,7 @@ def test_parse_cache_control_lowercases_unquotes_and_keeps_quoted_commas() -> No
         ("private, max-age=60", False, "private"),
         ("public, private, max-age=60", True, "private"),
         ("no-store, public, max-age=60", True, "no-store"),
+        ("public, no-cache, max-age=60", True, "no-cache"),
         ("public", True, "no-freshness"),
         ("max-age=0, s-maxage=60", True, None),
         ('s-maxage="60"', True, None),
@@ -101,6 +103,7 @@ def test_parse_cache_control_lowercases_unquotes_and_keeps_quoted_commas() -> No
         "private",
         "private-beats-public",
         "no-store-beats-public",
+        "no-cache-is-never-reused-unvalidated",
         "public-without-lifetime",
         "s-maxage-overrides-max-age-0",
         "quoted-s-maxage-accepted",
@@ -206,6 +209,22 @@ async def test_starlette_session_middleware_vary_cookie_gives_each_session_its_o
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+async def test_host_is_in_the_primary_key_so_host_based_tenants_do_not_share_entries() -> None:
+    origin, cache = stack(PUBLIC)
+
+    alice = await get(cache, "/v1/invoices", user="alice", Host="acme.api.example.com")
+    mallory = await get(cache, "/v1/invoices", user="mallory", Host="globex.api.example.com")
+    bob = await get(cache, "/v1/invoices", user="bob", Host="ACME.api.example.com")
+
+    assert alice.headers["cache-status"] == "lab; fwd=uri-miss; stored"
+    assert mallory.headers["cache-status"] == "lab; fwd=uri-miss; stored"
+    assert mallory.json() == {"tenant": "globex", "invoices": ["INV-G1"]}
+    assert bob.headers["cache-status"] == "lab; hit"
+    assert origin.calls == [("/v1/invoices", "alice"), ("/v1/invoices", "mallory")]
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_cached_set_cookie_is_replayed_to_the_next_requester() -> None:
     origin = Origin(PUBLIC, extra_headers={"Set-Cookie": "sid=sid-alice; HttpOnly"})
     cache = SharedCache(origin.app(), clock=FakeClock())
@@ -232,7 +251,7 @@ async def test_edge_verified_tenant_header_shares_within_a_tenant_and_isolates_t
     assert mallory.headers["cache-status"] == "lab; fwd=vary-miss; stored"
     assert mallory.json() == {"tenant": "globex", "invoices": ["INV-G1"]}
     assert origin.calls == [("/v1/invoices", "alice"), ("/v1/invoices", "mallory")]
-    assert [e.selecting for e in cache.entries[("/v1/invoices", b"")]] == [("acme",), ("globex",)]
+    assert [e.selecting for e in cache.entries[INVOICES_KEY]] == [("acme",), ("globex",)]
 
 
 @pytest.mark.unit
@@ -273,7 +292,7 @@ async def test_spoofed_tenant_header_is_replaced_by_the_edge_before_the_cache_se
     assert spoofed.headers["cache-status"] == "lab; fwd=vary-miss; stored"
     assert spoofed.json()["tenant"] == "globex"
     assert origin.calls[-1] == ("/v1/invoices", "mallory")
-    assert [e.selecting for e in cache.entries[("/v1/invoices", b"")]] == [("acme",), ("globex",)]
+    assert [e.selecting for e in cache.entries[INVOICES_KEY]] == [("acme",), ("globex",)]
 
 
 @pytest.mark.unit
@@ -376,7 +395,7 @@ async def test_an_expired_entry_is_replaced_rather_than_kept_beside_its_successo
     clock.now += 60
     await get(edge, "/v1/invoices", user="bob")
 
-    stored = cache.entries[("/v1/invoices", b"")]
+    stored = cache.entries[INVOICES_KEY]
     assert [(e.selecting, e.stored_at) for e in stored] == [(("acme",), 1_060.0)]
 
 
@@ -417,7 +436,7 @@ async def test_repeated_request_field_lines_are_combined_with_comma_space_before
             ],
         )
 
-    assert [e.selecting for e in cache.entries[("/v1/invoices", b"")]] == [("acme",), ("a, b",)]
+    assert [e.selecting for e in cache.entries[INVOICES_KEY]] == [("acme",), ("a, b",)]
 
 
 @pytest.mark.unit

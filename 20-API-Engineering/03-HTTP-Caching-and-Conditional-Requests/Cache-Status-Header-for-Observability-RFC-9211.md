@@ -134,7 +134,7 @@ Because `age_value` is the upstream `Age`, a lower tier that stored a response a
 | Bytes per canonical hit member, RFC example names | 24 (`OriginCache;hit;ttl=1100`), 30 (`"CDN Company Here";hit;ttl=545`) | counted with `len()` on CPython 3.14.6 |
 | Live `docs.netlify.com` member sizes | 33 and 61 bytes, two lines both named `"Netlify Edge"` | `curl -sS -o /dev/null -D - https://docs.netlify.com/` on 2026-11-10 20:52:02 GMT (`ttl=31527644`, then `fwd=stale;fwd-status=200;ttl=-15087;stored`), see Pitfalls |
 | Live `www.netlify.com` `ttl` | 31533489 s (about 365.0 days), one `"Netlify Edge"; hit` line | same command and time against `https://www.netlify.com/` |
-| Lab test module | 86 tests, `86 passed in 0.11s` | `uv run --frozen pytest ... -q` from `labs/`, CPython 3.14.6, macOS 27.2 arm64 (`uname -r` 27.2.0) |
+| Lab test module | 88 tests, `88 passed in 0.11s` | `uv run --frozen pytest ... -q` from `labs/`, CPython 3.14.6, macOS 27.2 arm64 (`uname -r` 27.2.0) |
 
 The test duration is a smoke number for the suite, not a benchmark of the parser.
 
@@ -142,12 +142,12 @@ The test duration is a smoke number for the suite, not a benchmark of the parser
 
 | Dimension | Result | Evidence |
 | --- | --- | --- |
-| CPython 3.12.13 | 86 passed | lab run, full `uv.lock` env (`UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python <interpreter> pytest <module> -q`), macOS 27.2 arm64, 2026-11-10 |
-| CPython 3.13.18 | 86 passed | lab run, full `uv.lock` env, same command |
-| CPython 3.14.6 (workspace interpreter) and 3.14.10 | 86 passed on each | lab runs, full `uv.lock` env, same command |
-| CPython 3.15.2 | 86 passed | lab run, full `uv.lock` env, same command |
+| CPython 3.12.13 | 88 passed | lab run, full `uv.lock` env (`UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python <interpreter> pytest <module> -q`), macOS 27.2 arm64, 2026-11-10 |
+| CPython 3.13.18 | 88 passed | lab run, full `uv.lock` env, same command |
+| CPython 3.14.6 (workspace interpreter) and 3.14.10 | 88 passed on each | lab runs, full `uv.lock` env, same command |
+| CPython 3.15.2 | 88 passed | lab run, full `uv.lock` env, same command |
 | CPython 3.15.0b3 (what `uv run --python 3.15` picked first) | pytest plugin load error, `ModuleNotFoundError: No module named 'hypothesis._native'` in the pinned hypothesis wheel | lab run; environment failure, not lab behavior |
-| CPython 3.15.0b3t and 3.14.6t free-threaded, `sys._is_gil_enabled()` is `False` | 86 passed on each in a minimal venv with only the pinned `httpx`, `httpcore`, `h11`, `starlette`, `anyio`, `pytest`, `pytest-asyncio`, `idna`, `certifi` | lab runs with `PYTHONPATH=src`; the full lock cannot install there (`uv sync --frozen` on 3.14.6t stops because `psycopg-binary==3.3.8` has no wheel or sdist for that build) |
+| CPython 3.15.0b3t and 3.14.6t free-threaded, `sys._is_gil_enabled()` is `False` | 86 passed on each, on the revision before the `no-cache` and non-ASCII `max-age` cases were added, in a minimal venv with only the pinned `httpx`, `httpcore`, `h11`, `starlette`, `anyio`, `pytest`, `pytest-asyncio`, `idna`, `certifi` | lab runs with `PYTHONPATH=src`; the full lock cannot install there (`uv sync --frozen` on 3.14.6t stops because `psycopg-binary==3.3.8` has no wheel or sdist for that build) |
 | CPython 3.12.16 and 3.15.2t named in the matrix | not run | `uv python list` here offers 3.12.13 and 3.15.0b3t only |
 | httpx 0.28.1, starlette 1.10.0 | combination and overwrite behavior pinned by tests | `test_httpx_comma_split_corrupts_a_quoted_identifier_the_parser_keeps`, `test_starlette_setitem_drops_the_upstream_member_and_append_keeps_it` |
 | Uvicorn 0.54.0, Hypercorn 0.18.0, Granian 2.8.7 | both `cache-status` lines of a two-tier `SharedCacheLayer` chain arrive over HTTP/1.1 on loopback as two separate lines, origin-side first, on each server | ASGI spec, `http.response.start` ("Order must be preserved in the HTTP response"); verifier loopback run on 2026-11-10 with `http.client`, outside the pytest module; HTTP/2 and HTTP/3 through these servers not exercised |
@@ -281,15 +281,15 @@ Captured output, CPython 3.14.6 on macOS 27.2 arm64, run from `labs/`:
 
 ```text
 $ uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_observability_rfc_9211.py -q
-........................................................................ [ 84%]
-.............                                                            [100%]
-86 passed in 0.11s
+........................................................................ [ 81%]
+................                                                         [100%]
+88 passed in 0.11s
 ```
 
 ```text
 $ uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_observability_rfc_9211.py -v --no-header -p no:cacheprovider -k "two_pops or netlify or concurrent or cold_miss"
 ============================= test session starts ==============================
-collecting ... collected 86 items / 80 deselected / 6 selected
+collecting ... collected 88 items / 82 deselected / 6 selected
 
 tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_observability_rfc_9211.py::test_live_netlify_two_member_chain_parses_and_lints_clean PASSED [ 16%]
 tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_observability_rfc_9211.py::test_netlify_blog_example_is_not_a_structured_list_so_whole_field_is_ignored PASSED [ 33%]
@@ -298,7 +298,7 @@ tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_obs
 tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_observability_rfc_9211.py::test_two_pops_reproduce_the_rfc9211_two_layer_example PASSED [ 83%]
 tests/f03_http_caching_and_conditional_requests/test_cache_status_header_for_observability_rfc_9211.py::test_concurrent_misses_collapse_into_one_forward PASSED [100%]
 
-======================= 6 passed, 80 deselected in 0.08s =======================
+======================= 6 passed, 82 deselected in 0.08s =======================
 ```
 
 ## Pitfalls

@@ -499,6 +499,7 @@ async def test_starlette_route_regex_accepts_a_trailing_encoded_newline() -> Non
         ([], 200, "max-age=60, max-age=600", EdgePolicy(), (60.0, "max-age")),
         ([], 200, 'max-age="60"', EdgePolicy(), (60.0, "max-age")),
         ([], 200, "max-age=abc", EdgePolicy(), (None, "no explicit freshness")),
+        ([], 200, "max-age=\xb2", EdgePolicy(), (None, "no explicit freshness")),
     ],
     ids=[
         "s-maxage-wins",
@@ -515,6 +516,7 @@ async def test_starlette_route_regex_accepts_a_trailing_encoded_newline() -> Non
         "first-duplicate-directive-wins",
         "quoted-argument",
         "non-numeric-max-age-is-not-freshness",
+        "non-ascii-digit-max-age-is-not-freshness",
     ],
 )
 def test_decide_storage_follows_rfc9111_section_3_for_a_shared_cache(
@@ -524,7 +526,9 @@ def test_decide_storage_follows_rfc9111_section_3_for_a_shared_cache(
     policy: EdgePolicy,
     expected: tuple[float | None, str],
 ) -> None:
-    response_headers = [] if cache_control is None else [(b"cache-control", cache_control.encode())]
+    response_headers = (
+        [] if cache_control is None else [(b"cache-control", cache_control.encode("latin-1"))]
+    )
     decision = decide_storage(
         policy,
         method="GET",

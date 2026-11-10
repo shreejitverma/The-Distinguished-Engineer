@@ -40,7 +40,7 @@ Part of [HTTP Caching and Conditional Requests](README.md) in [API Engineering](
 Mechanism: a shared cache looks up a stored response by target URI and the request fields nominated by `Vary` `(RFC 9111 Section 4)`, so anything that selected the content but is not in that key, such as the tenant decoded from a token, is invisible to the cache.
 Contract rule: a shared cache must not reuse a response to a request with `Authorization` unless the response carries `public`, `s-maxage`, or `must-revalidate` `(RFC 9111 Section 3.5)`, and must never store an unqualified `private` response `(RFC 9111 Section 5.2.2.7)`.
 The trap: `Cache-Control: public, max-age=60` on a bearer-authenticated endpoint switches that protection off, cookie-authenticated requests never had it, and a `Set-Cookie` on a cacheable response is replayed to the next requester `(RFC 9111 Section 7.3)`; the lab reproduces all three.
-Portability fact: these are cache semantics defined independently of HTTP/1.1, HTTP/2, and HTTP/3, and the lab's 40 tests pass on CPython 3.12.13, 3.12.16, 3.13.18, 3.14.6, 3.14.10, 3.15.2, and a 3.15.2 free-threaded build, on macOS and in Debian Trixie and Alpine containers.
+Portability fact: these are cache semantics defined independently of HTTP/1.1, HTTP/2, and HTTP/3, and the lab's 42 tests pass on CPython 3.12.13, 3.13.18, 3.14.6, 3.14.10, and 3.15.2 on macOS, and its earlier 40-test revision also passed on 3.12.16, a 3.15.2 free-threaded build, and in Debian Trixie and Alpine containers.
 When not to use it: if a response is filtered by the caller's own permissions or holds a single user's data, do not share it at all; send `private` (or `no-store` for secrets) and cache below HTTP with the principal in the key.
 
 ## Mental model
@@ -48,7 +48,7 @@ When not to use it: if a response is filtered by the caller's own permissions or
 ```mermaid
 flowchart LR
     C[Client<br/>Authorization: Bearer tok] --> E[Edge gateway<br/>verify token<br/>drop client X-Tenant-ID<br/>set X-Tenant-ID]
-    E --> K{Shared cache<br/>key = path + query<br/>+ Vary fields}
+    E --> K{Shared cache<br/>key = method + host<br/>+ path + query<br/>+ Vary fields}
     K -- "hit: stored X-Tenant-ID<br/>equals request's" --> C
     K -- "miss" --> O[Origin<br/>Cache-Control: max-age=0, s-maxage=60<br/>Vary: X-Tenant-ID<br/>Surrogate-Key: tenant-acme]
     O -- "store if Section 3 allows" --> K
@@ -56,7 +56,7 @@ flowchart LR
 ```
 
 A request enters the edge gateway first, which verifies the bearer token, deletes any `X-Tenant-ID` the client sent, and writes the verified tenant into `X-Tenant-ID`.
-Only then does the shared cache compute its key: the path and query, plus, for each stored response, the request values of the fields its `Vary` names.
+Only then does the shared cache compute its key: the method, the lowercased `Host`, the path, and the query, plus, for each stored response, the request values of the fields its `Vary` names.
 On a miss the origin answers with a tenant-wide representation, `s-maxage` so a shared cache may store it even though the request carried `Authorization`, `Vary: X-Tenant-ID` so the tenant becomes part of the key, and a `Surrogate-Key` tag so one tenant's entries can be purged without touching another's.
 If the cache sat in front of the gateway instead, it would record the client's `X-Tenant-ID` (normally absent) as the selecting value, and every tenant would match the first tenant's entry.
 
@@ -111,18 +111,18 @@ Purging and invalidation on unsafe methods are covered in [[Cache-Invalidation-U
 | Origin calls, 2 tenants, `max-age=60` with `Authorization` | 2 calls, 0 stored (`detail=authorization`) | lab, `test_max_age_alone_is_not_shared_across_authorization_requests` |
 | Origin calls, 3 principals in 2 tenants, `s-maxage=60` + `Vary: X-Tenant-ID` | 2 calls (one per tenant), 1 hit | lab, `test_edge_verified_tenant_header_shares_within_a_tenant_and_isolates_tenants` |
 | Stored entries per URL | one per distinct value of the `Vary` fields: tenants for `X-Tenant-ID`, sessions for `Cookie` | derived from `(RFC 9111 Section 4.1)`; lab asserts 2 entries with selecting values `("acme",)` and `("globex",)` in `test_edge_verified_tenant_header_shares_within_a_tenant_and_isolates_tenants` |
-| Lab run time | `40 passed` in 0.13s to 0.22s over five runs (2026-11-10) | `uv run --frozen pytest <test> -q` from `labs/`, CPython 3.14.6, macOS 27.2 arm64 (Darwin 27.2.0), Apple M3 Pro |
+| Lab run time | `42 passed` in 0.11s to 0.32s over two runs (2026-11-10) | `uv run --frozen pytest <test> -q` from `labs/`, CPython 3.14.6, macOS 27.2 arm64 (Darwin 27.2.0), Apple M3 Pro |
 
 ## Portability
 
 | Runtime, library, or layer | Behavior | Evidence |
 |---|---|---|
-| CPython 3.12.13 (macOS) | 40 passed | lab, minimal venv from `uv venv --python 3.12` plus the lock's pins of the 15 packages the test imports, `PYTHONPATH=src python -m pytest <test> -q` from `labs/` |
+| CPython 3.12.13 (macOS) | 42 passed | lab, full `uv.lock` env (`UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python 3.12.13 pytest <test> -q`) from `labs/` |
 | CPython 3.12.16 | 40 passed on Debian Trixie and on Alpine | lab, Docker `python:3.12-trixie` and `python:3.12-alpine` (Python 3.12.16) |
-| CPython 3.13.18 | 40 passed on macOS and on Debian Trixie | lab, Homebrew 3.13.18 venv and Docker `python:3.13-trixie` |
-| CPython 3.14.6 (workspace `.venv`) | 40 passed | lab, `uv run --frozen pytest <test> -q` with the full lock |
-| CPython 3.14.10 | 40 passed on macOS, Debian Trixie, and Alpine | lab, Homebrew 3.14.10 venv, Docker `python:3.14-trixie` and `python:3.14-alpine` |
-| CPython 3.15.2 | 40 passed on macOS, Debian Trixie, and Alpine | lab, Homebrew 3.15.2 venv, Docker `python:3.15-trixie` and `python:3.15-alpine` |
+| CPython 3.13.18 | 42 passed on macOS; 40 passed on Debian Trixie | lab, Homebrew 3.13.18 with the full `uv.lock` env, and Docker `python:3.13-trixie` |
+| CPython 3.14.6 (workspace `.venv`) | 42 passed | lab, `uv run --frozen pytest <test> -q` with the full lock |
+| CPython 3.14.10 | 42 passed on macOS; 40 passed on Debian Trixie and Alpine | lab, Homebrew 3.14.10 with the full `uv.lock` env, Docker `python:3.14-trixie` and `python:3.14-alpine` |
+| CPython 3.15.2 | 42 passed on macOS; 40 passed on Debian Trixie and Alpine | lab, Homebrew 3.15.2 with the full `uv.lock` env, Docker `python:3.15-trixie` and `python:3.15-alpine` |
 | CPython 3.15.2t free-threaded | 40 passed with the GIL off | lab, interpreter built from the python.org `Python-3.15.2.tgz` with `./configure --disable-gil` (no uv or Docker build of 3.15.2t exists), minimal venv, `python -X gil=0 -m pytest <test> -q`, `sys._is_gil_enabled()` False; `uv sync --frozen --python <that interpreter>` of the full lock fails: `psycopg-binary==3.3.8` has no wheel or sdist for the free-threaded ABI (run 2026-11-10) |
 | Debian Trixie container | 40 passed | Docker `python:*-trixie` (Debian GNU/Linux 13, glibc 2.41, linux-aarch64 under OrbStack on the M3 Pro), `pip install` of the same pins, `PYTHONPATH=src python -m pytest <test> -q`; linux x86_64 was not run |
 | Alpine musl container | 40 passed | Docker `python:*-alpine` (Alpine Linux v3.24, musl libc, linux-aarch64), same method; the lab is pure Python over in-process ASGI, so no libc path is exercised beyond the interpreter |
@@ -133,13 +133,15 @@ Purging and invalidation on unsafe methods are covered in [[Cache-Invalidation-U
 | HTTP/1.1, HTTP/2, HTTP/3 | identical: storage, `Vary`, and `Authorization` rules are defined on the version-independent message abstraction | `(RFC 9110 Section 6)`, `(RFC 9111 Section 3, Section 4.1)` |
 | CDNs implementing `CDN-Cache-Control` | `Cache-Control` is ignored when a targeted field is valid, so `private` there does not bind them | `(RFC 9213 Section 2.2)`; lab `test_cdn_cache_control_replaces_private_for_a_cache_that_targets_it` |
 
+Cells that say 40 passed record the revision before the host-key and `no-cache` cases were added; the 42-case revision was run on macOS only, on 2026-11-10.
+
 ## Worked example
 
 The [implementation](../labs/src/api_labs/f03_http_caching_and_conditional_requests/multi_tenant_cache.py) is a small shared cache as ASGI middleware (`SharedCache`), an edge gateway (`TenantEdge`), and a Starlette origin (`Origin`) whose `CachePolicy` is chosen per test.
-The cache handles `GET` and `200` only, needs explicit freshness, never revalidates, and reports what it did in `Cache-Status` with `hit`, `fwd`, `stored`, and `detail` `(RFC 9211 Section 2.1, 2.2, 2.5, 2.8)`.
-The [test](../labs/tests/f03_http_caching_and_conditional_requests/test_caching_authenticated_and_multi_tenant_api_responses.py) has 40 cases, which include two-tenant leak tests, edge-ordering tests, and unit tests for `combined_headers`, `delta_seconds`, and entry replacement.
+The cache handles `GET` and `200` only, needs explicit freshness, never revalidates and so refuses to store `no-cache` responses `(RFC 9111 Section 5.2.2.4)`, and reports what it did in `Cache-Status` with `hit`, `fwd`, `stored`, and `detail` `(RFC 9211 Section 2.1, 2.2, 2.5, 2.8)`.
+The [test](../labs/tests/f03_http_caching_and_conditional_requests/test_caching_authenticated_and_multi_tenant_api_responses.py) has 42 cases, which include two-tenant leak tests, a host-based tenancy key test, edge-ordering tests, and unit tests for `combined_headers`, `delta_seconds`, and entry replacement.
 
-Simplified excerpt of the implementation (verbatim lines 30-32, 86-100, 138-145, 253-263, and 303-318 of `multi_tenant_cache.py`; the rest omitted):
+Simplified excerpt of the implementation (verbatim lines 30-32, 86-102, 140-147, 258-268, and 308-323 of `multi_tenant_cache.py`; the rest omitted):
 
 ```python
 # RFC 9111 Section 3.5: directives that let a shared cache reuse a response to a request
@@ -156,6 +158,8 @@ def refusal_reason(
         return "no-store"
     if "private" in directives:
         return "private"
+    if "no-cache" in directives:
+        return "no-cache"
     if request_has_authorization and not AUTHORIZATION_OVERRIDES & directives.keys():
         return "authorization"
     if shared_lifetime(directives) <= 0:
@@ -201,7 +205,7 @@ class TenantEdge:
         await self.app({**scope, "headers": headers}, receive, send)
 ```
 
-Simplified excerpt of the test (verbatim lines 122-133, 220-235, and 251-261; imports, `FakeClock`, `get`, and `stack` omitted):
+Simplified excerpt of the test (verbatim lines 125-136, 239-254, and 270-280; imports, `INVOICES_KEY`, `FakeClock`, `get`, and `stack` omitted):
 
 ```python
 @pytest.mark.unit
@@ -232,7 +236,7 @@ async def test_edge_verified_tenant_header_shares_within_a_tenant_and_isolates_t
     assert mallory.headers["cache-status"] == "lab; fwd=vary-miss; stored"
     assert mallory.json() == {"tenant": "globex", "invoices": ["INV-G1"]}
     assert origin.calls == [("/v1/invoices", "alice"), ("/v1/invoices", "mallory")]
-    assert [e.selecting for e in cache.entries[("/v1/invoices", b"")]] == [("acme",), ("globex",)]
+    assert [e.selecting for e in cache.entries[INVOICES_KEY]] == [("acme",), ("globex",)]
 
 @pytest.mark.unit
 @pytest.mark.asyncio
@@ -255,8 +259,8 @@ Captured run, macOS 27.2 arm64 (Apple M3 Pro), CPython 3.14.6, from `labs/`:
 
 ```text
 $ uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_caching_authenticated_and_multi_tenant_api_responses.py -q
-........................................                                 [100%]
-40 passed in 0.12s
+..........................................                               [100%]
+42 passed in 0.11s
 ```
 
 ## Pitfalls
@@ -279,7 +283,7 @@ $ uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_ca
 > [!warning] Default cache keys that omit a tenant dimension
 > Trigger: relying on a proxy's default key in a multi-tenant deployment.
 > Symptom: NVD CVE-2026-2836 reports that the default cache key of the Pingora proxy framework's alpha caching feature used "only the URI path, excluding critical factors such as the host header (authority)", enabling "Cross-tenant data leakage" in multi-tenant deployments; Pingora 0.8.0 removed the default.
-> Fix: write the key function explicitly and test it with two tenants on the same path, as this lab does.
+> Fix: write the key function explicitly and test it with two tenants on the same path, as this lab does for both header-based and host-based tenancy (`test_host_is_in_the_primary_key_so_host_based_tenants_do_not_share_entries`).
 
 > [!warning] Cacheable responses that set cookies
 > Trigger: a session-refresh `Set-Cookie` on a response that is also `public` or `max-age`-cacheable.

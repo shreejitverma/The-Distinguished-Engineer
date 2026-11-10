@@ -40,7 +40,7 @@ Part of [HTTP Caching and Conditional Requests](README.md) in [API Engineering](
 - Mechanism: the cache key is the method and target URI plus whatever `Vary` nominates (RFC 9111 Sections 2 and 4.1); poisoning stores a response shaped by an input outside that key, and deception stores a private response under a URL the attacker can request.
 - Contract rule: a shared cache must not store `no-store` or `private` responses, and must not reuse a response to a request with `Authorization` unless `public`, `s-maxage`, or `must-revalidate` allows it (RFC 9111 Sections 3 and 3.5); nothing in RFC 9111 protects cookie-authenticated responses.
 - The trap: frameworks and servers read inputs you never wrote code for; Hypercorn `0.18.0` `ProxyFixMiddleware` in its default `legacy` mode copies the last `X-Forwarded-Host` value into `Host`, so Starlette's `url_for` builds links on an attacker-chosen authority, proven in the lab.
-- Portability fact: on CPython `>= 3.10` (and `3.9.2`, `3.8.8`, `3.7.10`, `3.6.13`) `urllib.parse.parse_qsl` splits only on `&`, which closes the CVE-2021-23336 parameter-cloaking gap for Starlette; all 58 lab tests pass on CPython `3.12.16`, `3.13.18`, `3.14.10`, and `3.15.2` on Debian Trixie and Alpine (musl), and on `3.12.13`, `3.13.18`, `3.14.10`, `3.15.2`, and free-threaded `3.15.0b3` on macOS.
+- Portability fact: on CPython `>= 3.10` (and `3.9.2`, `3.8.8`, `3.7.10`, `3.6.13`) `urllib.parse.parse_qsl` splits only on `&`, which closes the CVE-2021-23336 parameter-cloaking gap for Starlette; all 59 lab tests pass on CPython `3.12.13`, `3.13.18`, `3.14.10`, and `3.15.2` on macOS, and the earlier 58-test revision also passed on `3.12.16`, `3.13.18`, `3.14.10`, and `3.15.2` on Debian Trixie and Alpine (musl) and on free-threaded `3.15.0b3` on macOS.
 - When not to rely on it: do not "fix" poisoning with `Vary` on a header whose values the attacker controls freely if the CDN ignores or normalizes `Vary`, and do not cache authenticated API responses at a shared edge at all unless the key provably contains the principal (see [[Caching-Authenticated-and-Multi-Tenant-API-Responses]]).
 
 ## Mental model
@@ -96,7 +96,7 @@ RFC 9111 Section 3 says a cache "MUST NOT store a response" unless, among other 
 RFC 9111 Section 3.5 lists the three directives that unlock `Authorization`: `must-revalidate`, `public`, and `s-maxage`.
 RFC 9110 Section 15.1 lists the heuristically cacheable status codes: `200`, `203`, `204`, `206`, `300`, `301`, `308`, `404`, `405`, `410`, `414`, and `501`; a cache may assign them heuristic freshness when no explicit expiration is present (RFC 9111 Section 4.2.2).
 RFC 9111 Section 7.3 adds the line that makes cookie sessions dangerous: `Set-Cookie` "does not inhibit caching", and servers "are encouraged to emit appropriate Cache-Control response header fields".
-Directive arguments may use the token or the quoted-string form, recipients "ought to accept both forms" (RFC 9111 Section 5.2), and caches "are encouraged to consider responses that have invalid freshness information (e.g., a max-age directive with non-integer content) to be stale" (RFC 9111 Section 4.2.1); the lab pins both with `max-age="60"` and `max-age=abc`.
+Directive arguments may use the token or the quoted-string form, recipients "ought to accept both forms" (RFC 9111 Section 5.2), and caches "are encouraged to consider responses that have invalid freshness information (e.g., a max-age directive with non-integer content) to be stale" (RFC 9111 Section 4.2.1); the lab pins both with `max-age="60"` and `max-age=abc`, and also treats a non-ASCII digit such as superscript two (U+00B2), which `str.isdigit()` accepts and `float()` rejects, as invalid.
 The lab encodes these rules, plus the CDN extension rule that can override them:
 
 ```python
@@ -128,7 +128,7 @@ def decide_storage(
         return StoreDecision(None, "authorization")  # RFC 9111 Section 3.5
     for directive in ("s-maxage", "max-age"):  # s-maxage overrides max-age in a shared cache
         argument = cc.get(directive)
-        if argument is not None and argument.isdigit():
+        if argument is not None and argument.isascii() and argument.isdigit():
             return StoreDecision(float(argument), directive)
     if extension is not None:
         return StoreDecision(policy.static_ttl, f"extension rule {extension}")
@@ -204,16 +204,16 @@ One quirk survives: Python's `$` also matches before a final `\n`, so `GET /api/
 | Deception prevalence study | 340 high-profile sites among the Alexa Top 5K | Mirheidari et al., USENIX Security 2020 (abstract; also arXiv:1912.10190) |
 | Mozilla Normandy fix time and bounty | under 24 hours, `$1,000` | Kettle 2018 |
 | CPython releases that fixed `;` splitting | `3.6.13`, `3.7.10`, `3.8.8`, `3.9.2`; `separator` documented as "Changed in version 3.10" | NVD CVE-2021-23336; Python `urllib.parse` documentation (as of 2026-11) |
-| Lab suite | 58 tests, `58 passed in 0.49s`, 97% branch coverage of `cache_poisoning.py` (250 statements, 88 branches) | `uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_web_cache_poisoning_and_cache_deception_attacks.py -q`, coverage with `--cov=api_labs.f03_http_caching_and_conditional_requests.cache_poisoning --cov-branch`, CPython `3.14.6`, macOS 27.2 arm64 |
+| Lab suite | 59 tests, `59 passed in 0.42s`, 97% branch coverage of `cache_poisoning.py` (250 statements, 88 branches) | `uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_web_cache_poisoning_and_cache_deception_attacks.py -q`, coverage with `--cov=api_labs.f03_http_caching_and_conditional_requests.cache_poisoning --cov-branch`, CPython `3.14.6`, macOS 27.2 arm64 |
 
 ## Portability
 
 | Dimension | Version | Result |
 |---|---|---|
-| CPython | `3.12.16` | `58 passed` on Debian GNU/Linux 13 (trixie) and on Alpine Linux v3.24 (musl), `docker run` of `python:3.12-trixie` and `python:3.12-alpine`, aarch64 under OrbStack, 24 packages pinned to their `uv.lock` versions installed with `pip`; `3.12.13` on macOS 27.2 arm64 also gives `58 passed` (`UV_PROJECT_ENVIRONMENT=../tmp/venv-3.12 uv run --frozen --python 3.12 pytest ...`) |
-| CPython | `3.13.18` | `58 passed` on `python:3.13-trixie` and `python:3.13-alpine`, and on macOS (`--python /opt/homebrew/bin/python3.13`, isolated environment) |
-| CPython | `3.14.10` | `58 passed` on `python:3.14-trixie` and `python:3.14-alpine`, and on macOS (`--python /opt/homebrew/bin/python3.14`, isolated environment); the workspace `.venv` (`3.14.6`) also passes |
-| CPython | `3.15.2` | `58 passed` on `python:3.15-trixie` and `python:3.15-alpine`, and on macOS (`--python /opt/homebrew/bin/python3.15`, isolated environment) |
+| CPython | `3.12.16` | `58 passed` on Debian GNU/Linux 13 (trixie) and on Alpine Linux v3.24 (musl), `docker run` of `python:3.12-trixie` and `python:3.12-alpine`, aarch64 under OrbStack, 24 packages pinned to their `uv.lock` versions installed with `pip`; `3.12.13` on macOS 27.2 arm64 gives `59 passed` (`UV_PROJECT_ENVIRONMENT=../tmp/venv-3.12 uv run --frozen --python 3.12 pytest ...`) |
+| CPython | `3.13.18` | `58 passed` on `python:3.13-trixie` and `python:3.13-alpine`, and `59 passed` on macOS (`--python /opt/homebrew/bin/python3.13`, isolated environment) |
+| CPython | `3.14.10` | `58 passed` on `python:3.14-trixie` and `python:3.14-alpine`, and `59 passed` on macOS (`--python /opt/homebrew/bin/python3.14`, isolated environment); the workspace `.venv` (`3.14.6`) also passes |
+| CPython | `3.15.2` | `58 passed` on `python:3.15-trixie` and `python:3.15-alpine`, and `59 passed` on macOS (`--python /opt/homebrew/bin/python3.15`, isolated environment) |
 | CPython free-threaded | `3.15.0b3+freethreaded`, `sys._is_gil_enabled()` is `False`; the pinned `3.15.2t` build is not installable here (uv offers only `3.15.0b3t` and the official Docker images have no free-threaded 3.15) | `58 passed` via `PYTHONPATH=src uv run --no-project --python 3.15t --with-requirements <the 24 locked pins the test imports> pytest ...`, because `uv.lock` has no `cp315t` wheel for `psycopg-binary 3.3.8` and `aioquic 1.7.2` fails to build from source there |
 | `urllib.parse.parse_qsl` | every CPython in the matrix | splits on `&` only (`parse_qsl("a=1;b=2") == [("a", "1;b=2")]`), proven on every interpreter and container above |
 | Starlette | `1.10.0` | `url_for` reflects a valid forged `Host`, ignores an invalid one, `TrustedHostMiddleware` answers `400 Invalid host header`, routes match a trailing `%0A`; all proven in the lab |
@@ -290,8 +290,8 @@ Captured on CPython `3.14.6` (the workspace interpreter), macOS 27.2 arm64, from
 
 ```text
 $ uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_web_cache_poisoning_and_cache_deception_attacks.py -q
-..........................................................               [100%]
-58 passed in 0.49s
+...........................................................              [100%]
+59 passed in 0.42s
 ```
 
 Each test was checked by mutation: 25 deliberate breaks in the first pass (22 to `cache_poisoning.py`, such as keying the unkeyed parameter, ignoring `Vary`, skipping the content-type check, dropping the `Authorization` rule, adding `400` to the heuristic list, swapping the `s-maxage` precedence, and removing `Host` from the key, plus 3 to test inputs) each made at least one test fail, and four survived at first (matching `Vary: *`, storing `no-cache`, ignoring `public` for heuristics, and letting the last duplicate directive win) until the decision table and `test_vary_star_never_matches_a_stored_response` were added.
@@ -299,6 +299,7 @@ A second pass of 12 breaks run with `uv run --frozen pytest <test> -q -x` killed
 It found 6 survivors that are now killed: `Host` not lower-cased in the key (`test_host_is_compared_case_insensitively_in_the_cache_key`), stored variants never replaced (`test_refreshing_a_variant_replaces_it_instead_of_accumulating_entries`), a quoted `max-age` not accepted and a non-numeric `max-age` accepted (two new decision-table cases), a bare `.css` dotfile treated as an extension (`test_static_extension_reads_only_the_last_path_segment`), and `Vary` names not compared case-insensitively (`test_vary_field_names_match_case_insensitively`).
 The twelfth, widening the method-override set to include `GET`, changes nothing observable because overriding `GET` with `GET` is a no-op, so it is an equivalent mutant and no test was added.
 Every file was restored with an identical SHA-256 afterwards.
+A later review added the `non-ascii-digit-max-age-is-not-freshness` decision-table case, which raised `ValueError` until `decide_storage` checked `isascii()` before `isdigit()`.
 
 ## Pitfalls
 
