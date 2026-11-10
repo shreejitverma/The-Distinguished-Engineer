@@ -306,7 +306,7 @@ The decision after storage: validation first, then fresh, then the stale-serving
     )
     req_max_age = delta_seconds(request.directives.get("max-age"))
     req_min_fresh = delta_seconds(request.directives.get("min-fresh"))
-    if req_max_age is not None and age > req_max_age and not request.has("max-stale"):
+    if req_max_age is not None and age > req_max_age:
         must_validate = True
     if req_min_fresh is not None and lifetime.seconds - age < req_min_fresh:
         must_validate = True
@@ -366,13 +366,14 @@ async def test_starlette_private_max_age_is_fresh_in_a_browser_and_not_storable_
     assert assess(r, shared=False, now=T0 + 60).reuse is Reuse.VALIDATE
 ```
 
-The other tests cover `s-maxage` versus `max-age` per cache type, `max-age` beating a later `Expires`, `Expires - Date` under a skewed origin clock, an `Expires` earlier than `Date`, missing and invalid `Date`, invalid `Expires` including `0`, invalid and malformed `max-age`, the duplicate policy, the heuristic, its status-code gate, and its refusal of a `Last-Modified` later than `Date`, `Age` parsing and the four-clock arithmetic, clock skew under the conservative formula, the 2^31 clamp and the 4300-digit `int()` trap, case-insensitive names, quoted arguments, and backslash escapes inside them, commas inside a qualified `no-cache`, unknown extensions, multi-line `Cache-Control`, `no-cache`, `no-store` (request and response), `must-understand`, `private` (qualified and not), the `Authorization` rule, a `302` that is storable only with explicit freshness, request `max-age`, `min-fresh`, and `max-stale`, and `max-stale` relaxing request `max-age`, the stale prohibitions, `immutable`, the three HTTP-date formats, non-GMT and Unicode-digit rejection, the 50-year rule, leap seconds, the stdlib parser, and Litestar's `CacheControlHeader`.
+The other tests cover `s-maxage` versus `max-age` per cache type, `max-age` beating a later `Expires`, `Expires - Date` under a skewed origin clock, an `Expires` earlier than `Date`, missing and invalid `Date`, invalid `Expires` including `0`, invalid and malformed `max-age`, the duplicate policy including a malformed first occurrence, the heuristic, its status-code gate, and its refusal of a `Last-Modified` later than `Date`, `Age` parsing and the four-clock arithmetic, clock skew under the conservative formula, the 2^31 clamp and the 4300-digit `int()` trap, case-insensitive names, quoted arguments, and backslash escapes inside them, commas inside a qualified `no-cache`, unknown extensions, multi-line `Cache-Control`, `no-cache`, `no-store` (request and response), `must-understand`, `private` (qualified and not), the `Authorization` rule, a `302` that is storable only with explicit freshness, request `max-age`, `min-fresh`, and `max-stale`, request `max-age` still bounding age when `max-stale` is present, the stale prohibitions, `immutable`, the three HTTP-date formats, non-GMT and Unicode-digit rejection, the 50-year rule, leap seconds, the stdlib parser, and Litestar's `CacheControlHeader`.
 
 Captured run, command `uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_cache_control_directives_and_freshness_lifetime_calculation.py -q` from `labs/`, CPython 3.14.6, `macOS-27.2-arm64-arm-64bit-Mach-O`:
 
 ```text
-........................................................................ [100%]
-72 passed in 0.22s
+........................................................................ [ 98%]
+.                                                                        [100%]
+73 passed in 0.33s
 ```
 
 An independent verification ran 21 single-mutation checks on `cache_control_freshness.py` (2026-11-09); four survived the original 68 tests (a `Last-Modified` later than `Date` producing a negative heuristic, a negative `Expires - Date`, request `max-age` ignoring `max-stale`, and backslash escapes in quoted strings), four tests were added, and 20 of 21 now fail at least one test.

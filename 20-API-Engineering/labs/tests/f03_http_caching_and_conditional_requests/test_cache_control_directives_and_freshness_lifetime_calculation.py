@@ -126,6 +126,20 @@ def test_whitespace_around_equals_is_malformed_and_therefore_stale() -> None:
 
 
 @pytest.mark.unit
+def test_malformed_first_duplicate_is_not_replaced_by_a_later_valid_one() -> None:
+    # Section 4.2.1: use the first occurrence (here invalid, so stale) or treat as stale.
+    for line in ("max-age = 5, max-age=600", "max-age=5, max-age = 600"):
+        cc = parse_cache_control([line])
+        assert ("max-age" in cc.malformed, "max-age" in cc.repeated) == (True, True)
+    r = stored(("Cache-Control", "max-age = 5, max-age=600"))
+    assert freshness_lifetime(r, shared=False, duplicates="first").seconds == 0
+    assert freshness_lifetime(r, shared=False, duplicates="stale").seconds == 0
+    valid_first = stored(("Cache-Control", "max-age=5, max-age = 600"))
+    assert freshness_lifetime(valid_first, shared=False, duplicates="first").seconds == 5
+    assert freshness_lifetime(valid_first, shared=False, duplicates="stale").seconds == 0
+
+
+@pytest.mark.unit
 def test_duplicate_max_age_first_occurrence_or_stale_by_policy() -> None:
     r = stored(("Cache-Control", "max-age=600"), ("Cache-Control", "max-age=5"))
     assert freshness_lifetime(r, shared=False, duplicates="first").seconds == 600
@@ -365,12 +379,14 @@ def test_request_max_age_zero_and_min_fresh_force_validation() -> None:
 
 
 @pytest.mark.unit
-def test_request_max_age_is_relaxed_by_max_stale() -> None:
-    # Section 5.2.1.1: without max-stale the client does not want a stale response; the lab
-    # reads an accompanying max-stale as lifting the request max-age bound.
+def test_request_max_age_still_bounds_age_when_max_stale_is_present() -> None:
+    # Section 5.2.1.1: max-age states the client's age preference; max-stale (Section 5.2.1.2)
+    # only relaxes staleness, so a fresh response older than max-age is still validated.
     r = stored(("Cache-Control", "max-age=600"))
     both = ["max-age=0, max-stale"]
-    assert assess(r, shared=True, now=T0 + 100, request_lines=both).reuse is Reuse.FRESH
+    assert assess(r, shared=True, now=T0 + 100, request_lines=both).reuse is Reuse.VALIDATE
+    loose = ["max-age=100, max-stale"]
+    assert assess(r, shared=True, now=T0 + 100, request_lines=loose).reuse is Reuse.FRESH
 
 
 @pytest.mark.unit

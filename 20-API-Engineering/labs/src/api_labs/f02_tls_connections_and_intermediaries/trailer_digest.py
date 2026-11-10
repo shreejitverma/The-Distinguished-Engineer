@@ -338,7 +338,8 @@ class ContentDigestMiddleware:
         if trailers_allowed(scope):
             await self.app(scope, receive, self._trailer_sender(send, hasher))
         else:
-            await self.app(scope, receive, self._buffering_sender(send, hasher))
+            head = scope.get("method") == "HEAD"
+            await self.app(scope, receive, self._buffering_sender(send, hasher, head=head))
 
     @staticmethod
     def _trailer_sender(send: Send, hasher: StreamingDigest) -> Send:
@@ -368,7 +369,7 @@ class ContentDigestMiddleware:
         return wrapped
 
     @staticmethod
-    def _buffering_sender(send: Send, hasher: StreamingDigest) -> Send:
+    def _buffering_sender(send: Send, hasher: StreamingDigest, *, head: bool) -> Send:
         start: Message | None = None
         parts: list[bytes] = []
 
@@ -384,7 +385,9 @@ class ContentDigestMiddleware:
                 hasher.update(body)
                 headers = MutableHeaders(raw=list(start.get("headers", [])))
                 headers["content-digest"] = hasher.field_value().decode("ascii")
-                headers["content-length"] = str(len(body))
+                status = int(start["status"])
+                if not (head or status < 200 or status in (204, 304)):
+                    headers["content-length"] = str(len(body))
                 await send({**start, "headers": headers.raw})
                 await send({"type": "http.response.body", "body": body})
             else:

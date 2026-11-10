@@ -164,7 +164,10 @@ The rate-limit key and the two tests that contrast it with the leftmost key, ver
 
 ```python
 def _right_to_left_key(request: Request) -> str | None:
-    resolved = client_from_xff(IP(_peer(request)), request.scope["headers"], TRUSTED)
+    try:
+        resolved = client_from_xff(IP(_peer(request)), request.scope["headers"], TRUSTED)
+    except ForwardingHeaderError:
+        return None
     return None if resolved.client is None else str(resolved.client)
 ```
 
@@ -188,8 +191,8 @@ Run from `labs/` with CPython 3.14.6 on macOS 27.2 (Apple M3 Pro):
 
 ```text
 $ uv run --frozen pytest tests/f02_tls_connections_and_intermediaries/test_forwarded_header_rfc_7239_and_x_forwarded_for_spoofing.py -q -p no:cacheprovider
-..........................................                               [100%]
-43 passed in 0.16s
+.............................................                            [100%]
+45 passed in 0.21s
 ```
 
 ```text

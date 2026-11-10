@@ -75,7 +75,10 @@ def _naive_key(request: Request) -> str:
 
 
 def _right_to_left_key(request: Request) -> str | None:
-    resolved = client_from_xff(IP(_peer(request)), request.scope["headers"], TRUSTED)
+    try:
+        resolved = client_from_xff(IP(_peer(request)), request.scope["headers"], TRUSTED)
+    except ForwardingHeaderError:
+        return None
     return None if resolved.client is None else str(resolved.client)
 
 
@@ -137,6 +140,25 @@ def test_untrusted_peer_means_headers_are_ignored() -> None:
     headers = [(b"x-forwarded-for", b"10.0.0.9, 198.51.100.7")]
     resolved = client_from_xff(IP(ATTACKER), headers, TRUSTED)
     assert (resolved.client, resolved.reason) == (IP(ATTACKER), "peer-untrusted")
+
+
+@pytest.mark.unit
+def test_untrusted_peer_headers_are_not_parsed_so_malformed_ones_cannot_raise() -> None:
+    oversized = ", ".join(["198.51.100.7"] * (MAX_HOPS + 1)).encode()
+    for xff in (oversized, b'"198.51.100.7'):
+        resolved = client_from_xff(IP(ATTACKER), [(b"x-forwarded-for", xff)], TRUSTED)
+        assert (resolved.client, resolved.reason) == (IP(ATTACKER), "peer-untrusted")
+    forwarded = [(b"forwarded", b"for=1.2.3.4:abc")]
+    resolved = client_from_forwarded(IP(ATTACKER), forwarded, TRUSTED)
+    assert (resolved.client, resolved.reason) == (IP(ATTACKER), "peer-untrusted")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_malformed_forwarding_header_through_the_edge_fails_closed_with_400() -> None:
+    oversized = ", ".join(["198.18.0.1"] * MAX_HOPS)
+    statuses = await _statuses(_app(_right_to_left_key), EDGE, [oversized, '"198.18.0.1'])
+    assert statuses == [400, 400]
 
 
 @pytest.mark.unit

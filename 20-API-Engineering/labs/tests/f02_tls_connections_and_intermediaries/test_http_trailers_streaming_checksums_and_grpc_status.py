@@ -14,7 +14,10 @@ import h2.exceptions
 import h11
 import httpx
 import pytest
+from starlette.applications import Starlette
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.responses import FileResponse, Response
+from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from api_labs.f02_tls_connections_and_intermediaries.trailer_digest import (
@@ -39,6 +42,9 @@ from api_labs.f02_tls_connections_and_intermediaries.trailer_digest import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from starlette.requests import Request
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 HELLO = b'{"hello": "world"}\n'
@@ -347,6 +353,39 @@ async def test_httpx_asgi_transport_has_no_trailers_extension_so_digest_is_buffe
     assert response.headers["content-length"] == str(19 * 40)
     assert response.headers["content-digest"] == _content_digest(HELLO * 40)
     assert "trailer" not in response.headers
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [204, 304])
+async def test_buffered_digest_adds_no_content_length_to_204_or_304(status: int) -> None:
+    async def endpoint(request: Request) -> Response:
+        return Response(status_code=status)
+
+    app = ContentDigestMiddleware(Starlette(routes=[Route("/", endpoint, methods=["DELETE"])]))
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.delete("/")
+    assert response.status_code == status
+    assert "content-length" not in response.headers
+    assert response.headers["content-digest"] == _content_digest(b"")
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_buffered_digest_keeps_the_get_content_length_on_head(tmp_path: Path) -> None:
+    path = tmp_path / "hello.json"
+    path.write_bytes(HELLO * 40)
+
+    async def endpoint(request: Request) -> FileResponse:
+        return FileResponse(path)
+
+    app = ContentDigestMiddleware(Starlette(routes=[Route("/", endpoint)]))
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.head("/")
+    assert response.content == b""
+    assert response.headers["content-length"] == str(19 * 40)
 
 
 @pytest.mark.unit

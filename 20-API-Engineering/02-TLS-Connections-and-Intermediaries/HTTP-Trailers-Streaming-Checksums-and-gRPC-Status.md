@@ -262,8 +262,8 @@ Run from `labs/` on CPython 3.14.6, macOS 27.2 (Darwin 27.2.0, arm64), `uv 0.11.
 
 ```text
 $ uv run --frozen pytest tests/f02_tls_connections_and_intermediaries/test_http_trailers_streaming_checksums_and_grpc_status.py -q
-........................................................                 [100%]
-56 passed in 0.11s
+...........................................................              [100%]
+59 passed in 0.23s
 ```
 
 What the tests show, in the order they run: the streamed hash reproduces the RFC 9530 sample values; the parser keeps the last duplicate key and synthesizes missing padding; the origin bytes match Figure 30; one flipped byte (`world` -> `wOrld`) turns the outcome into `MISMATCH` and `verified_body()` raises `IntegrityError`; the buffering proxy delivers an intact body with `Content-Length: 19`, no trailer, and outcome `ABSENT`; the merging proxy moves `repr-digest` into the header section but drops `x-origin-cost`; a correct `sha-512` beats a wrong `sha-256`, and a wrong `sha-512` fails even with a correct `sha-256`; two `repr-digest` trailer lines combine and the later `sha-256` key wins; Trailers-Only produces exactly `ResponseReceived` then `StreamEnded`; a `503` HTML page from a proxy becomes `UNAVAILABLE`, and every row of the HTTP mapping table is checked; `ContentDigestMiddleware` sends the digest exactly once, on the final trailers message only, and offers trailers only when `TE` lists `trailers` case-insensitively; the `grpc-message` on the wire is UTF-8 then percent-encoded (`caf%C3%A9 100%25`); and `ContentDigestMiddleware` placed inside `GZipMiddleware` emits a digest of the uncompressed bytes while the wire carries gzip, while placed outside it matches.

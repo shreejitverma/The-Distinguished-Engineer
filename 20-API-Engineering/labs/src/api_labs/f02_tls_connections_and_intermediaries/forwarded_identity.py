@@ -235,6 +235,8 @@ def resolve_client(
 
 def client_from_xff(peer: IPAddress, headers: Headers, trusted: TrustedProxies) -> ClientResolution:
     """Resolve the client from `X-Forwarded-For`, joining every field line first."""
+    if peer not in trusted:
+        return resolve_client(peer, [], trusted)
     hops = [xff_entry_ip(entry) for entry in parse_x_forwarded_for(headers)]
     return resolve_client(peer, hops, trusted)
 
@@ -243,6 +245,8 @@ def client_from_forwarded(
     peer: IPAddress, headers: Headers, trusted: TrustedProxies
 ) -> ClientResolution:
     """Resolve the client from the `for=` parameter of each RFC 7239 `Forwarded` element."""
+    if peer not in trusted:
+        return resolve_client(peer, [], trusted)
     hops: list[IPAddress | None] = []
     for element in parse_forwarded(headers):
         node = parse_node(element["for"]) if "for" in element else None

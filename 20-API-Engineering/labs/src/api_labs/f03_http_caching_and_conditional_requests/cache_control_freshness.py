@@ -122,11 +122,12 @@ def parse_cache_control(lines: Iterable[str]) -> CacheControl:
         if pos < len(text) and text[pos] != ",":
             ok = False
             pos = _skip_element(text, pos)
+        seen = name in directives or name in malformed
+        if seen:
+            repeated.add(name)
         if not ok:
             malformed.add(name)
-        elif name in directives:
-            repeated.add(name)
-        else:
+        elif not seen:
             directives[name] = value
     return CacheControl(directives, frozenset(repeated), frozenset(malformed))
 
@@ -377,7 +378,7 @@ def assess(
     )
     req_max_age = delta_seconds(request.directives.get("max-age"))
     req_min_fresh = delta_seconds(request.directives.get("min-fresh"))
-    if req_max_age is not None and age > req_max_age and not request.has("max-stale"):
+    if req_max_age is not None and age > req_max_age:
         must_validate = True
     if req_min_fresh is not None and lifetime.seconds - age < req_min_fresh:
         must_validate = True
