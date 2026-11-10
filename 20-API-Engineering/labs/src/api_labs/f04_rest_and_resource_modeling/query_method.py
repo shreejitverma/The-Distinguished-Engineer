@@ -43,6 +43,8 @@ _SF_TOKEN = re.compile(r"[A-Za-z*][!#$%&'*+\-.^_`|~0-9A-Za-z:/]*")
 _SF_STRING_CHARS = re.compile(r"[\x20-\x7e]*")
 # RFC 9110 Section 12.4.2: qvalue = ( "0" [ "." 0*3DIGIT ] ) / ...
 _ZERO_WEIGHT = re.compile(r"q=0(\.0{0,3})?")
+# RFC 9110 Section 12.5.1: the most specific matching range decides the weight
+_JSON_RANGE_SPECIFICITY = {"*/*": 0, "application/*": 1, QUERY_MEDIA_TYPE: 2}
 
 
 def accept_query_value(media_types: Iterable[str]) -> str:
@@ -137,13 +139,16 @@ class ContactStore:
 def _accepts_json(accept: str | None) -> bool:
     if accept is None:
         return True
+    best_rank = -1
+    acceptable = False
     for member in accept.split(","):
         media_range, *params = (p.strip().lower() for p in member.split(";"))
-        if any(_ZERO_WEIGHT.fullmatch(p) for p in params):
-            continue  # RFC 9110 Section 12.4.2: a qvalue of 0 means "not acceptable"
-        if media_range in {"*/*", "application/*", QUERY_MEDIA_TYPE}:
-            return True
-    return False
+        rank = _JSON_RANGE_SPECIFICITY.get(media_range, -1)
+        if rank > best_rank:
+            best_rank = rank
+            # RFC 9110 Section 12.4.2: a qvalue of 0 means "not acceptable"
+            acceptable = not any(_ZERO_WEIGHT.fullmatch(p) for p in params)
+    return acceptable
 
 
 def _error(status: int, detail: str, headers: dict[str, str] | None = None) -> JSONResponse:

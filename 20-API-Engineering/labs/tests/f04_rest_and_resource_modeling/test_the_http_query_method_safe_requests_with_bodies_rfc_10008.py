@@ -136,8 +136,19 @@ async def test_conditional_query_returns_304_without_content() -> None:
         (JSON, b'{"surname_prefix": "D", "table": "users"}', 422),
         ({**JSON, "Accept": "text/csv"}, b"{}", 406),
         ({**JSON, "Accept": "application/json;q=0, text/csv"}, b"{}", 406),
+        ({**JSON, "Accept": "application/json;q=0, */*"}, b"{}", 406),
+        ({**JSON, "Accept": "application/*;q=0, */*"}, b"{}", 406),
     ],
-    ids=["no-content-type", "unsupported-type", "type-mismatch", "bad-query", "accept", "q-zero"],
+    ids=[
+        "no-content-type",
+        "unsupported-type",
+        "type-mismatch",
+        "bad-query",
+        "accept",
+        "q-zero",
+        "q-zero-beats-wildcard",
+        "q-zero-subtype-wildcard-beats-wildcard",
+    ],
 )
 async def test_rfc_10008_section_2_1_error_statuses(
     headers: dict[str, str], body: bytes, status: int
@@ -235,8 +246,8 @@ async def test_unknown_stored_query_is_404_so_the_client_resends_the_query() -> 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "accept",
-    ["*/*", "application/*", "text/csv, application/json;q=0.5"],
-    ids=["any", "application-wildcard", "weighted"],
+    ["*/*", "application/*", "text/csv, application/json;q=0.5", "*/*;q=0, application/json"],
+    ids=["any", "application-wildcard", "weighted", "specific-beats-refused-wildcard"],
 )
 async def test_accept_ranges_that_include_json_succeed(accept: str) -> None:
     async with client_for(make_store()) as client:
