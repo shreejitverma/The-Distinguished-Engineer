@@ -123,12 +123,15 @@ The cost is linear in hop count and is pure-Python character scanning; the cap b
 | CPython 3.12.16 | 43 passed | `python:3.12-trixie` and `python:3.12-alpine` containers: `python -m venv`, `pip install` of the lab's pinned versions of the packages the module imports plus their locked dependencies, then `PYTHONPATH=src python -m pytest <test path> -q`; aarch64 (OrbStack on macOS 27.2), 2026-11-09 |
 | CPython 3.13.18 | 43 passed | same, `python:3.13-trixie` and `python:3.13-alpine` |
 | CPython 3.14.10 | 43 passed | same, `python:3.14-trixie` and `python:3.14-alpine` |
-| CPython 3.14.6 | 43 passed | workspace `.venv` via `uv run --frozen pytest <test path> -q`, macOS 27.2 arm64 |
+| CPython 3.14.6 | 45 passed | workspace `.venv` via `uv run --frozen pytest <test path> -q`, macOS 27.2 arm64 |
 | CPython 3.15.2 | 43 passed | same, `python:3.15-trixie` and `python:3.15-alpine` |
 | CPython 3.15.2t (free-threaded) | 43 passed; `sys._is_gil_enabled()` is `False` at start and after importing Granian, Hypercorn, slowapi, Uvicorn, and Werkzeug | `ghcr.io/astral-sh/uv:python3.15-trixie`, `uv venv --python 3.15.2+freethreaded` (`Python 3.15.2 free-threading build`), `PYTHON_GIL=0`, same pinned `uv pip install`; the full-workspace `uv sync --frozen` was not attempted, only the module's imports are installed |
 | Debian Trixie (glibc 2.41) and Alpine 3.24 (musl) | 43 passed on each of the versions above (Alpine for 3.12.16, 3.13.18, 3.14.10, and 3.15.2 only; no free-threaded Alpine image) | `/etc/os-release` read inside each container; the pinned `pip install` succeeded on Alpine and the module imports Granian, Hypercorn, and Uvicorn there; aarch64 only, x86_64 not run |
 | Uvicorn 0.54.0 | reads `X-Forwarded-For` only, peer-gated, port stripped, `"*"` -> leftmost | lab tests `test_uvicorn_*` |
 | Hypercorn 0.18.0 | peer-blind hop count; `modern` misses `For=` and keeps quotes | lab tests `test_hypercorn_*` |
+
+The container rows ran the 43-test suite of 2026-11-09.
+The two malformed-header tests added on 2026-11-10 were not rerun in containers; on macOS 27.2 arm64 the 45-test suite passed under CPython 3.12.13, 3.13.18, 3.14.6, 3.14.10, and 3.15.2 (`UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python <version> pytest <test path> -q`).
 | Werkzeug 3.1.9 | peer-blind `x_for` hop count | lab test `test_werkzeug_*` (WSGI callable driven in-process) |
 | Granian 2.8.7 | peer-gated, port kept in host string, `"*"` -> leftmost | lab test `test_granian_*` (in-process wrapper, no Rust server started) |
 | HTTP/1.1 | field names are `token`, so `X_Forwarded_For` is a legal distinct name and h11 delivers it | lab test `test_h11_*`, (h11 0.16.0 h11/_abnf.py, field_name) |

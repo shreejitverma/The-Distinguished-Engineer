@@ -178,10 +178,10 @@ CPython's client reads trailer lines and throws them away; the comment says "we 
 
 | Dimension | Behavior | Proof |
 |---|---|---|
-| CPython 3.12.13 | all 56 lab tests pass (3.12.16 is not installed here) | `uv run --frozen --python 3.12.13 pytest ...` (this lab) |
-| CPython 3.13.18 | all 56 pass | `uv run --frozen --python 3.13.18 pytest ...` (this lab) |
-| CPython 3.14.6 and 3.14.10 | all 56 pass | workspace interpreter and `--python 3.14.10` (this lab) |
-| CPython 3.15.2 | all 56 pass | `--python 3.15.2` (this lab) |
+| CPython 3.12.13 | all 59 lab tests pass (3.12.16 is not installed here) | `uv run --frozen --python 3.12.13 pytest ...` (this lab) |
+| CPython 3.13.18 | all 59 pass | `uv run --frozen --python 3.13.18 pytest ...` (this lab) |
+| CPython 3.14.6 and 3.14.10 | all 59 pass | workspace interpreter and `--python 3.14.10` (this lab) |
+| CPython 3.15.2 | all 59 pass | `--python 3.15.2` (this lab) |
 | CPython 3.15.2t free-threaded | not run | only `3.15.0b3+freethreaded` and `3.14.6+freethreaded` are installed here, and `uv sync` fails on both: `psycopg-binary==3.3.8` has no wheel for the free-threaded platform |
 | Debian Trixie and Alpine musl containers | not run | the lab was only executed on macOS 27.2 arm64; the lab uses only pure-Python `h11` and `h2` plus `hashlib`, but that is not proof |
 | CPython base64 excess padding | `b64decode(..., validate=True)` rejects `...FabDg==` on all of 3.12-3.15; the message changed from `Excess data after padding` (3.12.13) to `Excess padding not allowed` (3.13.18 onward); default mode accepts it on all | probe run under each interpreter; the lab matches on its own message to stay version-independent |
@@ -266,7 +266,7 @@ $ uv run --frozen pytest tests/f02_tls_connections_and_intermediaries/test_http_
 59 passed in 0.23s
 ```
 
-What the tests show, in the order they run: the streamed hash reproduces the RFC 9530 sample values; the parser keeps the last duplicate key and synthesizes missing padding; the origin bytes match Figure 30; one flipped byte (`world` -> `wOrld`) turns the outcome into `MISMATCH` and `verified_body()` raises `IntegrityError`; the buffering proxy delivers an intact body with `Content-Length: 19`, no trailer, and outcome `ABSENT`; the merging proxy moves `repr-digest` into the header section but drops `x-origin-cost`; a correct `sha-512` beats a wrong `sha-256`, and a wrong `sha-512` fails even with a correct `sha-256`; two `repr-digest` trailer lines combine and the later `sha-256` key wins; Trailers-Only produces exactly `ResponseReceived` then `StreamEnded`; a `503` HTML page from a proxy becomes `UNAVAILABLE`, and every row of the HTTP mapping table is checked; `ContentDigestMiddleware` sends the digest exactly once, on the final trailers message only, and offers trailers only when `TE` lists `trailers` case-insensitively; the `grpc-message` on the wire is UTF-8 then percent-encoded (`caf%C3%A9 100%25`); and `ContentDigestMiddleware` placed inside `GZipMiddleware` emits a digest of the uncompressed bytes while the wire carries gzip, while placed outside it matches.
+What the tests show, in the order they run: the streamed hash reproduces the RFC 9530 sample values; the parser keeps the last duplicate key and synthesizes missing padding; the origin bytes match Figure 30; one flipped byte (`world` -> `wOrld`) turns the outcome into `MISMATCH` and `verified_body()` raises `IntegrityError`; the buffering proxy delivers an intact body with `Content-Length: 19`, no trailer, and outcome `ABSENT`; the merging proxy moves `repr-digest` into the header section but drops `x-origin-cost`; a correct `sha-512` beats a wrong `sha-256`, and a wrong `sha-512` fails even with a correct `sha-256`; two `repr-digest` trailer lines combine and the later `sha-256` key wins; Trailers-Only produces exactly `ResponseReceived` then `StreamEnded`; a `503` HTML page from a proxy becomes `UNAVAILABLE`, and every row of the HTTP mapping table is checked; `ContentDigestMiddleware` sends the digest exactly once, on the final trailers message only, and offers trailers only when `TE` lists `trailers` case-insensitively; without the trailers extension the buffered fallback adds no `Content-Length` to a `204` or `304` and keeps the GET-sized one on `HEAD`; the `grpc-message` on the wire is UTF-8 then percent-encoded (`caf%C3%A9 100%25`); and `ContentDigestMiddleware` placed inside `GZipMiddleware` emits a digest of the uncompressed bytes while the wire carries gzip, while placed outside it matches.
 
 ## Pitfalls
 

@@ -206,13 +206,13 @@ The two timings are a one-off verification measurement with a throwaway `timeit`
 
 | Dimension | Version | Behavior | Evidence |
 |---|---|---|---|
-| CPython | `3.12.13` | 72 passed; `3.12.16` from the contract matrix is not installed on this machine | lab, `UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python 3.12.13 pytest ...` |
-| CPython | `3.13.18` | 72 passed | lab, same command with `--python 3.13` |
-| CPython | `3.14.6` (workspace `.venv`) | 72 passed | lab, `uv run --frozen pytest ...` |
-| CPython | `3.14.10` | 72 passed | lab, `--python 3.14.10` |
-| CPython | `3.15.2` | 72 passed from the frozen workspace | lab, `--python /opt/homebrew/bin/python3.15` |
-| CPython | `3.15.0b3` free-threaded (`Py_GIL_DISABLED=1`, `sys._is_gil_enabled()` False) | 72 passed | lab via `uv run --no-project --python 3.15t` with pinned `httpx`, `httpcore`, `h11`, `anyio`, `starlette`, `litestar`, `msgspec`, `pytest`, `pytest-asyncio`; the frozen lock fails because `psycopg-binary==3.3.8` has no wheel for it; `3.15.2t` was not available to uv here |
-| Container | Debian Trixie (`ghcr.io/astral-sh/uv:python3.14-trixie-slim`, glibc 2.41) and Alpine (`ghcr.io/astral-sh/uv:python3.14-alpine`, musl), CPython `3.14.10`, arm64 | 72 passed each from the frozen lock | lab, `docker run` with `labs/` mounted read-only and `UV_PROJECT_ENVIRONMENT=/tmp/venv uv run --frozen pytest ...` |
+| CPython | `3.12.13` | 73 passed; `3.12.16` from the contract matrix is not installed on this machine | lab, `UV_PROJECT_ENVIRONMENT=<tmp> uv run --frozen --python 3.12.13 pytest ...` |
+| CPython | `3.13.18` | 73 passed | lab, same command with `--python 3.13` |
+| CPython | `3.14.6` (workspace `.venv`) | 73 passed | lab, `uv run --frozen pytest ...` |
+| CPython | `3.14.10` | 73 passed | lab, `--python 3.14.10` |
+| CPython | `3.15.2` | 73 passed from the frozen workspace | lab, `--python /opt/homebrew/bin/python3.15` |
+| CPython | `3.15.0b3` free-threaded (`Py_GIL_DISABLED=1`, `sys._is_gil_enabled()` False) | 73 passed | lab via `uv run --no-project --python 3.15t` with pinned `httpx`, `httpcore`, `h11`, `anyio`, `starlette`, `litestar`, `msgspec`, `pytest`, `pytest-asyncio`; the frozen lock fails because `psycopg-binary==3.3.8` has no wheel for it; `3.15.2t` was not available to uv here |
+| Container | Debian Trixie (`ghcr.io/astral-sh/uv:python3.14-trixie-slim`, glibc 2.41) and Alpine (`ghcr.io/astral-sh/uv:python3.14-alpine`, musl), CPython `3.14.10`, arm64 | 72 passed each from the frozen lock, on 2026-11-09 before the malformed-first-duplicate test was added; not rerun since | lab, `docker run` with `labs/` mounted read-only and `UV_PROJECT_ENVIRONMENT=/tmp/venv uv run --frozen pytest ...` |
 | CPython stdlib | all six above | `parsedate_to_datetime`: two-digit year pivot at 68, naive results for asctime and unknown zones, `PST` applied, `ValueError` on `0`; `int()` raises past 4300 digits | lab, `test_stdlib_parsedate_to_datetime_is_not_an_http_date_parser`, `test_rfc850_two_digit_year_uses_the_fifty_year_rule_unlike_the_stdlib`, `test_delta_seconds_overflow_clamps_to_two_to_the_31` |
 | Starlette | `1.10.0` | `FileResponse` emits no `Cache-Control`, `Expires`, or `Date`; `headers.append` keeps two `Cache-Control` lines | lab, `test_starlette_file_response_has_no_cache_control_so_freshness_is_heuristic`, `test_two_cache_control_lines_from_starlette_reach_the_cache_as_one_list` |
 | httpx | `0.28.1` | `Headers[name]` joins duplicate lines with `", "`, which matches RFC 9110 Section 5.3 for `Cache-Control` but would corrupt `Expires` | lab, same test, for `Cache-Control` only |
