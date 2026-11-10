@@ -238,6 +238,30 @@ async def test_wildcard_get_returns_canonical_name_and_ids_stay_globally_unique(
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("PATCH", "/v1/publishers/-/books/specs", {"authors": ["authors/grace"]}),
+        ("POST", "/v1/publishers/-/books/specs:addAuthor", {"author": "authors/grace"}),
+        ("POST", "/v1/publishers/-/books/specs:removeAuthor", {"author": "authors/ada"}),
+    ],
+    ids=["patch", "add-author", "remove-author"],
+)
+async def test_wildcard_parent_rejects_link_mutations(
+    method: str, path: str, body: dict[str, Any]
+) -> None:
+    async with _client(Catalog(authors=set(AUTHORS))) as client:
+        await _seed(client, "acme", "specs", ["authors/ada"])
+        response = await client.request(method, path, json=body)
+        after = await client.get("/v1/publishers/acme/books/specs")
+    assert response.status_code == 400
+    assert response.json()["error"]["status"] == "INVALID_ARGUMENT"
+    assert after.json()["authors"] == ["authors/ada"]
+    assert after.json()["etag"] == '"1"'
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_association_subresource_carries_metadata_and_rejects_duplicate_pair() -> None:
     async with _client(Catalog(authors=set(AUTHORS))) as client:
         await _seed(client, "acme", "specs", ["authors/ada"])

@@ -209,6 +209,8 @@ def create_app(catalog: Catalog, *, link_semantics: LinkSemantics = "aip144") ->
 
     @app.patch("/v1/publishers/{publisher}/books/{book}")
     async def update_authors(publisher: PublisherId, book: BookId, body: AuthorsUpdate) -> Response:
+        if publisher == WILDCARD:
+            return _error(400, "INVALID_ARGUMENT", "the - wildcard is valid only for reads")
         stored = catalog.find_book(publisher, book)
         if stored is None:
             return _error(404, "NOT_FOUND", f"book {book} not found")
@@ -222,6 +224,8 @@ def create_app(catalog: Catalog, *, link_semantics: LinkSemantics = "aip144") ->
 
     @app.post("/v1/publishers/{publisher}/books/{book}:addAuthor")
     async def add_author(publisher: PublisherId, book: BookId, body: AuthorLink) -> Response:
+        if publisher == WILDCARD:
+            return _error(400, "INVALID_ARGUMENT", "the - wildcard is valid only for reads")
         stored = catalog.find_book(publisher, book)
         if stored is None:
             return _error(404, "NOT_FOUND", f"book {book} not found")
@@ -239,6 +243,8 @@ def create_app(catalog: Catalog, *, link_semantics: LinkSemantics = "aip144") ->
 
     @app.post("/v1/publishers/{publisher}/books/{book}:removeAuthor")
     async def remove_author(publisher: PublisherId, book: BookId, body: AuthorLink) -> Response:
+        if publisher == WILDCARD:
+            return _error(400, "INVALID_ARGUMENT", "the - wildcard is valid only for reads")
         stored = catalog.find_book(publisher, book)
         if stored is None:
             return _error(404, "NOT_FOUND", f"book {book} not found")

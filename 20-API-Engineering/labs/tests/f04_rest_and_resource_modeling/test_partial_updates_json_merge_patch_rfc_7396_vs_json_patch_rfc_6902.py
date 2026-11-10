@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 from typing import Annotated, Any
 
 import httpx
@@ -238,6 +239,35 @@ def test_array_index_accepts_only_rfc_6901_ascii_digits(token: str) -> None:
     with pytest.raises(PatchError) as caught:
         apply_json_patch({"tags": ["a", "b"]}, [{"op": "remove", "path": f"/tags/{token}"}])
     assert caught.value.kind == "conflict"
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation",
+    [
+        {"op": "add", "path": "/tags/{huge}", "value": "x"},
+        {"op": "remove", "path": "/tags/{huge}"},
+        {"op": "test", "path": "/tags/{huge}", "value": "metal"},
+        {"op": "copy", "from": "/tags/{huge}", "path": "/note"},
+    ],
+    ids=["add", "remove", "test", "copy-from"],
+)
+async def test_index_longer_than_int_str_digit_limit_is_409_not_500(
+    operation: dict[str, str],
+) -> None:
+    huge = "1" * (sys.get_int_max_str_digits() + 1)  # int() of this raises ValueError
+    with pytest.raises(ValueError, match="digits"):
+        int(huge)
+    store = seeded_store()
+    op = {key: value.replace("{huge}", huge) for key, value in operation.items()}
+    async with client_for(store) as client:
+        response = await client.patch(
+            "/widgets/w1", content=json.dumps([op]), headers={"Content-Type": JSON_PATCH}
+        )
+    assert response.status_code == 409
+    assert "out of range" in response.json()["detail"]
+    assert store.writes == 0
 
 
 @pytest.mark.unit

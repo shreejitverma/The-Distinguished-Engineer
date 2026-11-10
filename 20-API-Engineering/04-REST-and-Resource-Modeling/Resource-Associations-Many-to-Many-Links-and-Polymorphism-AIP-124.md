@@ -157,7 +157,7 @@ AIP-160 supplies the operator: `:` means "has", and for a repeated field `r:42` 
 To search every publisher at once, AIP-159 permits `-` as the parent collection ID, `GET /v1/publishers/-/books?filter=...`, with two hard rules: responses "must use the canonical name of the resource, with the actual parent collection identifiers (instead of `-`)", and a `Get` through `-` is allowed only when "The resource ID must be unique within parent collections" (AIP-159, Guidance and Unique resource lookup).
 AIP-122 covers the other alias family, such as `users/me`: APIs "may provide programmatic aliases for common lookup patterns", but "all data returned from the API must use the canonical resource name" (AIP-122, Resource ID aliases).
 
-The lab enforces all of it: `GET /v1/publishers/-/books?filter=authors:"authors/ada"` returns `publishers/acme/books/specs` and `publishers/zeta/books/notes`, `GET /v1/publishers/-/books/specs` returns `"name": "publishers/acme/books/specs"`, creating `zeta/books/specs` is `409` because IDs are kept globally unique to keep the wildcard `Get` unambiguous, any other filter is `400 INVALID_ARGUMENT` (AIP-160 lets a service document further limitations on filters and asks for `INVALID_ARGUMENT` on a non-compliant `filter`; AIP-160, Limitations and Validation), and `POST` to `publishers/-/books` is `400`.
+The lab enforces all of it: `GET /v1/publishers/-/books?filter=authors:"authors/ada"` returns `publishers/acme/books/specs` and `publishers/zeta/books/notes`, `GET /v1/publishers/-/books/specs` returns `"name": "publishers/acme/books/specs"`, creating `zeta/books/specs` is `409` because IDs are kept globally unique to keep the wildcard `Get` unambiguous, any other filter is `400 INVALID_ARGUMENT` (AIP-160 lets a service document further limitations on filters and asks for `INVALID_ARGUMENT` on a non-compliant `filter`; AIP-160, Limitations and Validation), and every write through `-` (`POST` to `publishers/-/books`, `PATCH`, `:addAuthor`, `:removeAuthor`, and a new contributor) is `400`, so `-` stays a read-only alias.
 `-` and `:` need no escaping in a path segment: `-` is `unreserved` (RFC 3986 Section 2.3) and `:` is allowed in `pchar` (RFC 3986 Section 3.3).
 Starlette's `str` convertor matches `[^/]+` (starlette 1.10.0 starlette/convertors.py, StringConvertor.regex), so `POST .../books/specs:addAuthor` partially matches the `GET .../books/{book}` route and then the `PATCH .../books/{book}` route (path matches, method does not), the router remembers the first partial match and keeps scanning, and the `:addAuthor` route then matches fully (starlette 1.10.0 starlette/routing.py, Router.app); the custom-method routing details are in [[Custom-Methods-and-State-Machine-Transitions-AIP-136]].
 
@@ -446,6 +446,8 @@ def create_app(catalog: Catalog, *, link_semantics: LinkSemantics = "aip144") ->
 
     @app.patch("/v1/publishers/{publisher}/books/{book}")
     async def update_authors(publisher: PublisherId, book: BookId, body: AuthorsUpdate) -> Response:
+        if publisher == WILDCARD:
+            return _error(400, "INVALID_ARGUMENT", "the - wildcard is valid only for reads")
         stored = catalog.find_book(publisher, book)
         if stored is None:
             return _error(404, "NOT_FOUND", f"book {book} not found")
@@ -459,6 +461,8 @@ def create_app(catalog: Catalog, *, link_semantics: LinkSemantics = "aip144") ->
 
     @app.post("/v1/publishers/{publisher}/books/{book}:addAuthor")
     async def add_author(publisher: PublisherId, book: BookId, body: AuthorLink) -> Response:
+        if publisher == WILDCARD:
+            return _error(400, "INVALID_ARGUMENT", "the - wildcard is valid only for reads")
         stored = catalog.find_book(publisher, book)
         if stored is None:
             return _error(404, "NOT_FOUND", f"book {book} not found")
@@ -476,6 +480,8 @@ def create_app(catalog: Catalog, *, link_semantics: LinkSemantics = "aip144") ->
 
     @app.post("/v1/publishers/{publisher}/books/{book}:removeAuthor")
     async def remove_author(publisher: PublisherId, book: BookId, body: AuthorLink) -> Response:
+        if publisher == WILDCARD:
+            return _error(400, "INVALID_ARGUMENT", "the - wildcard is valid only for reads")
         stored = catalog.find_book(publisher, book)
         if stored is None:
             return _error(404, "NOT_FOUND", f"book {book} not found")

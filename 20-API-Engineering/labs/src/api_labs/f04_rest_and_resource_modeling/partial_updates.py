@@ -85,11 +85,10 @@ def _array_index(segment: str, length: int, *, allow_end: bool, index: int) -> i
         return length
     if not ARRAY_INDEX.fullmatch(segment):
         raise PatchError("conflict", index, f"{segment!r} is not an array index")
-    position = int(segment)
     limit = length if allow_end else length - 1
-    if position > limit:
-        raise PatchError("conflict", index, f"array index {position} out of range")
-    return position
+    if len(segment) > len(str(limit)) or int(segment) > limit:
+        raise PatchError("conflict", index, f"array index {segment} out of range")
+    return int(segment)
 
 
 def _child(node: JSON, token: str, index: int) -> JSON:
