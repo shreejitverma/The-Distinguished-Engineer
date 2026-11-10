@@ -162,16 +162,24 @@ def test_list_parser_rejects_wildcard_mixed_with_tags() -> None:
 @pytest.mark.parametrize(
     ("raw", "reason"),
     [
-        ("", "empty entity-tag list"),
-        (" , ,", "empty entity-tag list"),
         ('"a" "b"', "expected ','"),
         ('"a"x', "expected ','"),
     ],
-    ids=["empty", "only-empty-elements", "missing-comma", "garbage-after-tag"],
+    ids=["missing-comma", "garbage-after-tag"],
 )
-def test_list_parser_rejects_empty_and_malformed_lists(raw: str, reason: str) -> None:
+def test_list_parser_rejects_malformed_lists(raw: str, reason: str) -> None:
     with pytest.raises(ValueError, match=reason):
         parse_entity_tag_list(raw)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("raw", ["", " , ,"], ids=["empty", "only-empty-elements"])
+def test_list_of_only_empty_elements_matches_no_tag(raw: str) -> None:
+    # RFC 9110 Section 5.6.1: `#entity-tag` permits zero elements.
+    current = EntityTag("a")
+    assert parse_entity_tag_list(raw) == ()
+    assert not if_match_holds(raw, current)
+    assert if_none_match_holds(raw, current)
 
 
 @pytest.mark.unit
@@ -448,6 +456,43 @@ async def test_put_rejects_a_non_object_body_without_changing_the_document() -> 
     async with client_for(build_document_app(document, weak_tags=False, clock=clock)) as client:
         response = await client.put("/doc", json=[1, 2, 3])
     assert response.status_code == 422
+    assert document.body == {"id": 1}
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_put_rejects_an_unparseable_body_without_changing_the_document() -> None:
+    clock = FakeClock(T0)
+    document = Document(body={"id": 1}, modified_at=T0)
+    async with client_for(build_document_app(document, weak_tags=False, clock=clock)) as client:
+        response = await client.put(
+            "/doc", content=b"{not json", headers={"content-type": "application/json"}
+        )
+    assert response.status_code == 422
+    assert document.body == {"id": 1}
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", ["abc", '"a", *', 'W/"a'], ids=["unquoted", "star-mix", "open"])
+async def test_malformed_if_none_match_is_ignored_and_the_get_is_performed(raw: str) -> None:
+    clock = FakeClock(T0)
+    document = Document(body={"id": 1}, modified_at=T0)
+    async with client_for(build_document_app(document, weak_tags=False, clock=clock)) as client:
+        response = await client.get("/doc", headers={"if-none-match": raw})
+    assert response.status_code == 200
+    assert response.json() == {"id": 1}
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw", ["abc", '"a", *', 'W/"a'], ids=["unquoted", "star-mix", "open"])
+async def test_malformed_if_match_is_a_400_and_never_writes(raw: str) -> None:
+    clock = FakeClock(T0)
+    document = Document(body={"id": 1}, modified_at=T0)
+    async with client_for(build_document_app(document, weak_tags=False, clock=clock)) as client:
+        response = await client.put("/doc", json={"id": 2}, headers={"if-match": raw})
+    assert response.status_code == 400
     assert document.body == {"id": 1}
 
 

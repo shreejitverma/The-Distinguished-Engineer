@@ -81,11 +81,12 @@ For a stored response with freshness lifetime `L` (from `s-maxage` for a shared 
 | Region | Condition | Permitted action |
 |---|---|---|
 | Fresh | `staleness < 0` | Reuse without contacting the origin (RFC 9111 Section 4.2) |
-| SWR window | `0 <= staleness <= swr` | Reuse now, revalidate in the background (RFC 5861 Section 3) |
-| SIE window | `0 <= staleness <= sie` and the origin produced `500`, `502`, `503`, or `504` | Reuse instead of the error (RFC 5861 Section 4) |
+| SWR window | the response carries `stale-while-revalidate=swr` and `0 <= staleness <= swr` | Reuse now, revalidate in the background (RFC 5861 Section 3) |
+| SIE window | the response or request carries `stale-if-error=sie` and `0 <= staleness <= sie` and the origin produced `500`, `502`, `503`, or `504` | Reuse instead of the error (RFC 5861 Section 4) |
 | Truly stale | outside both | Block on the origin and pass its answer, including an error, through |
 
 The windows are independent and both start at expiry, not one after the other.
+An absent directive grants no window at all, not a zero-length one: at `staleness == 0` the response is already stale (RFC 9111 Section 4.2), and a cache MUST NOT serve it stale without explicit permission (RFC 9111 Section 4.2.4), so the lab keeps an absent or invalid directive as `None` and forwards (`test_expiry_boundary_without_directives_is_never_served_stale`).
 With `max-age=60, stale-while-revalidate=30, stale-if-error=100` and an origin returning `500`, the lab serves stale at age 160 (staleness 100) and passes the `500` through at age 161, so the two windows never add up (`test_windows_are_independent_and_both_start_at_expiry`).
 RFC 5861 Section 4.1 pins the boundary: with `max-age=600, stale-if-error=1200`, a `500 Internal Server Error` at age 900 is replaced by the stored `200 OK` with `Age: 900`, and only "after the age is greater than 1800 seconds" must the cache write the error through, so age 1800 itself is still inside the window.
 The lab tests ages 900, 1800, and 1801 against exactly that example.
@@ -201,7 +202,8 @@ The request path, verbatim from `stale_cache.py` (`StaleCache.__call__`, `_stale
                 await self._send_stored(send, entry, now, Outcome.HIT)
                 return
             policy = entry.policy
-            if not policy.stale_forbidden and staleness <= policy.stale_while_revalidate:
+            swr = policy.stale_while_revalidate
+            if not policy.stale_forbidden and swr is not None and staleness <= swr:
                 self._spawn_revalidation(key, scope, entry)
                 await self._send_stored(send, entry, now, Outcome.STALE_WHILE_REVALIDATE)
                 return
@@ -237,10 +239,12 @@ The request path, verbatim from `stale_cache.py` (`StaleCache.__call__`, `_stale
             return False
         # RFC 5861 Section 4: the request directive applies to that request, the
         # response directive to every request the stored response can satisfy.
-        window = max(
-            entry.policy.stale_if_error, delta_seconds(request_cc.get("stale-if-error")) or 0
-        )
-        return entry.staleness(now) <= window
+        windows = [
+            w
+            for w in (entry.policy.stale_if_error, delta_seconds(request_cc.get("stale-if-error")))
+            if w is not None
+        ]
+        return bool(windows) and entry.staleness(now) <= max(windows)
 
     def _spawn_revalidation(self, key: str, scope: Scope, entry: Entry) -> None:
         """Start one background conditional request per key (request-triggered only)."""
@@ -285,46 +289,54 @@ $ uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_st
 platform darwin -- Python 3.14.6, pytest-9.2.0, pluggy-1.7.0 -- .venv/bin/python
 test_fresh_entry_is_served_without_contacting_origin PASSED [  2%]
 test_rfc5861_3_1_stale_is_served_without_waiting_for_revalidation PASSED [  4%]
-test_swr_window_ends_exactly_at_max_age_plus_delta[630-Outcome.STALE_WHILE_REVALIDATE] PASSED [  7%]
-test_swr_window_ends_exactly_at_max_age_plus_delta[631-Outcome.FORWARDED] PASSED [  9%]
-test_concurrent_stale_hits_trigger_one_background_revalidation PASSED [ 12%]
-test_background_revalidation_is_conditional_and_304_freshens_entry PASSED [ 14%]
-test_failed_background_revalidation_keeps_the_stale_entry PASSED [ 17%]
-test_background_404_evicts_instead_of_serving_stale PASSED [ 19%]
-test_rfc5861_4_1_stale_if_error_window[900-200-success] PASSED [ 21%]
-test_rfc5861_4_1_stale_if_error_window[1800-200-success] PASSED [ 24%]
-test_rfc5861_4_1_stale_if_error_window[1801-500-failure] PASSED [ 26%]
-test_windows_are_independent_and_both_start_at_expiry[80-200-Outcome.STALE_WHILE_REVALIDATE] PASSED [ 29%]
-test_windows_are_independent_and_both_start_at_expiry[160-200-Outcome.STALE_IF_ERROR] PASSED [ 31%]
-test_windows_are_independent_and_both_start_at_expiry[161-500-Outcome.FORWARDED] PASSED [ 34%]
-test_only_500_502_503_504_count_as_errors[500-200] PASSED [ 36%]
-test_only_500_502_503_504_count_as_errors[502-200] PASSED [ 39%]
-test_only_500_502_503_504_count_as_errors[503-200] PASSED [ 41%]
-test_only_500_502_503_504_count_as_errors[504-200] PASSED [ 43%]
-test_only_500_502_503_504_count_as_errors[501-501] PASSED [ 46%]
-test_only_500_502_503_504_count_as_errors[404-404] PASSED [ 48%]
-test_only_500_502_503_504_count_as_errors[429-429] PASSED [ 51%]
-test_unreachable_origin_is_a_502_situation_masked_by_stale_if_error PASSED [ 53%]
-test_request_stale_if_error_directive_applies_to_that_request_only PASSED [ 56%]
-test_prohibiting_directives_override_both_extensions[must-revalidate] PASSED [ 58%]
-test_prohibiting_directives_override_both_extensions[proxy-revalidate] PASSED [ 60%]
-test_prohibiting_directives_override_both_extensions[no-cache] PASSED [ 63%]
-test_no_cache_entry_is_validated_even_while_fresh PASSED [ 65%]
-test_s_maxage_implies_proxy_revalidate_unless_configured_lenient[True-v2] PASSED [ 68%]
-test_s_maxage_implies_proxy_revalidate_unless_configured_lenient[False-v1] PASSED [ 70%]
-test_each_stale_hit_after_a_finished_revalidation_starts_a_new_one PASSED [ 73%]
-test_client_if_none_match_is_not_forwarded_to_the_origin PASSED [ 75%]
-test_304_does_not_replace_the_stored_content_length PASSED [ 78%]
-test_s_maxage_takes_precedence_over_max_age_for_the_shared_cache PASSED [ 80%]
-test_response_delay_counts_toward_current_age PASSED [ 82%]
+test_swr_window_ends_exactly_at_max_age_plus_delta[630-Outcome.STALE_WHILE_REVALIDATE] PASSED [  6%]
+test_swr_window_ends_exactly_at_max_age_plus_delta[631-Outcome.FORWARDED] PASSED [  8%]
+test_concurrent_stale_hits_trigger_one_background_revalidation PASSED [ 10%]
+test_background_revalidation_is_conditional_and_304_freshens_entry PASSED [ 12%]
+test_failed_background_revalidation_keeps_the_stale_entry PASSED [ 14%]
+test_background_404_evicts_instead_of_serving_stale PASSED [ 16%]
+test_rfc5861_4_1_stale_if_error_window[900-200-success] PASSED [ 18%]
+test_rfc5861_4_1_stale_if_error_window[1800-200-success] PASSED [ 20%]
+test_rfc5861_4_1_stale_if_error_window[1801-500-failure] PASSED [ 22%]
+test_windows_are_independent_and_both_start_at_expiry[80-200-Outcome.STALE_WHILE_REVALIDATE] PASSED [ 24%]
+test_windows_are_independent_and_both_start_at_expiry[160-200-Outcome.STALE_IF_ERROR] PASSED [ 26%]
+test_windows_are_independent_and_both_start_at_expiry[161-500-Outcome.FORWARDED] PASSED [ 28%]
+test_only_500_502_503_504_count_as_errors[500-200] PASSED [ 30%]
+test_only_500_502_503_504_count_as_errors[502-200] PASSED [ 32%]
+test_only_500_502_503_504_count_as_errors[503-200] PASSED [ 34%]
+test_only_500_502_503_504_count_as_errors[504-200] PASSED [ 36%]
+test_only_500_502_503_504_count_as_errors[501-501] PASSED [ 38%]
+test_only_500_502_503_504_count_as_errors[404-404] PASSED [ 40%]
+test_only_500_502_503_504_count_as_errors[429-429] PASSED [ 42%]
+test_unreachable_origin_is_a_502_situation_masked_by_stale_if_error PASSED [ 44%]
+test_expiry_boundary_without_directives_is_never_served_stale[200-max-age=60] PASSED [ 46%]
+test_expiry_boundary_without_directives_is_never_served_stale[200-max-age=0] PASSED [ 48%]
+test_expiry_boundary_without_directives_is_never_served_stale[200-public] PASSED [ 51%]
+test_expiry_boundary_without_directives_is_never_served_stale[500-max-age=60] PASSED [ 53%]
+test_expiry_boundary_without_directives_is_never_served_stale[500-max-age=0] PASSED [ 55%]
+test_expiry_boundary_without_directives_is_never_served_stale[500-public] PASSED [ 57%]
+test_explicit_zero_windows_still_cover_the_expiry_instant PASSED [ 59%]
+test_request_stale_if_error_directive_applies_to_that_request_only PASSED [ 61%]
+test_prohibiting_directives_override_both_extensions[must-revalidate] PASSED [ 63%]
+test_prohibiting_directives_override_both_extensions[proxy-revalidate] PASSED [ 65%]
+test_prohibiting_directives_override_both_extensions[no-cache] PASSED [ 67%]
+test_no_cache_entry_is_validated_even_while_fresh PASSED [ 69%]
+test_s_maxage_implies_proxy_revalidate_unless_configured_lenient[True-v2] PASSED [ 71%]
+test_s_maxage_implies_proxy_revalidate_unless_configured_lenient[False-v1] PASSED [ 73%]
+test_each_stale_hit_after_a_finished_revalidation_starts_a_new_one PASSED [ 75%]
+test_client_if_none_match_is_not_forwarded_to_the_origin PASSED [ 77%]
+test_304_does_not_replace_the_stored_content_length PASSED [ 79%]
+test_s_maxage_takes_precedence_over_max_age_for_the_shared_cache PASSED [ 81%]
+test_response_delay_counts_toward_current_age PASSED [ 83%]
 test_upstream_age_counts_toward_staleness PASSED [ 85%]
 test_directive_parsing[max-age=600, Stale-While-Revalidate="30", stale-if-error=1200-expected0] PASSED [ 87%]
-test_directive_parsing[max-age=600, community="x, stale-if-error=60, y"-expected1] PASSED [ 90%]
-test_directive_parsing[max-age=600, stale-while-revalidate=-1, stale-if-error=1e3-expected2] PASSED [ 92%]
-test_directive_parsing[max-age=10, max-age=900, stale-if-error=5-expected3] PASSED [ 95%]
-test_directive_parsing[max-age=abc, stale-while-revalidate=30-expected4] PASSED [ 97%]
+test_directive_parsing[max-age=600, community="x, stale-if-error=60, y"-expected1] PASSED [ 89%]
+test_directive_parsing[max-age=600, stale-while-revalidate=-1, stale-if-error=1e3-expected2] PASSED [ 91%]
+test_directive_parsing[max-age=10, max-age=900, stale-if-error=5-expected3] PASSED [ 93%]
+test_directive_parsing[max-age=abc, stale-while-revalidate=30-expected4] PASSED [ 95%]
+test_directive_parsing[max-age=60, stale-while-revalidate=0, stale-if-error=0-expected5] PASSED [ 97%]
 test_delta_seconds_overflow_is_capped_at_2_pow_31 PASSED [100%]
-============================== 41 passed in 0.16s ==============================
+============================== 49 passed in 0.14s ==============================
 ```
 
 Every test was checked by mutation: 34 deliberate breaks of the mechanism (for example `<=` -> `<` at a window edge, revalidating inline instead of in a task, removing the single-flight check, dropping the strong task reference, treating `501` as an error, evicting on a background `503`, dropping the upstream `Age`, adding the `stale-while-revalidate` window to the `stale-if-error` window) each made at least one test fail.

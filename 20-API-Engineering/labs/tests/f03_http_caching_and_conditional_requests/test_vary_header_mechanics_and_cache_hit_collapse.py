@@ -233,6 +233,27 @@ def test_lookup_fallbacks_reproduce_the_rfc_4647_example() -> None:
     ]
 
 
+def brute_force_counts(keys: list[str], lifetime: int | None) -> tuple[int, int]:
+    """Independent `(variants, hits)` oracle: group request ticks by secondary key, then walk each.
+
+    Request `i` arrives at tick `i`; a stored response is fresh while its age is below the
+    freshness lifetime (RFC 9111 Section 4.2), so each key misses on its first request and again
+    on the first request whose age reaches the lifetime, which re-stores it.
+    """
+    ticks_by_key: dict[str, list[int]] = {}
+    for tick, key in enumerate(keys):
+        ticks_by_key.setdefault(key, []).append(tick)
+    hits = 0
+    for ticks in ticks_by_key.values():
+        stored_at = ticks[0]
+        for tick in ticks[1:]:
+            if lifetime is None or tick - stored_at < lifetime:
+                hits += 1
+            else:
+                stored_at = tick
+    return len(ticks_by_key), hits
+
+
 @pytest.mark.unit
 def test_vary_user_agent_collapses_hit_ratio_where_a_client_hint_does_not() -> None:
     workload = user_agent_workload(distinct=8000, requests=100_000, seed=2026)
@@ -241,14 +262,20 @@ def test_vary_user_agent_collapses_hit_ratio_where_a_client_hint_does_not() -> N
         for vary in ("user-agent", "sec-ch-ua-mobile")
         for lifetime in (None, 1000, 100)
     }
+    for (vary, lifetime), result in results.items():
+        keys = [dict(headers)[vary] for headers in workload]
+        assert (result.variants, result.hits) == brute_force_counts(keys, lifetime)
     ua_forever = results[("user-agent", None)]
-    assert ua_forever.variants == 5713
     assert ua_forever.hits == ua_forever.requests - ua_forever.variants
-    assert results[("user-agent", 1000)].hits == 56467
-    assert results[("user-agent", 100)].hits == 31417
     # Two variants refill once per lifetime window each: 100 windows x 2 = 200 misses.
     assert results[("sec-ch-ua-mobile", 1000)].hits == 100_000 - 200
-    assert results[("sec-ch-ua-mobile", 100)].hits == 98020
+    for lifetime in (None, 1000, 100):
+        ua = results[("user-agent", lifetime)]
+        hint = results[("sec-ch-ua-mobile", lifetime)]
+        assert ua.hits < hint.hits
+        assert hint.variants == 2 < ua.variants
+    ua_hits = [results[("user-agent", lifetime)].hits for lifetime in (100, 1000, None)]
+    assert ua_hits == sorted(set(ua_hits))
 
 
 @pytest.mark.unit
@@ -271,9 +298,14 @@ def test_accept_language_normalization_tiers_recover_the_hit_ratio() -> None:
         lifetime=1000,
         canonicalizers={"accept-language": canonical},
     )
-    assert (raw.variants, raw.hits) == (4062, 48259)
-    assert (semantic.variants, semantic.hits) == (520, 74779)
+    values = [dict(headers)["accept-language"] for headers in workload]
+    assert (raw.variants, raw.hits) == brute_force_counts(values, 1000)
+    assert (semantic.variants, semantic.hits) == brute_force_counts(
+        [normalize_weighted_list(value) for value in values], 1000
+    )
     assert (canonicalized.variants, canonicalized.hits) == (3, 99700)
+    assert raw.hits < semantic.hits < canonicalized.hits
+    assert canonicalized.variants < semantic.variants < raw.variants
 
 
 @pytest.mark.unit

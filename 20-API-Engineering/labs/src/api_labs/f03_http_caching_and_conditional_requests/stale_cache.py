@@ -108,8 +108,8 @@ class StalePolicy:
     """Freshness and stale-serving permissions derived from a stored response."""
 
     freshness_lifetime: int
-    stale_while_revalidate: int
-    stale_if_error: int
+    stale_while_revalidate: int | None
+    stale_if_error: int | None
     stale_forbidden: bool
     no_cache: bool
 
@@ -129,8 +129,8 @@ class StalePolicy:
         )
         return cls(
             freshness_lifetime=lifetime,
-            stale_while_revalidate=delta_seconds(cc.get("stale-while-revalidate")) or 0,
-            stale_if_error=delta_seconds(cc.get("stale-if-error")) or 0,
+            stale_while_revalidate=delta_seconds(cc.get("stale-while-revalidate")),
+            stale_if_error=delta_seconds(cc.get("stale-if-error")),
             stale_forbidden=forbidden,
             no_cache="no-cache" in cc,
         )
@@ -209,7 +209,8 @@ class StaleCache:
                 await self._send_stored(send, entry, now, Outcome.HIT)
                 return
             policy = entry.policy
-            if not policy.stale_forbidden and staleness <= policy.stale_while_revalidate:
+            swr = policy.stale_while_revalidate
+            if not policy.stale_forbidden and swr is not None and staleness <= swr:
                 self._spawn_revalidation(key, scope, entry)
                 await self._send_stored(send, entry, now, Outcome.STALE_WHILE_REVALIDATE)
                 return
@@ -245,10 +246,12 @@ class StaleCache:
             return False
         # RFC 5861 Section 4: the request directive applies to that request, the
         # response directive to every request the stored response can satisfy.
-        window = max(
-            entry.policy.stale_if_error, delta_seconds(request_cc.get("stale-if-error")) or 0
-        )
-        return entry.staleness(now) <= window
+        windows = [
+            w
+            for w in (entry.policy.stale_if_error, delta_seconds(request_cc.get("stale-if-error")))
+            if w is not None
+        ]
+        return bool(windows) and entry.staleness(now) <= max(windows)
 
     def _spawn_revalidation(self, key: str, scope: Scope, entry: Entry) -> None:
         """Start one background conditional request per key (request-triggered only)."""

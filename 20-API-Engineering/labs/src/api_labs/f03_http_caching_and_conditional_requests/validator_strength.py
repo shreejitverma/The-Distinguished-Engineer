@@ -77,7 +77,8 @@ def parse_entity_tag_list(value: str) -> EntityTagList:
     """Parse `"*" / #entity-tag` (RFC 9110 Section 13.1.1) with a quote-aware scanner.
 
     A comma is a legal `etagc`, so splitting the field value on `,` is wrong.
-    Empty list elements are ignored (RFC 9110 Section 5.6.1).
+    Empty list elements are ignored, so a list of only empty elements matches no tag
+    (RFC 9110 Section 5.6.1).
     """
     stripped = value.strip(_OWS)
     if stripped == "*":
@@ -97,8 +98,6 @@ def parse_entity_tag_list(value: str) -> EntityTagList:
             index += 1
         if index < len(stripped) and stripped[index] != ",":
             raise ValueError(f"expected ',' after entity-tag: {stripped[index:]!r}")
-    if not tags:
-        raise ValueError("empty entity-tag list")
     return tuple(tags)
 
 
@@ -266,7 +265,11 @@ def build_document_app(
             "accept-ranges": "bytes",
         }
         if_none_match = request.headers.get("if-none-match")
-        if if_none_match is not None and not if_none_match_holds(if_none_match, tag):
+        try:
+            not_modified = if_none_match is not None and not if_none_match_holds(if_none_match, tag)
+        except ValueError:
+            not_modified = False
+        if not_modified:
             return Response(status_code=304, headers=headers)
         range_value = request.headers.get("range")
         span = _single_range(range_value, len(data)) if range_value is not None else None
@@ -286,9 +289,16 @@ def build_document_app(
 
     async def put_document(request: Request) -> Response:
         if_match = request.headers.get("if-match")
-        if if_match is not None and not if_match_holds(if_match, current_tag()):
+        try:
+            failed = if_match is not None and not if_match_holds(if_match, current_tag())
+        except ValueError:
+            return Response(status_code=400)
+        if failed:
             return Response(status_code=412, headers={"etag": str(current_tag())})
-        payload: object = await request.json()
+        try:
+            payload: object = await request.json()
+        except ValueError:
+            return Response(status_code=422)
         if not isinstance(payload, dict):
             return Response(status_code=422)
         document.replace(cast("dict[str, object]", payload), clock())

@@ -291,6 +291,49 @@ async def test_unreachable_origin_is_a_502_situation_masked_by_stale_if_error() 
 
 @pytest.mark.unit
 @pytest.mark.asyncio
+@pytest.mark.parametrize("cache_control", ["max-age=60", "max-age=0", "public"])
+@pytest.mark.parametrize("origin_status", [200, 500])
+async def test_expiry_boundary_without_directives_is_never_served_stale(
+    cache_control: str, origin_status: int
+) -> None:
+    # RFC 9111 Section 4.2: current_age == freshness_lifetime is already stale, and
+    # Section 4.2.4 forbids serving stale without explicit permission.
+    r = await make_rig(Origin(cache_control=cache_control))
+    await r.get(0)
+    lifetime = 60 if cache_control == "max-age=60" else 0
+    r.origin.status = origin_status
+    response = await r.get(lifetime)
+    assert response.status_code == origin_status
+    assert r.origin.calls == 2
+    assert r.cache.outcomes[-1] is Outcome.FORWARDED
+    await r.cache.drain()
+    await r.client.aclose()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_explicit_zero_windows_still_cover_the_expiry_instant() -> None:
+    swr_rig = await make_rig(Origin(cache_control="max-age=60, stale-while-revalidate=0"))
+    await swr_rig.get(0)
+    swr = await swr_rig.get(60)
+    assert swr.status_code == 200
+    assert swr_rig.cache.outcomes[-1] is Outcome.STALE_WHILE_REVALIDATE
+    await swr_rig.cache.drain()
+    await swr_rig.client.aclose()
+
+    sie_rig = await make_rig(Origin(cache_control="max-age=60, stale-if-error=0"))
+    await sie_rig.get(0)
+    sie_rig.origin.status = 500
+    masked = await sie_rig.get(60)
+    assert masked.status_code == 200
+    assert sie_rig.cache.outcomes[-1] is Outcome.STALE_IF_ERROR
+    exposed = await sie_rig.get(61)
+    assert exposed.status_code == 500
+    await sie_rig.client.aclose()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
 async def test_request_stale_if_error_directive_applies_to_that_request_only() -> None:
     r = await make_rig(Origin(cache_control="max-age=60"))
     await r.get(0)
@@ -432,13 +475,14 @@ async def test_upstream_age_counts_toward_staleness() -> None:
     ("header", "expected"),
     [
         ('max-age=600, Stale-While-Revalidate="30", stale-if-error=1200', (600, 30, 1200)),
-        ('max-age=600, community="x, stale-if-error=60, y"', (600, 0, 0)),
-        ("max-age=600, stale-while-revalidate=-1, stale-if-error=1e3", (600, 0, 0)),
-        ("max-age=10, max-age=900, stale-if-error=5", (10, 0, 5)),
-        ("max-age=abc, stale-while-revalidate=30", (0, 30, 0)),
+        ('max-age=600, community="x, stale-if-error=60, y"', (600, None, None)),
+        ("max-age=600, stale-while-revalidate=-1, stale-if-error=1e3", (600, None, None)),
+        ("max-age=10, max-age=900, stale-if-error=5", (10, None, 5)),
+        ("max-age=abc, stale-while-revalidate=30", (0, 30, None)),
+        ("max-age=60, stale-while-revalidate=0, stale-if-error=0", (60, 0, 0)),
     ],
 )
-def test_directive_parsing(header: str, expected: tuple[int, int, int]) -> None:
+def test_directive_parsing(header: str, expected: tuple[int, int | None, int | None]) -> None:
     policy = StalePolicy.from_headers(
         [(b"cache-control", header.encode())], s_maxage_blocks_stale=True
     )

@@ -278,8 +278,8 @@ Per RFC 9110 that client should not have sent the date, because its first respon
 Captured output, `uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_strong_vs_weak_validators_etag_and_last_modified.py -q` in `labs/`, CPython 3.14.6, macOS 27.2 arm64 (Darwin 27.2.0):
 
 ```text
-...............................................                          [100%]
-62 passed in 0.32s
+.....................................................................    [100%]
+69 passed in 1.22s
 ```
 
 ## Pitfalls
@@ -314,6 +314,7 @@ Captured output, `uv run --frozen pytest tests/f03_http_caching_and_conditional_
 - Information disclosure: anything encoded in a tag is readable by every client, so inode numbers (`CVE-2003-1418`), internal revision counters of other tenants, or database row versions that reveal write rates are an OWASP API3:2023 (Broken Object Property Level Authorization) style exposure; hash such inputs with a server-side key if they must feed the tag.
 - Tracking: a client cache stores the tag and replays it in `If-None-Match`, so a unique per-user tag on a shared URL is a persistent identifier; never mint per-user tags on cacheable public resources (see [[Caching-Authenticated-and-Multi-Tenant-API-Responses]]).
 - Strict parsing: reject `w/`, unquoted values, `SP`, and inner `DQUOTE` (the lab raises `ValueError` for all six non-conforming forms tested), and treat a malformed `If-Range` as false so the server falls back to a full `200`, which is always safe.
+- Fail safe on a malformed precondition, never with a `500`: the lab's `/doc` app ignores an unparseable `If-None-Match` and performs the `GET` (`test_malformed_if_none_match_is_ignored_and_the_get_is_performed`), answers an unparseable `If-Match` with `400` without writing (`test_malformed_if_match_is_a_400_and_never_writes`), and answers a body that is not JSON with `422`; a list of only empty elements is a valid empty `#entity-tag` list that matches no tag `(RFC 9110 Section 5.6.1)`.
 - Bounded work: precondition lists are attacker-controlled; the lab's scanner is linear in field length, but cap the number of list members you compare if tags are expensive to compute.
 - Date input: `email.utils.parsedate_to_datetime` accepts numeric zones such as `+0500`, and `email.utils.parsedate`, which Starlette uses, returns a tuple without the zone, so a non-GMT date shifts the comparison by the offset; `HTTP-date` is always GMT `(RFC 9110 Section 5.6.7)`, so reject other zones.
 - Never let a precondition bypass authorization: evaluate preconditions only after normal request checks, because a server MUST ignore preconditions when the unconditional response would not be `2xx` or `412` `(RFC 9110 Section 13.2.1)`; a `304` must not reveal that a resource the caller cannot read exists.
