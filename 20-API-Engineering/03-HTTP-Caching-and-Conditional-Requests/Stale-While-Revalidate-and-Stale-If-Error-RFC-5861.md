@@ -155,18 +155,18 @@ The enforcement therefore lives in the intermediary: nginx documents that the `s
 | Browser support for request `stale-if-error` | none | MDN `Cache-Control` reference (as of 2026-11) |
 | Cloudflare `stale-if-error` trigger set | `500`, `502`, `503`, `504`, not configurable | Cloudflare cache-control documentation (as of 2026-11) |
 | Origin requests for 20 concurrent stale hits on one key | 1 background revalidation (plus the initial fill) | Measured in the lab, `test_concurrent_stale_hits_trigger_one_background_revalidation`, CPython 3.14.6, macOS 27.2 arm64 |
-| Lab suite runtime | 41 tests in 0.14 s to 0.27 s | Measured over 8 runs of `uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_stale_while_revalidate_and_stale_if_error_rfc_5861.py -q` on CPython 3.14.6, and 0.14 s to 0.42 s over 3 runs each on 3.12.13, 3.13.18, 3.14.10, and 3.15.2, macOS 27.2 arm64 (as of 2026-11) |
+| Lab suite runtime | 49 tests in 0.12 s to 2.94 s | Measured over 8 runs of `uv run --frozen pytest tests/f03_http_caching_and_conditional_requests/test_stale_while_revalidate_and_stale_if_error_rfc_5861.py -q` on CPython 3.14.6, and 0.10 s to 1.47 s over 3 runs each on 3.12.13, 3.13.18, 3.14.10, and 3.15.2, macOS 27.2 arm64 on a loaded machine, so the spread is scheduler noise, not the lab (as of 2026-11) |
 
 ## Portability
 
 | Runtime, library, server, or protocol | Behavior | Proof |
 |---|---|---|
-| CPython 3.12.13 | 41 passed | Lab run with `uv run --frozen --python 3.12.13` in a separate `UV_PROJECT_ENVIRONMENT`; 3.12.16 is not offered by uv 0.11.26 here |
-| CPython 3.13.18 | 41 passed | Lab run with `uv run --frozen --python 3.13.18` |
-| CPython 3.14.6 and 3.14.10 | 41 passed on both | Lab run on the workspace venv (3.14.6) and with `--python 3.14.10` |
-| CPython 3.15.2 | 41 passed | Lab run with `uv run --frozen --python 3.15.2` |
-| Debian GNU/Linux 13 (trixie), `python:3.14-trixie`, CPython 3.14.10, Linux aarch64 | 41 passed | Lab run inside the container with `pip install uv` then `uv run --frozen pytest <test path> -q` on a copy of the lab files, Docker 29.8.2 (OrbStack) on macOS 27.2 arm64 |
-| Alpine Linux 3.24 (musl libc), `python:3.14-alpine`, CPython 3.14.10, Linux aarch64 | 41 passed | Same command in the Alpine container; `zope-interface` built from source, all other wheels resolved from the lock |
+| CPython 3.12.13 | 49 passed | Lab run with `uv run --frozen --python 3.12.13` in a separate `UV_PROJECT_ENVIRONMENT`; 3.12.16 is not offered by uv 0.11.26 here |
+| CPython 3.13.18 | 49 passed | Lab run with `uv run --frozen --python 3.13.18` |
+| CPython 3.14.6 and 3.14.10 | 49 passed on both | Lab run on the workspace venv (3.14.6) and with `--python 3.14.10` |
+| CPython 3.15.2 | 49 passed | Lab run with `uv run --frozen --python 3.15.2` |
+| Debian GNU/Linux 13 (trixie), `python:3.14-trixie`, CPython 3.14.10, Linux aarch64 | 49 passed | Lab run inside the container on a copy of the lab files with `PYTHONPATH=src python -m pytest <test path> -q` in a venv holding only the lock's `starlette 1.10.0`, `httpx 0.28.1`, `anyio 4.16.0`, `pytest 9.2.0`, and `pytest-asyncio 1.4.1.post1`, Docker (OrbStack) on macOS 27.2 arm64 |
+| Alpine Linux 3.24 (musl libc), `python:3.14-alpine`, CPython 3.14.10, Linux aarch64 | 49 passed | Same command and venv in the Alpine container |
 | CPython 3.15.2t free-threaded | Not run | Only 3.15.0b3t is available here, and `uv` cannot install the lock on it: `psycopg-binary==3.3.8` has no wheel for that interpreter |
 | CPython 3.15.0b3 | Not run | Collection fails inside the pinned `hypothesis` plugin (`No module named 'hypothesis._native'`), before the lab is imported |
 | Starlette 1.10.0, FastAPI 0.162.0, httpx 0.28.1 | No implementation; directives are opaque header text | Source search of the pinned packages |
