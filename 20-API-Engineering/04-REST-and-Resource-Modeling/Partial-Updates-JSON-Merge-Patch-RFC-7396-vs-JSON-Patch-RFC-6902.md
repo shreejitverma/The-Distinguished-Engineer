@@ -297,6 +297,7 @@ A second, independent run of five mutations on CPython 3.14.6 (decode `~0` befor
 > Trigger: validating pointer array tokens with `isdigit()` and `int()`.
 > Symptom: `chr(0x0661)` (U+0661 ARABIC-INDIC DIGIT ONE) passes `isdigit()` and `int()` returns `1` on all six interpreters measured, so `/tags/<U+0661>` removes element 1; `01` also passes.
 > Fix: match the RFC 6901 Section 4 grammar `0|[1-9][0-9]*` with an ASCII-only pattern.
+> The grammar has no length bound, so the lab also rejects a token with more digits than the array limit before calling `int()`: CPython raises `ValueError` for a string longer than `sys.get_int_max_str_digits()` digits (4300 by default), which would otherwise turn a 5 KB patch into a `500` instead of `409`.
 
 > [!warning] Prototype pollution through pointer paths
 > Trigger: a JSON Patch library that walks pointer tokens as object properties on language objects.
