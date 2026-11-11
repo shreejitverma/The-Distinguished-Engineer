@@ -1,0 +1,80 @@
+== Part 1: clang-tidy
+built-in default Checks: 'clang-diagnostic-*'
+checks available with -checks='*': 602, of which clang-analyzer-*: 131
+run with no configuration: exit 1, first stderr line: Error: no checks enabled.
+run with lab.clang-tidy: exit 0
+record.cpp:27:5: [custom-no-raw-memcpy] raw memcpy; copy through a bounds-checked helper instead
+tidy_target.cpp:10:12: [bugprone-use-after-move] 's' used after it was moved
+tidy_target.cpp:15:34: [clang-diagnostic-sizeof-pointer-memaccess] 'memset' call operates on objects of type 'char' while the size is based on a different type 'char *'
+tidy_target.cpp:20:31: [clang-analyzer-core.DivideZero] Division by zero
+same run with --warnings-as-errors='bugprone-*': exit 1, errors: 1
+
+== Part 2: Clang Static Analyzer
+stable checkers listed by -analyzer-checker-help: 112
+effective analyzer configuration (debug.ConfigDumper):
+  crosscheck-with-z3 = false
+  exploration_strategy = unexplored_first_queue
+  ipa = dynamic-bifurcate
+  max-inlinable-size = 100
+  max-nodes = 225000
+  mode = deep
+  suppress-null-return-paths = true
+-Wall -Wextra warnings: 0
+--analyze with default options:
+analyzer_target.cpp:32:26: [cplusplus.NewDeleteLeaks] Potential leak of memory pointed to by 'buf'
+analyzer_target.cpp:49:18: [core.DivideZero] Division by zero
+path notes with default options (the leak, then the division by zero):
+  31:24 Assuming 'n' is > 0
+  31:24 '?' condition is true
+  31:16 Memory is allocated
+  32:9 Assuming 'n' is > 100
+  32:5 Taking true branch
+  32:26 Potential leak of memory pointed to by 'buf'
+  42:5 'count' initialized to 0
+  43:21 Assuming 'i' is >= 'n'
+  43:5 Loop condition is false. Execution continues on line 49
+  49:18 Division by zero
+--analyze with suppress-null-return-paths=false:
+analyzer_target.cpp:18:12: [core.NullDereference] Access to field 'qty' results in a dereference of a null pointer (loaded from variable 'o')
+analyzer_target.cpp:32:26: [cplusplus.NewDeleteLeaks] Potential leak of memory pointed to by 'buf'
+analyzer_target.cpp:49:18: [core.DivideZero] Division by zero
+path notes for the null dereference:
+  17:16 Calling 'find_order'
+  11:9 Assuming 'id' is < 0
+  11:16 Left side of '||' is true
+  11:28 Returning null pointer
+  17:16 Returning from 'find_order'
+  17:5 'o' initialized to a null pointer value
+  18:12 Access to field 'qty' results in a dereference of a null pointer (loaded from variable 'o')
+
+== Part 3: toy coverage-guided fuzzer (SanitizerCoverage trace-pc-guard)
+record.cpp: call sites of __sanitizer_cov_trace_pc_guard in the assembly: 8
+guard probe: 8 guards registered for record.cpp
+guard probe: after run 1 of one valid record: 2 call(s) with an armed guard, 0 with a zeroed guard
+guard probe: after run 2 of one valid record: 2 call(s) with an armed guard, 2 with a zeroed guard
+guard probe: after run 3 of one valid record: 2 call(s) with an armed guard, 4 with a zeroed guard
+blind: no crash in 1000000 executions; corpus size 1; deepest format depth reached 1 of 5
+guided: execution 8 added corpus entry 1 (1 new edge(s), format depth 0)
+guided: execution 2749 added corpus entry 2 (1 new edge(s), format depth 1)
+guided: execution 3675 added corpus entry 3 (1 new edge(s), format depth 2)
+guided: execution 6902 added corpus entry 4 (1 new edge(s), format depth 3)
+guided: execution 13998 added corpus entry 5 (1 new edge(s), format depth 4)
+guided: execution 21551 added corpus entry 6 (1 new edge(s), format depth 5)
+toyfuzz: death callback saved the 46-byte input of execution 21757
+guided: process exit 134
+guided: AddressSanitizer: heap-buffer-overflow
+guided: crash input starts with 'FUZZ', declared length 17, payload bytes present 41, destination capacity 16
+
+== Part 4: libFuzzer
+fuzz run (-seed=1 -runs=2000000): exit 134, crash artifact written: yes
+executions until the crash: 116609
+executions until the crash, default flags, seeds 1-10: 116609 175600 139776 13195 149273 49421 270191 22730 111456 84540
+  min 13195, median 114032, max 270191, max/min 20.5x
+executions until the crash, -use_value_profile=1, seeds 1-10: 39142 30322 87283 56488 66146 34509 73070 76963 36458 34792
+  min 30322, median 47815, max 87283, max/min 2.9x
+report: AddressSanitizer: heap-buffer-overflow, WRITE
+SUMMARY: AddressSanitizer: heap-buffer-overflow record.cpp:27 in parse_record
+minimized crash: 22 bytes, magic 'FUZZ', declared length 17
+replay minimized input on the buggy build: exit 134, AddressSanitizer: heap-buffer-overflow
+replay minimized input on the RECORD_FIXED build: exit 0, ASan reports: 0
+fuzz the RECORD_FIXED build (-seed=1 -runs=2000000, same corpus): exit 0, crash: 0

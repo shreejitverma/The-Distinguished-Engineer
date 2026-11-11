@@ -1,0 +1,390 @@
+== Toolchain
+valgrind-3.22.0
+
+== Native runs (no Valgrind): exit status per case
+  heap_overflow        exit=0
+  use_after_free       exit=0
+  uninit_branch        exit=0
+  bit_precision        exit=0
+  padding_to_syscall   exit=0
+  mismatched_delete    exit=0
+  double_free          exit=134
+  custom_pool          exit=0
+  client_check         exit=0
+  leaks                exit=0
+  probe: RUNNING_ON_VALGRIND=0
+  probe under valgrind: RUNNING_ON_VALGRIND=1
+
+== Memcheck: heap_overflow (--track-origins=yes)
+  Invalid read of size 4
+  at heap_overflow() (memcheck_bugs.cpp:23)
+  by main (memcheck_bugs.cpp:120)
+  Address ADDR is 0 bytes after a block of size 40 alloc'd
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by heap_overflow() (memcheck_bugs.cpp:21)
+  by main (memcheck_bugs.cpp:120)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: use_after_free (--track-origins=yes)
+  Invalid read of size 4
+  at use_after_free() (memcheck_bugs.cpp:30)
+  by main (memcheck_bugs.cpp:121)
+  Address ADDR is 8 bytes inside a block of size 16 free'd
+  at operator delete[](void*) (vgpreload_memcheck-arm64-linux.so)
+  by use_after_free() (memcheck_bugs.cpp:29)
+  by main (memcheck_bugs.cpp:121)
+  Block was alloc'd at
+  at operator new[](unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by use_after_free() (memcheck_bugs.cpp:28)
+  by main (memcheck_bugs.cpp:121)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: uninit_branch (--track-origins=yes)
+  Conditional jump or move depends on uninitialised value(s)
+  at uninit_branch() (memcheck_bugs.cpp:35)
+  by main (memcheck_bugs.cpp:122)
+  Uninitialised value was created by a heap allocation
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by uninit_branch() (memcheck_bugs.cpp:34)
+  by main (memcheck_bugs.cpp:122)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: bit_precision (--track-origins=yes)
+  Conditional jump or move depends on uninitialised value(s)
+  at bit_precision() (memcheck_bugs.cpp:44)
+  by main (memcheck_bugs.cpp:123)
+  Uninitialised value was created by a heap allocation
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by bit_precision() (memcheck_bugs.cpp:40)
+  by main (memcheck_bugs.cpp:123)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: padding_to_syscall (--track-origins=yes)
+  Syscall param write(buf) points to uninitialised byte(s)
+  at write (write.c)
+  by padding_to_syscall() (memcheck_bugs.cpp:60)
+  by main (memcheck_bugs.cpp:124)
+  Address ADDR is on thread 1's stack
+  in frame #1, created by padding_to_syscall() (memcheck_bugs.cpp:53)
+  Uninitialised value was created by a stack allocation
+  at padding_to_syscall() (memcheck_bugs.cpp:53)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: mismatched_delete (--track-origins=yes)
+  Mismatched new/delete size value: 4
+  at operator delete(void*, unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by mismatched_delete() (memcheck_bugs.cpp:67)
+  by main (memcheck_bugs.cpp:125)
+  Address ADDR is 0 bytes inside a block of size 12 alloc'd
+  at operator new[](unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by mismatched_delete() (memcheck_bugs.cpp:66)
+  by main (memcheck_bugs.cpp:125)
+
+  Mismatched free() / delete / delete []
+  at operator delete(void*, unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by mismatched_delete() (memcheck_bugs.cpp:67)
+  by main (memcheck_bugs.cpp:125)
+  Address ADDR is 0 bytes inside a block of size 12 alloc'd
+  at operator new[](unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by mismatched_delete() (memcheck_bugs.cpp:66)
+  by main (memcheck_bugs.cpp:125)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 2 errors from 2 contexts (suppressed: 0 from 0)
+
+== Memcheck: double_free (--track-origins=yes)
+  Invalid free() / delete / delete[] / realloc()
+  at free (vgpreload_memcheck-arm64-linux.so)
+  by double_free() (memcheck_bugs.cpp:73)
+  by main (memcheck_bugs.cpp:126)
+  Address ADDR is 0 bytes inside a block of size 24 free'd
+  at free (vgpreload_memcheck-arm64-linux.so)
+  by double_free() (memcheck_bugs.cpp:72)
+  by main (memcheck_bugs.cpp:126)
+  Block was alloc'd at
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by double_free() (memcheck_bugs.cpp:71)
+  by main (memcheck_bugs.cpp:126)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: custom_pool (--track-origins=yes)
+  Invalid read of size 1
+  at custom_pool() (memcheck_bugs.cpp:100)
+  by main (memcheck_bugs.cpp:128)
+  Address ADDR is 16 bytes inside data symbol "_ZL7g_arena"
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: client_check (--track-origins=yes)
+  Uninitialised byte(s) found during client check request
+  at client_check() (memcheck_bugs.cpp:107)
+  by main (memcheck_bugs.cpp:129)
+  Address ADDR is on thread 1's stack
+  in frame #0, created by client_check() (memcheck_bugs.cpp:103)
+  Uninitialised value was created by a stack allocation
+  at client_check() (memcheck_bugs.cpp:103)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: uninit_branch without --track-origins (no origin line)
+  Conditional jump or move depends on uninitialised value(s)
+  at uninit_branch() (memcheck_bugs.cpp:35)
+  by main (memcheck_bugs.cpp:122)
+
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== Memcheck: leaks (--leak-check=full --show-leak-kinds=all)
+  HEAP SUMMARY:
+  in use at exit: 192 bytes in 5 blocks
+
+  16 bytes in 1 blocks are definitely lost in loss record 1 of 5
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by make_leaks() (memcheck_bugs.cpp:83)
+  by main (memcheck_bugs.cpp:127)
+
+  32 bytes in 1 blocks are indirectly lost in loss record 2 of 5
+  at operator new(unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by make_leaks() (memcheck_bugs.cpp:85)
+  by main (memcheck_bugs.cpp:127)
+
+  48 bytes in 1 blocks are possibly lost in loss record 3 of 5
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by make_leaks() (memcheck_bugs.cpp:87)
+  by main (memcheck_bugs.cpp:127)
+
+  64 bytes in 1 blocks are still reachable in loss record 4 of 5
+  at malloc (vgpreload_memcheck-arm64-linux.so)
+  by make_leaks() (memcheck_bugs.cpp:82)
+  by main (memcheck_bugs.cpp:127)
+
+  64 (32 direct, 32 indirect) bytes in 1 blocks are definitely lost in loss record 5 of 5
+  at operator new(unsigned long) (vgpreload_memcheck-arm64-linux.so)
+  by make_leaks() (memcheck_bugs.cpp:85)
+  by main (memcheck_bugs.cpp:127)
+
+  LEAK SUMMARY:
+  definitely lost: 48 bytes in 2 blocks
+  indirectly lost: 32 bytes in 1 blocks
+  possibly lost: 48 bytes in 1 blocks
+  still reachable: 64 bytes in 1 blocks
+  suppressed: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 3 errors from 3 contexts (suppressed: 0 from 0)
+
+== Memcheck: leaks with default leak options (--leak-check=summary)
+  HEAP SUMMARY:
+  in use at exit: 192 bytes in 5 blocks
+
+  LEAK SUMMARY:
+  definitely lost: 48 bytes in 2 blocks
+  indirectly lost: 32 bytes in 1 blocks
+  possibly lost: 48 bytes in 1 blocks
+  still reachable: 64 bytes in 1 blocks
+  suppressed: 0 bytes in 0 blocks
+
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+
+== Memcheck as a CI gate: exit status
+  heap_overflow with --error-exitcode=99: exit=99
+  heap_overflow with the default --error-exitcode=0: exit=0
+  leaks with --error-exitcode=99 --leak-check=full: exit=99
+
+== Memcheck: generate a suppression, then apply it
+  {
+     lab-uninit-branch
+     Memcheck:Cond
+     fun:_ZL13uninit_branchv
+     fun:main
+  }
+  HEAP SUMMARY:
+  in use at exit: 0 bytes in 0 blocks
+
+  All heap blocks were freed -- no leaks are possible
+
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 1 from 1)
+
+== helgrind: race
+  Possible data race during read of size 4 at ADDR by thread #T
+  Locks held: none
+  at racy_increment(void*) (thread_bugs.cpp:21)
+
+  This conflicts with a previous write of size 4 by thread #T
+  Locks held: none
+  at racy_increment(void*) (thread_bugs.cpp:21)
+  Address ADDR is 0 bytes inside data symbol "_ZL9g_counter"
+
+  Possible data race during write of size 4 at ADDR by thread #T
+  Locks held: none
+  at racy_increment(void*) (thread_bugs.cpp:21)
+
+  This conflicts with a previous write of size 4 by thread #T
+  Locks held: none
+  at racy_increment(void*) (thread_bugs.cpp:21)
+  Address ADDR is 0 bytes inside data symbol "_ZL9g_counter"
+
+  ERROR SUMMARY: 2 errors from 2 contexts (suppressed: 1 from 1)
+
+== helgrind: locked
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 3005 from 7)
+
+== helgrind: lock_order
+  Thread #3: lock order "ADDR before ADDR" violated
+
+  Observed (incorrect) order is: acquisition of lock at ADDR
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by lock_b_then_a(void*) (thread_bugs.cpp:43)
+
+  followed by a later acquisition of lock at ADDR
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by lock_b_then_a(void*) (thread_bugs.cpp:44)
+
+  Required order was established by acquisition of lock at ADDR
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by lock_a_then_b(void*) (thread_bugs.cpp:35)
+
+  followed by a later acquisition of lock at ADDR
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by lock_a_then_b(void*) (thread_bugs.cpp:36)
+
+  Lock at ADDR was first observed
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by lock_a_then_b(void*) (thread_bugs.cpp:35)
+  Address ADDR is 0 bytes inside data symbol "_ZL3g_a"
+
+  Lock at ADDR was first observed
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by lock_a_then_b(void*) (thread_bugs.cpp:36)
+  Address ADDR is 0 bytes inside data symbol "_ZL3g_b"
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== helgrind: atomic_publish
+  Possible data race during read of size 4 at ADDR by thread #1
+  Locks held: none
+  at load (atomic_base.h)
+  by main (thread_bugs.cpp:95)
+
+  This conflicts with a previous write of size 4 by thread #2
+  Locks held: none
+  at store (atomic_base.h)
+  by publish(void*) (thread_bugs.cpp:52)
+  Address ADDR is 0 bytes inside data symbol "_ZL7g_ready"
+
+  Possible data race during read of size 4 at ADDR by thread #1
+  Locks held: none
+  at main (thread_bugs.cpp:97)
+
+  This conflicts with a previous write of size 4 by thread #2
+  Locks held: none
+  at publish(void*) (thread_bugs.cpp:51)
+  Address ADDR is 0 bytes inside data symbol "_ZL9g_payload"
+
+  ERROR SUMMARY: 2 errors from 2 contexts (suppressed: 0 from 0)
+
+== helgrind: unlock_unlocked
+  Thread #1 unlocked an invalid lock at ADDR
+  at ??? (vgpreload_helgrind-arm64-linux.so)
+  by main (thread_bugs.cpp:102)
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== helgrind: atomic_counter
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 1 from 1)
+
+== drd: race
+  Conflicting load by thread T at ADDR size 4
+  at racy_increment(void*) (thread_bugs.cpp:21)
+  Allocation context: BSS section of thread_bugs
+  Other segment start (thread T)
+  Other segment end (thread T)
+
+  Conflicting store by thread T at ADDR size 4
+  at racy_increment(void*) (thread_bugs.cpp:21)
+  Allocation context: BSS section of thread_bugs
+  Other segment start (thread T)
+  Other segment end (thread T)
+
+  ERROR SUMMARY: 2000 errors from 2 contexts (suppressed: 10 from 10)
+
+== drd: locked
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 9 from 9)
+
+== drd: lock_order
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 8 from 8)
+
+== drd: atomic_publish
+  Conflicting load by thread 1 at ADDR size 4
+  at load (atomic_base.h)
+  by main (thread_bugs.cpp:95)
+  Allocation context: BSS section of thread_bugs
+  Other segment start (thread 2)
+  Other segment end (thread 2)
+
+  Conflicting load by thread 1 at ADDR size 4
+  at main (thread_bugs.cpp:97)
+  Allocation context: BSS section of thread_bugs
+  Other segment start (thread 2)
+  Other segment end (thread 2)
+
+  ERROR SUMMARY: 2 errors from 2 contexts (suppressed: 8 from 8)
+
+== drd: unlock_unlocked
+  The object at address ADDR is not a mutex.
+  at pthread_mutex_unlock@* (vgpreload_drd-arm64-linux.so)
+  by main (thread_bugs.cpp:102)
+
+  ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+
+== drd: atomic_counter
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 10 from 10)
+
+== drd: contention (--exclusive-threshold=10)
+  Acquired at:
+  at pthread_mutex_lock@* (vgpreload_drd-arm64-linux.so)
+  by hold_lock(void*) (thread_bugs.cpp:57)
+  Lock on mutex ADDR was held during N ms (threshold: 10 ms).
+  at pthread_mutex_unlock@* (vgpreload_drd-arm64-linux.so)
+  by hold_lock(void*) (thread_bugs.cpp:59)
+  mutex ADDR was first observed at:
+  at pthread_mutex_lock@* (vgpreload_drd-arm64-linux.so)
+  by hold_lock(void*) (thread_bugs.cpp:57)
+
+  ERROR SUMMARY: 2 errors from 1 contexts (suppressed: 9 from 9)
+
+== helgrind: contention (no lock-hold-time check exists)
+  ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 8 from 7)

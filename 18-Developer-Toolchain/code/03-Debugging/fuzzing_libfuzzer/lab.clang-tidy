@@ -1,0 +1,18 @@
+# The lab's clang-tidy configuration: compiler warnings, one bugprone check, one
+# Static Analyzer checker, and one query-based custom check that bans raw memcpy.
+# The custom check needs clang-tidy 22 or later and --experimental-custom-checks.
+Checks: >-
+  -*,
+  clang-diagnostic-*,
+  bugprone-use-after-move,
+  clang-analyzer-core.DivideZero,
+  custom-no-raw-memcpy
+WarningsAsErrors: ''
+CustomChecks:
+  - Name: no-raw-memcpy
+    Query: |
+      match callExpr(callee(functionDecl(hasName("memcpy")))).bind("call")
+    Diagnostic:
+      - BindName: call
+        Message: raw memcpy; copy through a bounds-checked helper instead
+        Level: Warning
