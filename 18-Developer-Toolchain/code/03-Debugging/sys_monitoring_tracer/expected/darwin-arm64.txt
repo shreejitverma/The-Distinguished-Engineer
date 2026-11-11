@@ -1,0 +1,155 @@
+python 3.15 (cpython)
+
+== 1. Tool identifiers
+named ids: DEBUGGER_ID=0 COVERAGE_ID=1 PROFILER_ID=2 OPTIMIZER_ID=5
+use_tool_id(6): ValueError: invalid tool 6 (must be between 0 and 5)
+get_tool(0) after claim: 'lab-debugger'
+second use_tool_id(0): ValueError: tool 0 is already in use
+get_tool(0) after free: None
+set_events(3) on unclaimed id: ValueError: tool 3 is not in use
+get_tool(7), the hidden settrace slot: ValueError: invalid tool 7 (must be between 0 and 5)
+cProfile with PROFILER_ID free: no error
+cProfile while another tool holds PROFILER_ID: ValueError: tool 2 is already in use
+bdb monitoring backend while DEBUGGER_ID is held by 'pydevd': ValueError: Another debugger is using the monitoring tool
+
+== 2. Events are bits (bit numbers differ between releases)
+PY_START=0 PY_RESUME=1 PY_RETURN=2 PY_YIELD=3 CALL=4 LINE=5 INSTRUCTION=6 JUMP=7 BRANCH_LEFT=8 BRANCH_RIGHT=9 STOP_ITERATION=10 RAISE=11 EXCEPTION_HANDLED=12 PY_UNWIND=13 PY_THROW=14 RERAISE=15 C_RETURN=16 C_RAISE=17 BRANCH=18
+set_events(CALL | C_RETURN): ValueError: cannot set C_RETURN or C_RAISE events independently
+get_events after CALL|C_RETURN|C_RAISE == CALL: True
+deprecated BRANCH stored as BRANCH_LEFT|BRANCH_RIGHT: True
+
+== 3. Turning events on rewrites the code object's bytecode
+before: none
+after set_local_events(LINE | PY_START): INSTRUMENTED_LINE x5, INSTRUMENTED_RESUME x1
+co_code still the original bytes: True
+after classify(5), every LINE callback returned DISABLE: INSTRUMENTED_LINE x2, INSTRUMENTED_RESUME x1
+after set_local_events(0): none
+
+== 4. DISABLE: one callback per location, then none
+hot_loop(1000), callback returns None: LINE callbacks = 3003
+callback returns DISABLE: first call = 7, second call = 0, distinct line numbers = 6
+id 2 freed and claimed again, hot_loop not run in between: 0
+id 2 after restart_events(): 3003
+id 2 DISABLEd, freed, hot_loop run while free, claimed again: 3003
+
+== 5. Local events versus global events
+local LINE on classify only: {'classify': 3}
+global LINE plus local LINE on classify: {'classify': 3, 'fib': 30}
+global LINE only: {'classify': 3, 'fib': 30}
+an event on both lists fires once: True
+
+== 6. Several tools on one event
+callback order for the first fib() call: [2, 1, 0]
+PY_START callbacks over fib(10) per tool id: {0: 177, 1: 1, 2: 177}
+tool 1 returned DISABLE; tools 0 and 2 still see every call: True
+
+== 7. Events raised inside a callback are not reported
+PY_START for tiny: 1 | for classify called from the callback: 0
+
+== 8. Scope: sys.monitoring is per interpreter, sys.settrace is per thread
+monitoring saw tiny() in: ['MainThread', 'worker']
+settrace saw tiny() in: ['MainThread']
+
+== 9. What DISABLE cannot do, and failing callbacks
+C_RETURN DISABLE: Cannot disable C_RETURN events. Callback removed. (raised at the next C call, len(), returning)
+C_RETURN callback still registered: False
+callback that raises, two calls of tiny(): ['RuntimeError(callback failed)', 'RuntimeError(callback failed)'] | events still on: True
+settrace function that raises, two calls: ['RuntimeError(tracer failed)', 'returned'] | tracer removed itself: True
+RAISE enabled globally, callback returns DISABLE: 5 of 5 raises reported
+RAISE enabled locally, callback returns DISABLE: 1 of 5 raises reported
+
+== 10. sys.settrace runs as a hidden tool next to sys.monitoring
+event order inside tiny():
+  settrace:call, setprofile:call, monitoring:PY_START, settrace:line, monitoring:LINE, settrace:line, monitoring:LINE, settrace:return, setprofile:return
+
+== 11. Generator events, and how the loop exit is reported
+consume(2), without branch events:
+  caller:PY_START gen:PY_START gen:PY_YIELD gen:PY_RESUME gen:PY_YIELD gen:PY_RESUME gen:PY_RETURN caller:STOP_ITERATION caller:PY_RETURN
+consume(2), with BRANCH_LEFT and BRANCH_RIGHT:
+  caller:PY_START gen:PY_START gen:BRANCH_LEFT gen:PY_YIELD caller:BRANCH_LEFT gen:PY_RESUME gen:BRANCH_LEFT gen:PY_YIELD caller:BRANCH_LEFT gen:PY_RESUME gen:BRANCH_RIGHT gen:PY_RETURN caller:BRANCH_RIGHT caller:PY_RETURN
+
+== 12. Rebuild: four tools in minitrace.py
+line coverage of classify(-1), classify(0), lines relative to def: [1, 2, 3, 4]
+never executed: [5]
+LINE callbacks during those two calls (each location is reported once, then DISABLEd): 4
+matches a sys.settrace reference tracer: True
+branch arcs (side, from line, to line) after -1 and 0: [('left', 1, 2), ('left', 3, 4), ('right', 1, 3)]
+branch arcs after -1, 0, 7: 4 of 4
+fib(10): calls = 177 | max depth = 10
+  a naive depth counter (+1 on start, -1 on return) on the same events: max = 8 | lowest = -2
+  returns with no start (frames running when events went on): ['CallCounter.start', 'Tool.__enter__']
+  starts with no return (frames running when events went off): ['Tool.__exit__', 'Tool.stop']
+breakpoint on hot_loop line +4 over two hot_loop(10) calls: hits = 8 | i at hits = [0, 3, 6, 9, 0, 3, 6, 9]
+LINE callbacks in total: 14 (hits plus one per other location)
+
+== 13. Exception events across frames, and what sys.settrace makes of them
+outer(1) returned 'handled'; one KeyError raised in inner, passed through middle's finally, caught in outer:
+  inner:RAISE inner:PY_UNWIND middle:RAISE middle:EXCEPTION_HANDLED middle:RERAISE middle:EXCEPTION_HANDLED middle:RERAISE middle:PY_UNWIND outer:RAISE outer:EXCEPTION_HANDLED outer:PY_RETURN
+events for that one exception: RAISE x3, EXCEPTION_HANDLED x3, RERAISE x2, PY_UNWIND x2
+gen.throw(ValueError) into a generator that catches it and yields again:
+  echo:PY_YIELD echo:PY_THROW echo:RAISE echo:EXCEPTION_HANDLED echo:PY_YIELD
+sys.settrace on the same outer(1) call, line events left out, argument type in brackets:
+  outer:call(None) middle:call(None) inner:call(None) inner:exception(tuple) inner:return(None) middle:exception(tuple) middle:return(None) outer:exception(tuple) outer:return(str)
+
+== 14. CALL and its ancillary events, and what sys.setprofile makes of them
+get_local_events after CALL|C_RETURN|C_RAISE == CALL: True
+call_kinds(), local CALL | C_RETURN | C_RAISE:
+  CALL(Box, arg0=MISSING)
+  C_RETURN(Box, arg0=MISSING)
+  CALL(len, arg0=str)
+  C_RETURN(len, arg0=str)
+  CALL(tiny, arg0=MISSING)
+  CALL(Box.get, arg0=Box)
+  CALL(int, arg0=str)
+  C_RAISE(int, arg0=str)
+sys.setprofile on the same call_kinds():
+  c_call(len) c_return(len) call(tiny) return(tiny) call(Box.get) return(Box.get)
+
+== 15. Legacy hooks are monitoring tools, and how to find out who is monitoring
+INSTRUCTION events for classify(5), tool 3: 10
+sys.settrace 'opcode' events for classify(5), f_trace_opcodes = True: 10
+classify under sys.settrace with f_trace_opcodes: INSTRUMENTED_INSTRUCTION x11, INSTRUMENTED_LINE x5, INSTRUMENTED_RESUME x1
+right after sys.settrace(None), classify not run yet: INSTRUMENTED_INSTRUCTION x11, INSTRUMENTED_LINE x5, INSTRUMENTED_RESUME x1
+after one more classify(5): none
+hot_loop under sys.settrace, loop body not run yet: INSTRUMENTED_END_FOR x1, INSTRUMENTED_JUMP_BACKWARD x2, INSTRUMENTED_LINE x7, INSTRUMENTED_RESUME x1, INSTRUMENTED_RETURN_VALUE x1
+after hot_loop(3), the legacy JUMP handler has DISABLEd the backward jumps: INSTRUMENTED_END_FOR x1, INSTRUMENTED_LINE x7, INSTRUMENTED_RESUME x1, INSTRUMENTED_RETURN_VALUE x1
+who_is_monitoring(hot_loop) with a breakpoint tool, a global tool, and a settrace function that declines:
+  tool 0 'minitrace-bp': global=[] local[hot_loop]=['LINE']
+  tool 3 'lab-global': global=['PY_START', 'RAISE'] local[hot_loop]=[]
+  sys.gettrace() set: True | sys.getprofile() set: False
+  instrumented opcodes in hot_loop: INSTRUMENTED_END_FOR x1, INSTRUMENTED_LINE x7, INSTRUMENTED_RESUME x1, INSTRUMENTED_RETURN_VALUE x1
+  get_local_events(7, hot_loop), asking for settrace's own events: ValueError: invalid tool 7 (must be between 0 and 5)
+tiny under sys.setprofile alone (no LINE): INSTRUMENTED_RESUME x1, INSTRUMENTED_RETURN_VALUE x1
+audit events raised by use_tool_id + set_events + set_local_events: none
+by register_callback(fn): sys.monitoring.register_callback x1
+by free_tool_id: none
+by sys.settrace(fn) then sys.settrace(None): sys.settrace x2
+
+== 16. An instrumented instruction is not specialized
+for header, call to tiny(), += after 2000 warm iterations: FOR_ITER_RANGE, CALL_PY_EXACT_ARGS, BINARY_OP_ADD_INT
+right after set_local_events(CALL): FOR_ITER_RANGE, INSTRUMENTED_CALL, BINARY_OP_ADD_INT
+after 2000 more iterations, callback returns None: FOR_ITER_RANGE, INSTRUMENTED_CALL, BINARY_OP_ADD_INT
+callback returns DISABLE, after one iteration: FOR_ITER_RANGE, CALL, BINARY_OP_ADD_INT
+after 2000 more iterations: FOR_ITER_RANGE, CALL_PY_EXACT_ARGS, BINARY_OP_ADD_INT
+
+== 17. Memory held by instrumentation side tables
+a function that only runs while no event is on: 0 bytes before any event change, 136 bytes after another tool's set_events() and free_tool_id()
+hot_loop: 58 code units, 116 bytes of bytecode; local events for tool 3, then for tools 3 and 4
+PY_START: one tool = 136 bytes, two tools = 194 bytes | still held after set_local_events(0): 136, 194
+LINE: one tool = 253 bytes, two tools = 369 bytes | still held after set_local_events(0): 253, 369
+INSTRUCTION: one tool = 252 bytes, two tools = 368 bytes | still held after set_local_events(0): 252, 368
+LINE | INSTRUCTION: one tool = 369 bytes, two tools = 543 bytes | still held after set_local_events(0): 369, 543
+
+== 18. Overhead: counted work, then timing verdicts
+Python-level callbacks during one hot_loop(20000) | INSTRUMENTED_LINE opcodes in hot_loop right after it
+  untraced: 0 | 0
+  LINE + DISABLE, run 1: 7 | 0
+  LINE + DISABLE, run 2: 0 | 0
+  LINE callback without DISABLE: 60003 | 7
+  sys.settrace line tracer: 60005 | 7
+  sys.settrace that declines every frame: 1 | 7
+timing verdicts (minimum over interleaved samples, as a ratio to the untraced minimum):
+  LINE + DISABLE coverage within 1.5x of untraced: yes
+  LINE callback without DISABLE above 2.5x untraced: yes
+  sys.settrace line tracer above 2.5x untraced: yes
+  sys.settrace that declines every frame above 1.2x untraced: yes

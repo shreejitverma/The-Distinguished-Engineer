@@ -1,0 +1,109 @@
+CPython 3.15 (GIL build)
+
+=== 1. Snapshot diff finds the growing cache ===
+Top growth line is the payload line (leak_lab.py:57): True
+  blocks of exactly sys.getsizeof(payload) = 1041 bytes: 1000
+  count_diff and size_diff equal 1000 blocks and 1041000 bytes, within 4 blocks and 1024 bytes: True
+  after gc.collect() empties the free lists, blocks on that line: 1000
+Dict growth charged to the insert line (leak_lab.py:62): True
+cumulative=True also charges the payloads to the calling line (leak_lab.py:84): True
+Stored frames for the top trace: 6 (limit 10), Trace.traceback.total_nframe: 6
+Call path, oldest first:
+  leak_lab.py:796: main()
+  leak_lab.py:775: section_snapshot_diff()
+  leak_lab.py:84: handle_request(i)  # REQUEST-LOOP
+  leak_lab.py:67: return len(cache_middleware(request_id))
+  leak_lab.py:61: body = render(request_id)
+  leak_lab.py:57: return bytes(1000) + request_id.to_bytes(8, "little")  # LEAK-PAYLOAD
+get_object_traceback(_CACHE[500]) points at the payload line: True
+Snapshot.dump() then Snapshot.load() gives the same top entry: True
+After _CACHE.clear(), payload blocks still traced: 0
+
+=== 2. Allocator domains: what the hooks see ===
+PyTraceMalloc_Track before start() returns: -2
+PyMem_RawMalloc(8 MiB) traced in domain 0: True
+  charged to the calling Python line (leak_lab.py:202): True
+libc malloc(8 MiB) traced: False
+PyTraceMalloc_Track(domain=4242) returns: 0
+  bytes in domain 4242: 8 MiB
+  get_traced_memory() now includes it: True
+PyTraceMalloc_Untrack returns: 0
+  bytes in domain 4242 after untrack: 0
+PyMem_RawFree removes the trace: True
+10000 more traced blocks grow tracemalloc's own tables by at least 16 bytes each: True
+  get_traced_memory() counts the blocks but not those tables: True
+A freed 4 MiB temporary leaves current within 1 MiB of its old value: True
+  but the peak is at least 4 MiB higher: True
+  after reset_peak(), the peak is within 1 MiB of current again: True
+PyTraceMalloc_Untrack after stop() returns: -2
+
+=== 3. A native leak is invisible to tracemalloc but not to RSS ===
+Native leak of 64 MiB: tracemalloc growth under 1 MiB: True
+Native leak of 64 MiB: peak RSS growth at least 60 MiB: True
+Child's first ru_maxrss reading already holds the parent's 128 MiB peak: True
+
+=== 4. Reference cycles need the cyclic GC ===
+Pairs alive after the last strong name is gone, GC disabled: 1000
+gc.collect() returned: 2000
+Pairs alive after gc.collect(): 0
+Acyclic pair freed by refcounting with GC disabled: True
+gc.is_tracked: Node() True, int False, str False, list True, empty dict True
+
+=== 5. gc.get_referrers walks back to the root ===
+Session alive after del and gc.collect(): True
+Referrer chain from the session: Session <- method <- module global 'LISTENERS'
+Session freed after the bound method is removed: True
+With weakref.WeakMethod, session freed at once: True
+  dead WeakMethod returns None: True
+
+=== 6. A saved exception pins its frames ===
+Local 'big' alive after the function returned: True
+  reachable as exc.__traceback__.tb_frame.f_locals['big']: True
+After traceback.clear_frames(): freed
+Exception kept in a local, GC disabled: 'big' alive after return: True
+  after gc.collect(): freed
+
+=== 7. Finalizers in cycles (PEP 442) and DEBUG_SAVEALL ===
+__del__ calls before the collector runs: []
+__del__ ran for cyclic objects: [0, 1, 2, 3, 4], gc.garbage size: 0
+With DEBUG_SAVEALL: WithDel objects kept in gc.garbage: 5
+gc.garbage after clear: 0
+
+=== 8. Generational trigger and the 25 percent rule ===
+gc.get_threshold(): (2000, 10, 10)
+1000000 surviving lists: collections by generation (0, 1, 2): (455, 41, 3)
+  total equals n // (threshold0 + 1): True
+  one run in 11 to 12 reaches generation 1 or 2: True
+  one generation 1-or-older run in 11 to 15 is a full run: True
+1000000 lists freed at once by refcounting: collections: 0
+With set_threshold(2000, 10, 0): collections by generation: (448, 40, 11)
+  each full run scanned at least 1.25x the previous one: True
+  full runs fewer than half the eligible generation 1 slots: True
+
+=== 9. Free lists keep blocks traced, and reuse moves the traceback ===
+Float freed into the free list: blocks still traced on its line: 1
+Next float reuses the same block (same id()): True
+  the block is now charged to the reusing line (leak_lab.py:601): True
+  blocks left on the first line: 0
+Second float freed: blocks still traced on its line: 1
+  after gc.collect(): 0
+
+=== 10. A leaked reference count has no referrer ===
+Object alive after del and gc.collect(), one Py_IncRef unmatched: True
+  gc.get_referrers finds a holder: False
+  tracemalloc still names the allocating line (leak_lab.py:638): True
+After the matching Py_DecRef: freed
+
+=== 11. A census by type sees only GC-tracked objects ===
+Largest growth in gc.get_objects() by type after 500 leaked orders: Order +500
+500 leaked bytes objects: growth in the census: 0
+  blocks of their size traced on their line: 500
+
+=== 12. functools.lru_cache on a method pins self ===
+Report alive after del and gc.collect(): True
+  cache_info().currsize: 1
+After cache_clear(): freed
+
+=== 13. ResourceWarning names the allocation site only while tracing ===
+Tracing off: warning for the unclosed file: True, tells you to enable tracemalloc: True
+With -X tracemalloc=5: 'Object allocated at' with the open() line (leak_lab.py:735): True
