@@ -1,0 +1,106 @@
+=== SHAttered SHA-1 Collision and Git Hardening Verification ===
+
+[0] Known-answer tests:
+  check: SHA-1("abc") = a9993e36...: ok
+  check: SHA-256("abc") = ba7816bf...: ok
+
+[1] SHAttered chaining values (first 320 bytes of shattered-1.pdf and shattered-2.pdf):
+  Differing bytes: 62, in offsets 192-319
+  check: all differences lie in the two blocks after the 192-byte prefix: ok
+  CV_3 (after 192-byte prefix):
+    file 1: 4ea962697c876e2674d107f0fec6798414f5bf45
+    file 2: 4ea962697c876e2674d107f0fec6798414f5bf45
+    equal : yes
+  CV_4 (after near-collision block 1):
+    file 1: 8d64c821ffed52e2ebc859155ec7eb36738a5a7b
+    file 2: 8d64d617ffed5352ebc859155ec7eb34f38a5a7b
+    equal : no
+  CV_5 (after near-collision block 2):
+    file 1: 1eacb25ed5970d10f17369635771bc3a17b48ac5
+    file 2: 1eacb25ed5970d10f17369635771bc3a17b48ac5
+    equal : yes
+  check: CV equal, then different, then equal again: ok
+  Plain SHA-1 of the 320 bytes, file 1: f92d74e3874587aaf443d1db961d4e26dde13e9c
+  Plain SHA-1 of the 320 bytes, file 2: f92d74e3874587aaf443d1db961d4e26dde13e9c
+  check: the two 320-byte prefixes collide under SHA-1: ok
+
+[2] Git blob framing of the same two prefixes:
+  Header "blob 320\0" is 9 bytes
+  First differing byte: raw offset 192 (position 0 in its block), framed offset 201 (position 9 in its block)
+  Git blob ID, file 1: ef380704685cc8e54de9bc13556d1ff7026ec0cc
+  Git blob ID, file 2: 6e98aef8bba6ff517f5b164d7418c5e2a6cf90c9
+  check: both prefixes get the same header: ok
+  check: framed IDs differ, so no collision inside Git: ok
+  sha1dc on the raw bytes     : collision attack detected
+  sha1dc on the framed bytes  : file 1 clean, file 2 clean
+  check: sha1dc flags the aligned bytes: ok
+  check: sha1dc has nothing to flag once the framing shifts the blocks: ok
+
+[3] Content-addressable store keyed by raw SHA-1 (not Git framing):
+  skip-if-present rule (models the loose write): put 1 -> stored, put 2 -> skipped (key present)
+  byte-compare rule (models index-pack)        : put 1 -> stored, put 2 -> COLLISION FOUND
+  Lookup of the key for object 2 returns: object 1 (wrong bytes)
+  check: skip rule silently keeps only the first object: ok
+  check: a reader asking for object 2 gets object 1: ok
+  check: byte-compare rule reports the collision: ok
+  Tree body "100644 auth.c\0<20-byte name>" is 34 bytes (header "tree 34\0")
+  check: the tree bytes for object 1 and object 2 are identical: ok
+
+[4] sha1dc (sha1collisiondetection) on colliding pairs:
+  shattered-1 (320 B):
+    plain SHA-1 : f92d74e3874587aaf443d1db961d4e26dde13e9c
+    sha1dc flag : collision attack detected (flag set after 320 bytes)
+    safe-hash   : 7117b3cb9225aaf0d8ef1a40e493957b0bf8693d
+  shattered-2 (320 B):
+    plain SHA-1 : f92d74e3874587aaf443d1db961d4e26dde13e9c
+    sha1dc flag : collision attack detected (flag set after 320 bytes)
+    safe-hash   : 29f38ae9fd98e2931120fa0bf213e024250d3f6a
+  shambles messageA (640 B):
+    plain SHA-1 : 8ac60ba76f1999a1ab70223f225aefdc78d4ddc0
+    sha1dc flag : collision attack detected (flag set after 640 bytes)
+    safe-hash   : 4f3d9be4a472c4dae83c6314aa6c36a064c1fd14
+  shambles messageB (640 B):
+    plain SHA-1 : 8ac60ba76f1999a1ab70223f225aefdc78d4ddc0
+    sha1dc flag : collision attack detected (flag set after 640 bytes)
+    safe-hash   : 9ed5d77a4f48be1dbf3e9e15650733eb850897f2
+  check: SHAttered pair: plain SHA-1 collides: ok
+  check: Shambles pair: plain SHA-1 collides: ok
+  check: SHAttered pair: both halves flagged: ok
+  check: Shambles pair: both halves flagged: ok
+  check: safe-hash separates each flagged pair: ok
+  check: SHAttered flag is set when the second near-collision block is done: ok
+  UBC masks per 64-byte block of shattered-1 (vectors whose unavoidable bit conditions hold):
+    block 0 (offset   0): 0xADDR  none
+    block 1 (offset  64): 0xADDR  none
+    block 2 (offset 128): 0xADDR  none
+    block 3 (offset 192): 0xADDR  II(52,0)
+    block 4 (offset 256): 0xADDR  II(52,0)
+  check: only the two near-collision blocks pass, and only for II(52,0): ok
+  UBC masks of the Shambles messageA blocks that pass for at least one vector:
+    block 1 (offset  64): 0xADDR  II(52,0)
+    block 2 (offset 128): 0xADDR  II(52,0)
+    block 3 (offset 192): 0xADDR  II(52,0)
+    block 4 (offset 256): 0xADDR  II(52,0)
+    block 5 (offset 320): 0xADDR  II(52,0)
+    block 6 (offset 384): 0xADDR  II(52,0)
+    block 7 (offset 448): 0xADDR  II(52,0)
+    block 8 (offset 512): 0xADDR  II(52,0)
+    block 9 (offset 576): 0xADDR  II(52,0)
+  UBC filter off, detection on : detected
+  Detection (recompression) off: clean
+  check: disabling the UBC filter still detects the attack: ok
+  check: disabling collision detection stops the flag: ok
+  Benign 320 bytes             : clean
+  check: ordinary data is not flagged: ok
+  Git's git_SHA1DCFinal() turns the flag into:
+    fatal: SHA-1 appears to be part of a collision attack: 7117b3cb9225aaf0d8ef1a40e493957b0bf8693d
+
+[5] SHA-256 of the same pairs (git init --object-format=sha256 uses SHA-256 object names):
+  shattered-1 : cac8644dba1a9aef70cc268f3794036a2be5b5107109ad742247858fd1a36990
+  shattered-2 : 842a2c7d2f85b25998d5e43fcced0ba3ca570ee0d36bedb23a815d79e614f646
+  messageA    : 3ead211681cec93d265c8ac123dd062e105408cebf82fa6e2b126f4f40bcb88c
+  messageB    : 208feafe1c6a95c73f662514ac48761f25e1f3b74922521a98d9ce287f4a2197
+  check: SHAttered pair is separated by SHA-256: ok
+  check: Shambles pair is separated by SHA-256: ok
+
+failed checks: 0

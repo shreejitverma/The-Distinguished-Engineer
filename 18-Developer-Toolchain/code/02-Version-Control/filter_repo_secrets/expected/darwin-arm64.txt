@@ -1,0 +1,41 @@
+=== Initial Repository State ===
+Commit 2 hash: 0b2c166c9294ea290ff5b2229504261fb016a1e1
+Secret PEM blob hash: 38e061452333836a41d156efae00f602ebaa682a
+5a205de Staff Engineer <engineer@example.com> fix: add worker queue following credentials commit 0b2c166c9294ea290ff5b2229504261fb016a1e1
+0b2c166 Leaky Contractor <leaky@external-vendor.internal> feat: integrate payment credentials and infra keys
+6f02405 Staff Engineer <engineer@example.com> feat: initialize payment gateway service
+=== Top Blobs from History Analysis ===
+=== Files by sha and associated pathnames in reverse size ===
+Format: sha, unpacked size, packed size, filename(s) object stored as
+  a6bdc5ba19fd5721628c4b02066cc513c865a49c        102        103 config/credentials.env
+  38e061452333836a41d156efae00f602ebaa682a        111         95 keys/service_account.pem
+  b8f79eb87a25f680ebbe0364c3a6fcdeb9a1b879         53         69 src/payment.py
+Note: A branch outside the refs/remotes/ hierarchy was not removed;
+to delete it, use:
+  git branch -d main
+NOTICE: Removing 'origin' remote; see 'Why is my origin removed?'
+        in the manual if you want to push back there.
+        (was <ORIGIN_URL>)
+
+Parsed 1 commits
+Parsed 3 commits
+New history written in X.XX seconds; now repacking/cleaning...
+Repacking your repo and cleaning out old unneeded objects
+Completely finished after X.XX seconds.
+=== Verification Checks ===
+Check A PASSED: keys/service_account.pem completely purged from tree objects
+Check B PASSED: AWS secret key purged and replaced
+Check C PASSED: Secret PEM blob purged by post-rewrite repack
+Check D PASSED: Remote 'origin' removed by git-filter-repo to prevent accidental push
+Rewritten Commit 2 hash: 47ce6dc00e7e85fb6cd1cdb06c5a43ca03ef7c36
+Rewritten Commit 3 message:
+fix: add worker queue following credentials commit 47ce6dc00e7e85fb6cd1cdb06c5a43ca03ef7c36
+Check E PASSED: commit 3 message cites the rewritten hash of commit 2, not the old one
+Rewritten Commit Authors:
+9ec38f9 Staff Engineer <engineer@example.com> fix: add worker queue following credentials commit 47ce6dc00e7e85fb6cd1cdb06c5a43ca03ef7c36
+47ce6dc Staff Engineer <engineer@example.com> feat: integrate payment credentials and infra keys
+6f02405 Staff Engineer <engineer@example.com> feat: initialize payment gateway service
+Check F PASSED: no author or committer identity from external-vendor.internal remains
+Check G PASSED: Stripe key replaced in src/payment.py, file kept
+Check H PASSED: config/credentials.env kept, secret key redacted, access key id untouched
+Server Check PASSED: Secret blob completely expunged from origin server

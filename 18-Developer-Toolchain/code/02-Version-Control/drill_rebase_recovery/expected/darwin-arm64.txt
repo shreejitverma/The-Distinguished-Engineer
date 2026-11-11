@@ -1,0 +1,127 @@
+=== 1. OBSERVED SYMPTOM: ABORTED REBASE AND EXPIRED REFLOGS ===
+Active branch: main at 46d9410
+Working tree status: 0 modified files
+Reflog entry count: 0
+--- Current Branch References ---
+feature/feed-handler -> a23a18d feat(feed): parse itch market data feed
+feature/order-book -> a84393c feat(book): implement L2 order book matching engine
+feature/risk-limits -> 8c7febb feat(risk): add pre-trade capital limit checks
+main -> 46d9410 feat(core): expand ring buffer capacity to 64k and add hardware timestamps
+--- Commit Graph Before Recovery ---
+* 8c7febb (feature/risk-limits) feat(risk): add pre-trade capital limit checks
+* a84393c (feature/order-book) feat(book): implement L2 order book matching engine
+* a23a18d (feature/feed-handler) feat(feed): parse itch market data feed
+| * 46d9410 (HEAD -> main) feat(core): expand ring buffer capacity to 64k and add hardware timestamps
+|/  
+* 4962e4a feat(core): initial engine and ring buffer primitives
+
+=== 2. LOW-LEVEL REPOSITORY AUDIT VIA FSCK ===
+unreachable blob 83bab83b611ec54e5315cf356679d8b1f8859278
+unreachable commit 01193601c9f455756d484bc6960dadf2e4892051
+unreachable commit 6214664effe6d26debabb7892894eb6a43946cbd
+unreachable tree 5c517d130bf42a3686c30f0b278e8e1b578234fa
+unreachable tree a7632105b5c0aabb15e6fd6a82dec2e40d1d1b73
+unreachable tree dca60cfa4e70bac4abbff1f6e279e3b27defdf73
+
+=== 3. OBJECT TRIAGE AND LINEAGE IDENTIFICATION ===
+Identified dangling commit tip: 01193601c9f455756d484bc6960dadf2e4892051
+--- Commit Object Details ---
+tree 5c517d130bf42a3686c30f0b278e8e1b578234fa
+parent 6214664effe6d26debabb7892894eb6a43946cbd
+author Distinguished Engineer <engineer@example.com> 1794139380 +0000
+committer Distinguished Committer <committer@example.com> 1794139860 +0000
+
+feat(book): implement L2 order book matching engine
+
+Identified parent commit: 6214664effe6d26debabb7892894eb6a43946cbd
+--- Parent Commit Details ---
+tree a7632105b5c0aabb15e6fd6a82dec2e40d1d1b73
+parent 46d9410bfc80b2525966ab4bb072949bfafcb597
+author Distinguished Engineer <engineer@example.com> 1794139320 +0000
+committer Distinguished Committer <committer@example.com> 1794139800 +0000
+
+feat(feed): parse itch market data feed
+
+Identified dangling tree: dca60cfa4e70bac4abbff1f6e279e3b27defdf73
+--- Dangling Tree File Manifest ---
+100644 blob b6b069b2b95b5080a7d4a74e0baef9e27ef8320a	book.c
+100644 blob 32666a97cf0cb0f387e246f2d634ee13ca7a6ac2	engine.c
+100644 blob d946e78c244b92d9a51b8cca0220ec89e28746d3	feed.c
+100644 blob 83bab83b611ec54e5315cf356679d8b1f8859278	risk.c
+100644 blob d99c381dd3bc6e07cc8fffe5c55d46bc0d441e9e	types.h
+--- Diff between Dangling Commit Tip and Dangling Tree ---
+diff --git a/risk.c b/risk.c
+new file mode 100644
+index 0000000..83bab83
+--- /dev/null
++++ b/risk.c
+@@ -0,0 +1,7 @@
++#include "types.h"
++int validate_risk_limits(const Order *order) {
++    if (!order) return -1;
++    if (order->qty > 10000) return -2;
++    if (order->timestamp_ns == 0) return -3;
++    return 0;
++}
+
+=== 4. PLUMBING SYNTHESIS: MINTING COMMIT FROM DANGLING TREE ===
+Synthesized commit for feature/risk-limits: 4f00506d07e15bd40b631470e80d8ebc9fbfa5d2
+--- Synthesized Commit Object ---
+tree dca60cfa4e70bac4abbff1f6e279e3b27defdf73
+parent 01193601c9f455756d484bc6960dadf2e4892051
+author Distinguished Engineer <engineer@example.com> 1794139440 +0000
+committer Distinguished Committer <committer@example.com> 1794139920 +0000
+
+feat(risk): add pre-trade capital limit checks
+
+=== 5. ATOMIC REFERENCE RESTORATION VIA UPDATE-REF ===
+Successfully updated refs/heads/feature/feed-handler -> 6214664effe6d26debabb7892894eb6a43946cbd
+Successfully updated refs/heads/feature/order-book   -> 01193601c9f455756d484bc6960dadf2e4892051
+Successfully updated refs/heads/feature/risk-limits  -> 4f00506d07e15bd40b631470e80d8ebc9fbfa5d2
+
+=== 6. VERIFICATION OF RESTORED STACKED GRAPH AND COMPILATION ===
+--- Reconstructed Linear Commit Graph ---
+* 4f00506 (HEAD -> feature/risk-limits) feat(risk): add pre-trade capital limit checks
+* 0119360 (feature/order-book) feat(book): implement L2 order book matching engine
+* 6214664 (feature/feed-handler) feat(feed): parse itch market data feed
+* 46d9410 (main) feat(core): expand ring buffer capacity to 64k and add hardware timestamps
+* 4962e4a feat(core): initial engine and ring buffer primitives
+--- Cumulative Diff Against Main ---
+ book.c | 4 ++++
+ feed.c | 4 ++++
+ risk.c | 7 +++++++
+ 3 files changed, 15 insertions(+)
+Build verification: PASS (all modules compiled with -Wall -Werror)
+
+=== 7. REAL SEQUENCER CROSS-CHECK: git rebase --update-refs, conflict stop, abort, reflog expire ===
+--- Sequencer state while stopped on the conflict ---
+rebase-merge directory: present
+git-rebase-todo: present
+done: present
+head-name: present
+onto: present
+orig-head: present
+stopped-sha: present
+update-refs: present
+head-name: refs/heads/book
+update-refs queues feed: yes
+onto is main: yes
+HEAD is detached: yes
+rebased feed commit sits on main: yes
+conflicted paths: types.h 
+--- After git rebase --abort ---
+rebase-merge directory: absent
+book restored to pre-rebase tip: yes
+feed restored to pre-rebase tip: yes
+ORIG_HEAD survives the abort: yes
+HEAD reflog records the pick: 1 pick entries
+HEAD reflog records the abort: 1 abort entry
+--- After git reflog expire --expire=now --all ---
+HEAD reflog entries: 0
+HEAD log file bytes: 0
+dangling commit count: 1
+dangling commit is the rebased feed commit: yes
+dangling trees holding conflict markers in types.h: 1
+--- After git update-ref refs/heads/feed <dangling commit> ---
+feed is based on main: yes
+feed carries only its own commit: 1 commit

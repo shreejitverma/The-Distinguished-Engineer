@@ -1,0 +1,69 @@
+=== Step 1: Content-Addressable Storage (CAS) Loose Objects ===
+Initialized repository in /TMP
+Stored blob "hello world\n": oid=3b18e512dba79e4c8300dd08aeb37f8e728b8dad size=12
+Loose object path exists: .git/objects/3b/18e512dba79e4c8300dd08aeb37f8e728b8dad
+Read loose object: type=blob size=12 payload="hello world"
+SHA-1 verification: PASS
+
+=== Step 2: Binary Index Parsing and Serialization (Index v2) ===
+Staged 4 files:
+  [0] mode=100755 size=27 path=build.sh oid=2c58f20ad95a63f0e5ec38ecdbef604c7254c844
+  [1] mode=100644 size=12 path=hello.txt oid=3b18e512dba79e4c8300dd08aeb37f8e728b8dad
+  [2] mode=100644 size=39 path=src.txt oid=c5ef23603ee3e5ad82aa49fa9ce1d2bac02aee69
+  [3] mode=100644 size=25 path=src/main.c oid=76e8197013aabca95639bb3d9e5de847b0c0a5fd
+Serialized index: header=DIRC version=2 entries=4
+Index 8-byte entry alignment: PASS (entry offsets: [12, 84, 156, 228, 308])
+Index trailer SHA-1 checksum: PASS (corrupt trailer and corrupt body both rejected)
+Index boundary: a 2-byte path (62 + 2 = 64) takes 8 NUL bytes, entry 72 bytes: PASS
+
+=== Step 3: Hierarchical Tree Traversal and Slash-Sort Ordering ===
+Testing canonical Git directory sorting (base_name_compare):
+Input unsorted names: ['a.c', 'a-b', 'a0', 'a/']
+Sorted tree entries (directories end with /):
+  100644 blob a-b
+  100644 blob a.c
+  040000 tree a
+  100644 blob a0
+Tree sorting matches Git canonical order: PASS (the stored tree bytes list a-b, a.c, a, a0)
+Built root tree: oid=41261768fa21aefe3c0c8ae8511724b6cd1369cf
+Tree recursive traversal:
+  100755 blob 2c58f20ad95a63f0e5ec38ecdbef604c7254c844 build.sh
+  100644 blob 3b18e512dba79e4c8300dd08aeb37f8e728b8dad hello.txt
+  100644 blob c5ef23603ee3e5ad82aa49fa9ce1d2bac02aee69 src.txt
+  040000 tree f67bc41327fe605a56df4f06537f1f182637de86 src
+  100644 blob 76e8197013aabca95639bb3d9e5de847b0c0a5fd src/main.c
+
+=== Step 4: Packfile Decompression and OFS_DELTA Reconstruction ===
+Created packfile with 6 objects (3 undeltified blobs, 3 OFS_DELTA blobs):
+Packfile header: magic=PACK version=2 count=6
+Base entry at pack offset 12: type=OBJ_BLOB size=61
+Delta entry 1: type=OBJ_OFS_DELTA delta_size=33 ofs_bytes=2 base_offset=12
+Applying delta instructions: copy 32B@0, insert 24B, copy 16B@45
+Delta entry 2: type=OBJ_OFS_DELTA delta_size=13 ofs_bytes=3 ops: copy 65536B@0, insert 5B
+Delta entry 3: type=OBJ_OFS_DELTA delta_size=15 ofs_bytes=3 ops: copy 291B@2587, insert 4B
+Target reconstructed payload matches: PASS
+Target reconstructed SHA-1 matches: PASS
+Index v2 fanout table binary search: PASS
+Packfile checksum and index checksum trailers: PASS (per-entry CRC32 and corrupt pack and index rejected)
+
+=== Step 5: Commit Graph and Working Tree Checkout ===
+Created initial commit: oid=c64c4e4804319672a1b7fdd3b01d6d7c44adecb8
+HEAD points to: ref: refs/heads/main
+refs/heads/main points to: c64c4e4804319672a1b7fdd3b01d6d7c44adecb8
+Executing checkout to clean working directory /TMP:
+Restored files:
+  build.sh (mode=100755)
+  hello.txt (mode=100644)
+  src.txt (mode=100644)
+  src/main.c (mode=100644)
+Restored file contents verified: PASS
+Index stat cache initialized: PASS (entries match lstat of each restored file and survive an index round trip)
+
+=== Step 6: Cross-Language Verification (Rust Engine) ===
+Building and running Rust mini-git engine...
+Rust cat-file verified loose blob: PASS
+Rust index parser verified DIRC v2 alignment and trailer: PASS
+Rust tree parser verified slash-sorted hierarchy: PASS
+Rust packfile engine verified 6 objects (3 OFS_DELTA) with SHA-1 and CRC32 checks: PASS
+Rust checkout verified working tree restore and modes: PASS
+=== Rebuild Lab Verification Complete ===

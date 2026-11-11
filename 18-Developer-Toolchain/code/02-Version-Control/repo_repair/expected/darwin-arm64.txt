@@ -1,0 +1,37 @@
+=== Step 1: Auxiliary Cache Repair (Commit-Graph) ===
+Pre-repair commit-graph verify: CORRUPT (signature mismatch detected)
+Post-repair commit-graph verify: VALID (exit 0)
+
+=== Step 2: Index File Reconstruction (.git/index) ===
+Pre-repair index status check: CORRUPT (fatal: index file corrupt detected)
+Post-repair working tree status: CLEAN (matching HEAD)
+
+=== Step 3: Zero-Byte Loose Object Recovery ===
+Pre-repair fsck loose object check: EMPTY LOOSE OBJECT DETECTED (9eba8819f998d58edd879aa284cf88c8d4c2ef9a)
+Rehashed blob object: MATCH (9eba8819f998d58edd879aa284cf88c8d4c2ef9a)
+Post-repair fsck check: VALID (0 errors)
+
+=== Step 4: Packfile Index (.idx) Regeneration ===
+Pre-repair packfile verification: MISSING INDEX DETECTED
+Post-repair verify-pack: VALID (all packed objects verified)
+
+=== Step 5: Damaged Packfile Salvage and Object Reconstruction ===
+Pack under test: 12 objects
+[mid-pack blob] unpack-objects -r exit status: 128 (final sha1 did not match)
+[mid-pack blob] Salvaged objects: 11 of 12
+[mid-pack blob] Entries after the damaged one that survived: 7 of 7
+[mid-pack blob] fsck report:
+missing blob 9eba8819f998d58edd879aa284cf88c8d4c2ef9a
+[mid-pack blob] Missing object identification: ISOLATED (missing blob 9eba8819f998d58edd879aa284cf88c8d4c2ef9a)
+[mid-pack blob] Rebuilt blob with git hash-object: MATCH
+[mid-pack blob] Final consistency check: REPAIRED (0 errors, graph fully connected)
+[tail tree] unpack-objects -r exit status: 128 (final sha1 did not match)
+[tail tree] Salvaged objects: 11 of 12
+[tail tree] Entries after the damaged one that survived: 0 of 0
+[tail tree] fsck report:
+broken link from  commit 9c30325081b18a85c5b95ead1e00e4f7a90fb1e0
+              to    tree ed46dd19f6204c92947780231982716d4016b9bb
+missing tree ed46dd19f6204c92947780231982716d4016b9bb
+[tail tree] Missing object identification: ISOLATED (missing tree ed46dd19f6204c92947780231982716d4016b9bb)
+[tail tree] Rebuilt tree with git mktree: MATCH
+[tail tree] Final consistency check: REPAIRED (0 errors, graph fully connected)
