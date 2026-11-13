@@ -1,0 +1,20 @@
+# Workspace for the monomorphization and inlining drill.
+# feedcore holds the shared wire types; each kit_* crate is one version of the same library API;
+# apps builds one binary per kit from the same driver source, so the only variable is the library.
+[workspace]
+resolver = "2"
+members = ["feedcore", "kit_bloated", "kit_dyn", "kit_lean", "apps"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Cargo's release defaults, written out because the drill's numbers depend on them:
+# opt-level 3 turns generic sharing off, 16 codegen units split each crate, and no LTO
+# keeps the crate boundary an inlining boundary.
+[profile.release]
+opt-level = 3
+codegen-units = 16
+lto = false
+debug = false

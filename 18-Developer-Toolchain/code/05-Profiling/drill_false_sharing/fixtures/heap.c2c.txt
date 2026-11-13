@@ -1,0 +1,106 @@
+=================================================
+            Trace Event Information              
+=================================================
+  Total records                     :        468
+  Locked Load/Store Operations      :        138
+  Load Operations                   :        328
+  Loads - uncacheable               :          0
+  Loads - IO                        :          0
+  Loads - Miss                      :          0
+  Loads - no mapping                :          0
+  Load Fill Buffer Hit              :          0
+  Load L1D hit                      :          0
+  Load L2D hit                      :          0
+  Load LLC hit                      :        328
+  Load Local HITM                   :        328
+  Load Remote HITM                  :          0
+  Load Remote HIT                   :          0
+  Load Local DRAM                   :          0
+  Load Remote DRAM                  :          0
+  Load MESI State Exclusive         :          0
+  Load MESI State Shared            :          0
+  Load LLC Misses                   :          0
+  Load access blocked by data       :          0
+  Load access blocked by address    :          0
+  Load HIT Local Peer               :          0
+  Load HIT Remote Peer              :          0
+  LLC Misses to Local DRAM          :        nan%
+  LLC Misses to Remote DRAM         :        nan%
+  LLC Misses to Remote cache (HIT)  :        nan%
+  LLC Misses to Remote cache (HITM) :        nan%
+  Store Operations                  :        140
+  Store - uncacheable               :          0
+  Store - no mapping                :          0
+  Store L1D Hit                     :        104
+  Store L1D Miss                    :         36
+  Store No available memory level   :          0
+  No Page Map Rejects               :          0
+  Unable to parse data source       :          0
+
+=================================================
+    Global Shared Cache Line Event Information   
+=================================================
+  Total Shared Cache Lines          :          3
+  Load HITs on shared lines         :        328
+  Fill Buffer Hits on shared lines  :          0
+  L1D hits on shared lines          :          0
+  L2D hits on shared lines          :          0
+  LLC hits on shared lines          :        328
+  Load hits on peer cache or nodes  :          0
+  Locked Access on shared lines     :        138
+  Blocked Access on shared lines    :          0
+  Store HITs on shared lines        :        140
+  Store L1D hits on shared lines    :        104
+  Store No available memory level   :          0
+  Total Merged records              :        468
+
+=================================================
+                 c2c details                     
+=================================================
+  Events                            : raw 0x1cd:HG
+  Cachelines sort on                : Total HITMs
+  Cacheline data grouping           : offset,tid,iaddr
+
+=================================================
+           Shared Data Cache Line Table          
+=================================================
+#
+#        ----------- Cacheline ----------      Tot  ------- Load Hitm -------    Total    Total    Total  --------- Stores --------  ----- Core Load Hit -----  - LLC Load Hit --  - RMT Load Hit --  --- Load Dram ----
+# Index             Address  Node  PA cnt     Hitm    Total  LclHitm  RmtHitm  records    Loads   Stores    L1Hit   L1Miss      N/A       FB       L1       L2    LclHit  LclHitm    RmtHit  RmtHitm       Lcl       Rmt
+# .....  ..................  ....  ......  .......  .......  .......  .......  .......  .......  .......  .......  .......  .......  .......  .......  .......  ........  .......  ........  .......  ........  ........
+#
+      0      0x55555a0002c0   N/A       0   50.00%      164      164        0      234      164       70       52       18        0        0        0        0         0      164         0        0         0         0
+      1      0x55555a000300   N/A       0   28.66%       94       94        0      129       94       35       26        9        0        0        0        0         0       94         0        0         0         0
+      2      0x55555a000280   N/A       0   21.34%       70       70        0      105       70       35       26        9        0        0        0        0         0       70         0        0         0         0
+
+=================================================
+      Shared Cache Line Distribution Pareto      
+=================================================
+#
+#        ----- HITM -----  ------- Store Refs ------  --------- Data address ---------                                      ---------- cycles ----------    Total       cpu              Shared                    
+#   Num  RmtHitm  LclHitm   L1 Hit  L1 Miss      N/A              Offset  Node  PA cnt             Tid        Code address  rmt hitm  lcl hitm      load  records       cnt      Symbol  Object   Source:Line  Node
+# .....  .......  .......  .......  .......  .......  ..................  ....  ......  ..............  ..................  ........  ........  ........  .......  ........  ..........  ......  ............  ....
+#
+  ----------------------------------------------------------------------
+      0        0      164       52       18        0      0x55555a0002c0
+  ----------------------------------------------------------------------
+           0.00%   27.44%    0.00%    0.00%    0.00%                 0x0   N/A       0     4244:w1          0x55555555592c         0       191         0       45         1  [.] ingest  ingest  ingest.c:93    0
+           0.00%    0.00%    1.92%    0.00%    0.00%                 0x0   N/A       0     4242:ingest      0x555555555100         0         0         0        1         1  [.] main    ingest  ingest.c:158   0
+           0.00%   20.12%   48.08%   50.00%    0.00%                 0x8   N/A       0     4244:w1          0x555555555940         0       241         0       67         1  [.] ingest  ingest  ingest.c:95    0
+           0.00%   30.49%    0.00%    0.00%    0.00%                0x20   N/A       0     4245:w2          0x55555555592c         0       192         0       50         1  [.] ingest  ingest  ingest.c:93    0
+           0.00%    0.00%    1.92%    0.00%    0.00%                0x20   N/A       0     4242:ingest      0x555555555100         0         0         0        1         1  [.] main    ingest  ingest.c:158   0
+           0.00%   21.95%   48.08%   50.00%    0.00%                0x28   N/A       0     4245:w2          0x555555555940         0       242         0       70         1  [.] ingest  ingest  ingest.c:95    0
+
+  ----------------------------------------------------------------------
+      1        0       94       26        9        0      0x55555a000300
+  ----------------------------------------------------------------------
+           0.00%   58.51%    0.00%    0.00%    0.00%                 0x0   N/A       0     4246:w3          0x55555555592c         0       193         0       55         1  [.] ingest  ingest  ingest.c:93    0
+           0.00%    0.00%    3.85%    0.00%    0.00%                 0x0   N/A       0     4242:ingest      0x555555555100         0         0         0        1         1  [.] main    ingest  ingest.c:158   0
+           0.00%   41.49%   96.15%  100.00%    0.00%                 0x8   N/A       0     4246:w3          0x555555555940         0       243         0       73         1  [.] ingest  ingest  ingest.c:95    0
+
+  ----------------------------------------------------------------------
+      2        0       70       26        9        0      0x55555a000280
+  ----------------------------------------------------------------------
+           0.00%   57.14%    0.00%    0.00%    0.00%                0x20   N/A       0     4243:w0          0x55555555592c         0       190         0       40         1  [.] ingest  ingest  ingest.c:93    0
+           0.00%    0.00%    3.85%    0.00%    0.00%                0x20   N/A       0     4242:ingest      0x555555555100         0         0         0        1         1  [.] main    ingest  ingest.c:158   0
+           0.00%   42.86%   96.15%  100.00%    0.00%                0x28   N/A       0     4243:w0          0x555555555940         0       240         0       64         1  [.] ingest  ingest  ingest.c:95    0

@@ -1,0 +1,86 @@
+toolchain: rustc 1.99, release profile, symbol mangling v0
+
+== 1. Same driver, three versions of the library ==
+version   digest            rejects  reject_digest     records   insn/record
+bloated   d50ebfc667160539  6        025a453e6a5a0048  9830400   14
+dyn       d50ebfc667160539  6        025a453e6a5a0048  9830400   66
+lean      d50ebfc667160539  6        025a453e6a5a0048  9830400   14
+all three versions accept, reject, and compute the same things: yes
+dyn retires 4.7x the instructions per record of lean; bloated retires 1.0x
+dyn rebuilt with lto = "fat": same results, and still at least 4x lean: yes
+
+== 2. Unoptimized LLVM IR that rustc hands to LLVM, per crate ==
+version   crate         IR lines  functions
+bloated   kit_bloated          0          0
+bloated   app_bloated      52623        154
+dyn       kit_dyn           2468         39
+dyn       app_dyn           3895        129
+lean      kit_lean          2352         40
+lean      app_lean          8510        144
+library plus application: bloated 52623, dyn 6363, lean 10862 IR lines
+bloated sends LLVM 4.8x the IR of lean and 8.3x the IR of dyn
+
+== 3. app_bloated by function: IR lines and copies, generic arguments folded ==
+   Lines  Copies  Function name
+   -----  ------  -------------
+   52623     154  (TOTAL)
+   48288      48  kit_bloated::ingest<_>
+     831       4  app_bloated::measure<_>
+     629       1  app_bloated::main
+     292       1  app_bloated::bad_frames
+     252       4  app_bloated::dispatch<_>
+     205       1  kit_bloated::hex_head
+rows cargo-llvm-lines 0.4.48 prints for kit_bloated::ingest under v0 mangling: 48, each with Copies = 1
+
+== 3b. app_lean by function, same table ==
+   Lines  Copies  Function name
+   -----  ------  -------------
+    8510     144  (TOTAL)
+    4608      48  kit_lean::ingest<_>
+     831       4  app_lean::measure<_>
+     629       1  app_lean::main
+     292       1  app_lean::bad_frames
+
+== 4. Machine code in the release binaries ==
+version    text_bytes   accept_fns accept_bytes  fits 32 KiB L1i
+bloated        692092           52       448992  no
+dyn            251708           21         6852  yes
+lean           267452            6        21668  yes
+app_bloated, workspace functions by size:
+    Bytes  Copies  Function name
+    -----  ------  -------------
+   447728      48  kit_bloated::ingest<_>
+     4956       1  app_bloated::main
+     1920       1  app_bloated::measure_all
+     1264       4  app_bloated::dispatch<_>
+app_dyn, workspace functions by size:
+    Bytes  Copies  Function name
+    -----  ------  -------------
+     4972       1  app_dyn::main
+     1920       1  app_dyn::measure_all
+     1892       1  kit_dyn::ingest
+     1412       1  kit_dyn::hex_head
+app_lean, workspace functions by size:
+    Bytes  Copies  Function name
+    -----  ------  -------------
+    20972       4  app_lean::dispatch<_>
+     5028       1  app_lean::main
+     2408       1  kit_lean::reject
+     1920       1  app_lean::measure_all
+kit_bloated::ingest with #[inline(always)] on hex_head:    48 copies, 447728 bytes
+kit_bloated::ingest without it, nothing else changed: 48 copies, 94360 bytes
+text_bytes without it: 340284
+
+== 5. LLVM inlining remarks (-Cremark=inline), counted ==
+lean: decode or push inlined into kit_lean::ingest: 96
+lean: kit_lean::ingest inlined into app_lean::dispatch: 48
+lean: kit_lean::open_frame not inlined, definition unavailable: 48
+dyn:  decode_dyn or push inlined into kit_dyn::ingest: 0
+dyn:  kit_dyn::ingest not inlined into app_dyn::dispatch, definition unavailable: 4
+
+== 6. cargo build --release --timings, cold ==
+units compiled: 7
+slowest unit: apps app_bloated bin
+lib units with a frontend/codegen section split: 4 of 4
+bin units with a frontend/codegen section split: 0 of 3
+kit_bloated, the crate that defines the generic code, took under a tenth of app_bloated: yes

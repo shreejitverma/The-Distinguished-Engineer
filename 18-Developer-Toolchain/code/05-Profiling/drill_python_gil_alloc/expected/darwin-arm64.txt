@@ -1,0 +1,55 @@
+interpreter has a GIL: yes
+switch interval: 5 ms
+
+== Phase 1: symptom - throughput against thread count ==
+release 1.4 (base): 8 threads at least 2.0x the throughput of 1 thread: yes
+release 1.5 (regr): 8 threads at least 1.5x the throughput of 1 thread: no
+regr against base, 1 thread: at least 3.0x slower: no
+regr against base, 8 threads: at least 5.0x slower: yes
+
+== Phase 2: operating system view, 8 threads ==
+base: at least 2.5 cores busy: yes
+base: at least 20 context switches per 1000 records: no
+base: system time at least 10% of CPU time: no
+regr: at least 2.5 cores busy: no
+regr: at least 20 context switches per 1000 records: yes
+regr: system time at least 10% of CPU time: yes
+
+== Phase 3: call counts in the probed build, 8 threads, 400000 records ==
+variant  score_batch  SaveThread  GILState_Ensure  Ensure/record   malloc     free  malloc/record
+hold             200           0                0           0.00        0        0           0.00
+base             200         200                0           0.00        0        0           0.00
+regr             200         200           400000           1.00   400000   400000           1.00
+gilfix           200         200                0           0.00   400000   400000           1.00
+fixed            200         200                0           0.00        0        0           0.00
+
+== Phase 4: CPython allocator domains, 1 thread, 100000 records ==
+variant   obj malloc/record  obj realloc/record  obj free/record  mem calls/record  raw calls/record
+hold                   0.00                0.00             0.00              0.00              0.00
+base                   0.00                0.00             0.00              0.00              0.00
+regr                   1.00                1.00             1.00              0.00              0.00
+gilfix                 0.00                0.00             0.00              0.00              0.00
+fixed                  0.00                0.00             0.00              0.00              0.00
+tracemalloc snapshot diff over 20000 regr records: at least 20000 new live blocks: no
+tracemalloc snapshot diff over 20000 regr records: fewer than 1000 new live blocks: yes
+
+== Phase 5: heartbeat thread during one long call ==
+hold: heartbeat stalled for at least half of the call: yes
+base: heartbeat stalled for at least half of the call: no
+regr: heartbeat stalled for at least half of the call: no
+
+== Phase 6: native stacks of the running service, 8 threads ==
+regr: worker threads sampled inside score_batch: yes
+regr: at least 50% of worker samples are under score_batch -> PyGILState_Ensure: yes
+regr: at least 90% of those are inside take_gil: yes
+fixed: worker threads sampled inside score_batch: yes
+fixed: worker samples under score_batch -> PyGILState_Ensure: 0
+
+== Phase 7: the fix keeps the output and restores scaling ==
+checksum identical across all five variants: yes
+per-venue stats identical in regr, gilfix, and fixed: yes
+per-venue stats count every record: yes
+gilfix: 8 threads at least 2.0x the throughput of 1 thread: yes
+gilfix: 8-thread throughput at least half of base: yes
+fixed: 8 threads at least 2.0x the throughput of 1 thread: yes
+fixed: 8-thread throughput at least half of base: yes

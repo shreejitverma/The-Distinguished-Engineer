@@ -1,0 +1,24 @@
+#!/usr/bin/env bpftrace
+// wakers_tid.bt - who wakes one thread, and from which stack.
+// Usage: bpftrace wakers_tid.bt TID       (stop with Ctrl-C, or wrap in: timeout -s INT 10)
+//
+// sched_waking fires in the context of the waker. For a futex wait the waker is the thread
+// that released the lock, so its name and stack identify the lock holder's code path.
+// sched_wakeup is the wrong probe for this: when the sleeper's CPU is not the waker's, the
+// wakeup can be finished by an interrupt on the sleeper's CPU, and the probe then fires in
+// whatever that interrupt hit (often the idle task).
+//
+// A wakeup caused by a timer has no waker thread: it fires in interrupt context, and the
+// kernel stack (hrtimer_wakeup) says so. Kernel threads and the idle task have no user
+// address space (mm is NULL), so no user stack is asked of them.
+
+tracepoint:sched:sched_waking
+/args.pid == $1/
+{
+  $task = (struct task_struct *)curtask;
+  if ($task->mm != 0) {
+    @wakers[comm, kstack(4), ustack] = count();
+  } else {
+    @kernel_wakers[comm, kstack(4)] = count();
+  }
+}

@@ -1,0 +1,97 @@
+== 1. Workload under samply, 1000 Hz ==
+serial   checksum 3527720000.0
+unrolled checksum 3527720000.0
+chase    in-order end 16113920, scattered end 162208
+sleep    done
+
+== 2. What the profile says ==
+Profile file
+  format: Firefox Profiler processed profile, version 49, sampling interval 1 ms
+  symbolicated in the JSON: false (names come from the sidecar)
+  threads recorded: 1
+  sample columns: stack, threadCPUDelta, time, weight
+  ticks recorded are 40% to 105% of one per interval: yes
+Self cost by function (innermost frame), every function with at least 5% of CPU time
+  chase, sum_serial, sum_unrolled4
+  sum_serial has more self CPU time than sum_unrolled4: yes
+Sampled CPU time against the workload's own CLOCK_THREAD_CPUTIME_ID timers
+  sum_serial self CPU is within 15% of the serial phase: yes
+  sum_unrolled4 self CPU is within 15% of the unrolled phase: yes
+Inclusive cost and the call tree
+  drive_serial self CPU is under 5% of its inclusive CPU: yes
+  drive_serial inclusive CPU covers sum_serial self CPU: yes
+  drive_unrolled self CPU is under 5% of its inclusive CPU: yes
+  drive_unrolled inclusive CPU covers sum_unrolled4 self CPU: yes
+  main inclusive CPU is at least 95% of the thread: yes
+One function, two callers
+  the flat profile has one chase row, equal to the sum over both callers: yes
+  chase under drive_chase_in_order is within 20% of that phase: yes
+  chase under drive_chase_scattered is within 20% of that phase: yes
+  a scattered hop costs at least 20 times an in-order hop: yes
+Inlined code
+  symbol table name for the hot loop: chase
+  debug-info frames at its first sampled address, innermost first: hop <- chase
+  hop, which has no symbol of its own, is named through debug info: yes
+Off-CPU time
+  sleep_phase holds 40% to 105% of one tick per millisecond slept: yes
+  sleep_phase used under 5 ms of CPU: yes
+  one sample with a weight above 1 carries at least 40% of those ticks: yes
+  its innermost frame is the kernel wait, not sleep_phase itself: yes
+Measured speedup of four accumulators over one
+  at least 2x: yes
+
+== 3. What an ordinary -O2 build hides ==
+Same loop, built with -O2 alone (no -g, sibling calls allowed)
+  debug-info frames for chase: none
+  chase has self samples and hop is not named anywhere: yes
+  drive_chase_in_order and drive_chase_scattered are in no stack (tail calls): yes
+
+== 4. What llvm-mca predicts for the hot loops ==
+sum_serial: inner loop as compiled, 16 instructions, 8 addition(s) per iteration
+    LBB0_5:
+    ldp     q1, q2, [x9, #-32]
+    mov     d3, v1[1]
+    mov     d4, v2[1]
+    ldp     q5, q6, [x9], #64
+    mov     d7, v5[1]
+    mov     d16, v6[1]
+    fadd    d0, d0, d1
+    fadd    d0, d0, d3
+    fadd    d0, d0, d2
+    fadd    d0, d0, d4
+    fadd    d0, d0, d5
+    fadd    d0, d0, d7
+    fadd    d0, d0, d6
+    fadd    d0, d0, d16
+    subs    x10, x10, #8
+    b.ne    LBB0_5
+  llvm-mca -mcpu=apple-m1: 40.01 cycles per iteration, 5.00 per addition, IPC 0.40, dispatch width 6, block reciprocal throughput 4.0
+  llvm-mca -mcpu=neoverse-v2: 16.01 cycles per iteration, 2.00 per addition, IPC 1.00, dispatch width 6, block reciprocal throughput 3.8
+  bottleneck analysis (apple-m1): data dependencies 99.37% of cycles, resource pressure 0.00%
+sum_unrolled4: inner loop as compiled, 9 instructions, 4 addition(s) per iteration
+    LBB1_3:
+    ldp     d4, d5, [x8, #-16]
+    fadd    d3, d3, d4
+    fadd    d2, d2, d5
+    ldp     d4, d5, [x8], #32
+    fadd    d1, d1, d4
+    fadd    d0, d0, d5
+    add     x9, x9, #4
+    cmp     x9, x1
+    b.ls    LBB1_3
+  llvm-mca -mcpu=apple-m1: 5.01 cycles per iteration, 1.25 per addition, IPC 1.80, dispatch width 6, block reciprocal throughput 2.0
+  llvm-mca -mcpu=neoverse-v2: 2.34 cycles per iteration, 0.59 per addition, IPC 3.84, dispatch width 6, block reciprocal throughput 2.2
+  bottleneck analysis (apple-m1): data dependencies 78.79% of cycles, resource pressure 0.00%
+chase: inner loop as compiled, 3 instructions, 1 hop(s) per iteration
+    LBB2_1:
+    ldr     w0, [x8, x0, lsl #2]
+    subs    x2, x2, #1
+    b.ne    LBB2_1
+  llvm-mca -mcpu=apple-m1: 5.00 cycles per iteration, 5.00 per hop, IPC 0.60, dispatch width 6, block reciprocal throughput 0.8
+  llvm-mca -mcpu=neoverse-v2: 4.00 cycles per iteration, 4.00 per hop, IPC 0.75, dispatch width 6, block reciprocal throughput 0.5
+  bottleneck analysis (apple-m1): data dependencies 97.46% of cycles, resource pressure 0.00%
+Prediction against measurement
+  predicted speedup of four accumulators over one, apple-m1 model: 3.99x
+  predicted speedup of four accumulators over one, neoverse-v2 model: 3.42x
+  measured speedup is within 50% of the apple-m1 prediction: yes
+  predicted cost of one hop, apple-m1 model: 5.00 cycles for either table, because the instructions are the same

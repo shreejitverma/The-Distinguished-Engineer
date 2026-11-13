@@ -1,0 +1,21 @@
+#!/usr/bin/env bpftrace
+// oncpu_pid.bt - on-CPU profile of one process at 99 Hz per CPU, by thread name and user stack.
+// Usage: bpftrace oncpu_pid.bt TGID       (stop with Ctrl-C, or wrap in: timeout -s INT 10)
+//
+// TGID is the kernel's (initial PID namespace) process ID; on a host shell that is the PID.
+// The filter reads the task struct instead of the pid builtin, because from bpftrace 0.24 the
+// builtin reports IDs in bpftrace's own PID namespace and has no answer for tasks outside it.
+// 99 Hz, not 100, so that the sampler does not run in step with 100 Hz or 1000 Hz timers.
+// The map is unnamed and keyed by stack first because that is the shape FlameGraph's
+// stackcollapse-bpftrace.pl parses:
+//   bpftrace oncpu_pid.bt TGID | sed -E 's/\+[0-9]+$//' | stackcollapse-bpftrace.pl > out.folded
+// The sed drops the "+offset" that bpftrace appends to each symbol, so that samples at different
+// instructions of one function fold into one frame.
+
+profile:hz:99
+{
+  $task = (struct task_struct *)curtask;
+  if ($task->tgid == $1) {
+    @[ustack, comm] = count();
+  }
+}

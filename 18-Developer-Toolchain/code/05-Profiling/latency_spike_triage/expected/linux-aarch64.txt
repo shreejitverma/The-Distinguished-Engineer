@@ -1,0 +1,30 @@
+== Stage 1: confirm the tail (open loop, 1000 requests/s, SLO 20 ms from the intended start) ==
+phase      p50 under SLO  p99 under SLO
+baseline   yes            yes
+runq       yes            no
+lock       yes            no
+oncpu      yes            no
+recovered  yes            yes
+
+== Stage 2: coordinated omission (lock phase) ==
+requests over SLO, timed from the intended start, outnumber those timed from the actual start 5 to 1: yes
+timing from the actual start still sees some slow requests: yes
+
+== Stage 3: where the worker's wall time went (growth against baseline, in points of wall time) ==
+phase      on-CPU  run-queue  futex-wait  verdict
+runq       flat    GREW       flat        run-queue delay: the CPU is saturated or the group is throttled
+lock       flat    flat       GREW        blocked on a lock: off-CPU in a futex wait
+oncpu      GREW    flat       flat        more on-CPU work per request
+recovered  flat    flat       flat        no regression in the worker's time split
+total off-CPU share (timer sleep plus futex wait) moved by less than 10 points in the lock phase: yes
+
+== Stage 4: name the culprit ==
+runq:  busiest other thread name on the worker's CPU: hog (12 threads, more CPU time than the worker: yes)
+lock:  stack with the largest growth: worker_main;handle_request;book_update;pthread_mutex_lock
+       leaf frame pthread_mutex_lock is library call made by book_update
+oncpu: stack with the largest growth: worker_main;handle_request;revalidate_risk_limits
+       leaf frame revalidate_risk_limits is application code
+
+== Stage 5: verify the mitigation (fault removed) ==
+p99 back under SLO: yes
+time split back to baseline: yes

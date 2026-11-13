@@ -1,0 +1,34 @@
+#!/usr/bin/env bpftrace
+// runqlat_tid.bt - run-queue latency of one thread: the time from "runnable" to "on a CPU".
+// Usage: bpftrace runqlat_tid.bt TID      (stop with Ctrl-C, or wrap in: timeout -s INT 10)
+//
+// A thread becomes runnable in two ways, and both must start the clock:
+//   1. it is woken (sched_wakeup, or sched_wakeup_new for a new thread);
+//   2. it leaves the CPU while still runnable, because its time slice ended or it was preempted.
+// The tracepoint reports case 2 as prev_state 0 ("R"), or as TASK_REPORT_MAX (0x100, shown as
+// "R+") when the switch came from a kernel preemption point. Masking with 0xff covers both:
+// every blocking state has one of the low eight bits set.
+
+tracepoint:sched:sched_wakeup,
+tracepoint:sched:sched_wakeup_new
+/args.pid == $1/
+{
+  @runnable_at = nsecs;
+}
+
+tracepoint:sched:sched_switch
+{
+  if (args.prev_pid == $1 && (args.prev_state & 0xff) == 0) {
+    @runnable_at = nsecs;
+  }
+  if (args.next_pid == $1 && @runnable_at != 0) {
+    @runq_usecs = hist((nsecs - @runnable_at) / 1000);
+    @runq_total_usecs = sum((nsecs - @runnable_at) / 1000);
+    @runnable_at = 0;
+  }
+}
+
+END
+{
+  clear(@runnable_at);
+}

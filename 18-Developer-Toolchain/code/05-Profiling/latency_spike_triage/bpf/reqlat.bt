@@ -1,0 +1,24 @@
+#!/usr/bin/env bpftrace
+// reqlat.bt - service-time histogram of handle_request() in the lab binary, by uprobe.
+// Usage: bpftrace reqlat.bt /path/to/spike   (stop with Ctrl-C, or wrap in: timeout -s INT 10)
+//
+// This measures from function entry to return. It does not see the time a request waited
+// before the handler was entered, so on a backlog it under-reports what the client saw
+// (coordinated omission at the probe). Each call costs two breakpoint traps.
+
+uprobe:$1:handle_request
+{
+  @entry[tid] = nsecs;
+}
+
+uretprobe:$1:handle_request
+/@entry[tid] != 0/
+{
+  @service_usecs = hist((nsecs - @entry[tid]) / 1000);
+  @entry[tid] = 0;  // not delete(): its syntax changed between bpftrace 0.20 and 0.25
+}
+
+END
+{
+  clear(@entry);
+}

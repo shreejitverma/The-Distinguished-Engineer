@@ -1,0 +1,33 @@
+#!/usr/bin/env bpftrace
+// offcpu_tid.bt - blocked (off-CPU, not runnable) time of one thread, summed by user stack.
+// Usage: bpftrace offcpu_tid.bt TID       (stop with Ctrl-C, or wrap in: timeout -s INT 10)
+//
+// sched_switch fires in the context of the thread that is leaving the CPU, so ustack there is
+// the stack that blocked. The interval ends at the wakeup, not at the next switch-in, so that
+// time spent waiting for a CPU after the wakeup is left to runqlat_tid.bt and is not counted here.
+// A switch-out with no blocking state bit set is a preemption, not a block, and is ignored.
+// User stacks are walked by frame pointer: build with -fno-omit-frame-pointer.
+// The stack map is unnamed so that FlameGraph's stackcollapse-bpftrace.pl can fold it:
+//   bpftrace offcpu_tid.bt TID | sed -E 's/\+[0-9]+$//' | stackcollapse-bpftrace.pl |
+//       flamegraph.pl --colors=io --countname=us > offcpu.svg
+
+tracepoint:sched:sched_switch
+/args.prev_pid == $1 && (args.prev_state & 0xff) != 0/
+{
+  @blocked_at = nsecs;
+  @blocked_stack = ustack;
+}
+
+tracepoint:sched:sched_wakeup
+/args.pid == $1 && @blocked_at != 0/
+{
+  @[@blocked_stack] = sum((nsecs - @blocked_at) / 1000);
+  @blocked_hist_usecs = hist((nsecs - @blocked_at) / 1000);
+  @blocked_at = 0;
+}
+
+END
+{
+  clear(@blocked_at);
+  clear(@blocked_stack);
+}

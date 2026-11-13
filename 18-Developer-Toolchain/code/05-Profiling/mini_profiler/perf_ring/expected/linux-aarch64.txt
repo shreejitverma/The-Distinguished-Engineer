@@ -1,0 +1,16 @@
+== perf_event_open front end: cpu-clock samples with kernel-built callchains ==
+samples read from the ring buffer, at least 500: yes
+PERF_RECORD_MMAP2 records that map the target executable, at least 1: yes
+PERF_RECORD_EXIT seen for the target: yes
+image format: ELF64
+symbol source: .symtab
+identity checked: GNU build ID from PERF_RECORD_MMAP2 and file on disk: match
+stacks that reach main, at least 99%: yes
+stacks holding at least 3% of samples, heaviest first:
+  _start;__libc_start_main;[libc.so.6];main;run_round(bool);pipeline::decode(unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 50% of samples, measured within 8 points: yes
+  _start;__libc_start_main;[libc.so.6];main;run_round(bool);pipeline::match(unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 30% of samples, measured within 8 points: yes
+  _start;__libc_start_main;[libc.so.6];main;run_round(bool);pipeline::report(unsigned int, unsigned int);pipeline::report(unsigned int, unsigned int);pipeline::report(unsigned int, unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 20% of samples, measured within 8 points: yes
+  expected stacks missing: 0

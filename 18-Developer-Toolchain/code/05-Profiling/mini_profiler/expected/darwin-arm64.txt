@@ -1,0 +1,48 @@
+== 1. Sample: ITIMER_PROF, SIGPROF, frame-pointer walk ==
+samples requested: 1200
+samples captured, at least the number requested: yes
+samples dropped because the buffer was full: 0
+stacks cut at the depth limit: 0
+stacks that reach main, at least 99%: yes
+
+== 2. Symbolize: the executable's own symbol table ==
+image format: Mach-O 64
+symbol source: LC_SYMTAB
+identity checked: LC_UUID, sampled process and file on disk: match
+workload symbols at the address nm reports: 8 of 8
+frames inside the executable resolved to a symbol name, at least 99%: yes
+
+== 3. Fold: stacks holding at least 3% of samples, heaviest first ==
+  start;main;run_round(bool);pipeline::decode(unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 50% of samples, measured within 6 points: yes
+  start;main;run_round(bool);pipeline::match(unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 30% of samples, measured within 6 points: yes
+  start;main;run_round(bool);pipeline::report(unsigned int, unsigned int);pipeline::report(unsigned int, unsigned int);pipeline::report(unsigned int, unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 20% of samples, measured within 6 points: yes
+  expected stacks missing: 0
+flat view, samples whose leaf frame is burn, at least 99%: yes
+
+== 4. Frames that never existed: tail call and inlining ==
+  start;main;run_round(bool);(anonymous namespace)::burn(unsigned int)
+    expected 60% of samples, measured within 8 points: yes
+  start;main;run_round(bool);pipeline::via_inline(unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 40% of samples, measured within 8 points: yes
+  expected stacks missing: 0
+  samples with a via_tailcall frame, fewer than 1%: yes
+  samples with an inlined_helper frame: 0
+
+== 5. Leaf without a frame record: the caller disappears ==
+  start;main;run_round(bool);(anonymous namespace)::burn(unsigned int)
+    expected 80% of samples, measured within 8 points: yes
+  start;main;run_round(bool);pipeline::report(unsigned int, unsigned int);pipeline::report(unsigned int, unsigned int);(anonymous namespace)::burn(unsigned int)
+    expected 20% of samples, measured within 8 points: yes
+  expected stacks missing: 0
+  samples with a decode or match frame, fewer than 1%: yes
+
+== 6. Damaged or wrong symbol tables ==
+strip -x copy, identity still equals the sampled build: yes
+  bounded lookup names the hot leaf: [target]
+  nearest-symbol lookup names the hot leaf: pipeline::decode(unsigned int)
+fully stripped copy, symbol source: LC_SYMTAB
+  frames inside the executable resolved to a symbol name: none
+different build of the same source, symbolizer exit status: 3
