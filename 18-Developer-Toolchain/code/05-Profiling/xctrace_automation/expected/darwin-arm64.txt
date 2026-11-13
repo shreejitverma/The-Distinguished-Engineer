@@ -1,0 +1,82 @@
+== 1. The binary under test (otool -tV)
+hot_leaf saves a frame record (stp x29, x30): no
+middle calls hot_leaf with: bl _hot_leaf
+middle reaches warm_leaf with: b _warm_leaf
+
+== 2. Time Profiler: xctrace record, then export --toc
+template-name: Time Profiler
+target: type=launched name=workload return-exit-status=0
+toc lists exactly one time-profile table: yes
+toc lists exactly one time-sample table: yes
+time-sample: sample-rate-micro-seconds=1000 callstack=user all-thread-states=NO
+time-profile: high-frequency-sampling=0 record-waiting-threads=0 needs-kernel-callstack=0
+
+== 3. Time Profiler: export --xpath, id/ref resolved
+columns: time thread process core thread-state weight stack
+weight column: name=Weight engineering-type=weight
+at least 500 samples: yes
+distinct sample weights (ns): 1000000
+thread states sampled: Running
+more than 90% of rows carry their backtrace as a ref: yes
+a reader that skips ref rows keeps under 10% of the weight: yes
+under 1% of rows have an empty backtrace cell: yes
+
+== 4. Time Profiler: where the time went (designed 3:1)
+hot_leaf self weight in [70, 80] %: yes
+warm_leaf self weight in [20, 30] %: yes
+the two leaves hold more than 98% of the weight: yes
+heaviest two folded stacks:
+  start;main;middle;hot_leaf
+  start;main;warm_leaf
+xctrace show --calltree agrees on hot_leaf within 0.5 points: yes
+
+== 5. Signpost interval from the same trace
+tables matched by the XPath: 2
+distinct compute events: Begin End
+exactly one Begin and one End: yes
+Begin message: rounds=120
+at least 98% of samples fall inside the interval: yes
+on-CPU weight inside the interval does not exceed its wall time (2% slack): yes
+
+== 6. CPU Profiler: the same workload sampled by a PMU counter
+template-name: CPU Profiler
+toc lists exactly one kdebug-counters-with-pmi-sample table: yes
+pmi-event=CORE_ACTIVE_CYCLE pmi-threshold=1000000 callstack=user
+weight column: name=Cycles engineering-type=cycle-weight
+at least 500 samples: yes
+sample weights are not all equal: yes
+the largest weight is the PMI threshold plus under 5% skid: yes
+hot_leaf share of cycles in [70, 80] %: yes
+
+== 7. Recording options (--show-recording-options, --recording-options)
+instruments with options: Hangs, Points of Interest, Time Profiler
+Time Profiler defaults: contextSwitchSampling=false highFrequencySampling=false recordKernelStacks=false recordWaitingThreads=false
+a file holding only the changed key is rejected: yes
+highFrequencySampling=true -> sample-rate-micro-seconds=100 all-thread-states=NO
+  distinct sample weights (ns): 100000
+  hot_leaf self weight still in [70, 80] %: yes
+recordWaitingThreads=true -> sample-rate-micro-seconds=5000 all-thread-states=YES
+
+== 8. The PMU as the kernel describes it
+/usr/share/kpep has a database named after hw.cputype, hw.cpusubtype, hw.cpufamily: yes
+fixed_counters mask: 0x3 (2 counters)
+config_counters mask: 0x3fc (8 counters)
+power_counters mask: 0xe0 (3 counters)
+the fixed and configurable masks do not overlap: yes
+the power mask is a subset of the configurable mask: yes
+fixed events: FIXED_CYCLES=counter0 FIXED_INSTRUCTIONS=counter1
+aliases: Cycles->FIXED_CYCLES Instructions->FIXED_INSTRUCTIONS
+the CPU Profiler's PMI event CORE_ACTIVE_CYCLE is in the database: yes
+CORE_ACTIVE_CYCLE may be programmed on any configurable counter: yes
+more than 10 events are restricted to a subset of the counters: yes
+every restricted event's mask is a subset of the configurable mask: yes
+kpc.classes: 27 (0b11011) -> FIXED=yes CONFIGURABLE=yes POWER=no RAWPMU=yes
+kperf.limits.timer_min_period_ns: 50000
+kperf.limits.timer_min_pet_period_ns: 1000000
+
+== 9. DTrace as an unprivileged user
+running as a non-root user: yes
+System Integrity Protection status: enabled.
+dtrace -l: exit 1, 0 probes listed
+  dtrace: system integrity protection is on, some features will not be available
+  dtrace: failed to initialize dtrace: DTrace requires additional privileges

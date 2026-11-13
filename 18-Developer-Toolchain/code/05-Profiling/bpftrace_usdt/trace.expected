@@ -1,0 +1,10 @@
+start id=101 qty=10
+done id=101 notional=189500 symbol=AAPL
+start id=102 qty=250
+done id=102 notional=10318750 symbol=MSFT
+start id=103 qty=5
+done id=103 notional=66550 symbol=NVDA
+start id=104 qty=75
+done id=104 notional=1333500 symbol=AMZN
+start id=105 qty=1200
+done id=105 notional=3018000 symbol=F

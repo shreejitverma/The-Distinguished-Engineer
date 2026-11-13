@@ -1,0 +1,49 @@
+== 1. Probes decoded from .note.stapsdt ==
+.note.stapsdt: SHT_NOTE, not allocated, so never mapped at run time; 2 probes
+probe orders:order_start
+  site: section .text, executable segment, file offset = address - 0x0
+  site instruction on disk: nop
+  semaphore: none
+  arg0: -4@x6 -> signed 4-byte value in register x6
+  arg1: -4@x0 -> signed 4-byte value in register x0
+probe orders:order_done
+  site: section .text, executable segment, file offset = address - 0x0
+  site instruction on disk: nop
+  semaphore: section .probes, writable segment, file offset = address - 0x10000, value on disk 0
+  arg0: -4@x6 -> signed 4-byte value in register x6
+  arg1: -8@x0 -> signed 8-byte value in register x0
+  arg2: 8@[x4, 16] -> unsigned 8-byte value in memory at register x4 + 16
+readelf -n decodes the same provider, name, location, semaphore, and arguments: 2/2 probes
+
+== 2. No tracer attached ==
+orders handled: 5, fill checksum: 277980
+expensive argument preparations: 0
+
+== 3. Tracer attached to orders:order_start (no semaphore) ==
+  hit orders:order_start argc=2 arg0=101 arg1=10
+    stop address matches the note location modulo the load base: yes
+    instruction at the site in the live process: brk (breakpoint instruction)
+    instruction gdb reports for the same address: nop (the saved original)
+  hit orders:order_start argc=2 arg0=102 arg1=250
+  hit orders:order_start argc=2 arg0=103 arg1=5
+  hit orders:order_start argc=2 arg0=104 arg1=75
+  hit orders:order_start argc=2 arg0=105 arg1=1200
+  orders:order_start: 5 hits
+  traced program output:
+    orders handled: 5, fill checksum: 277980
+    expensive argument preparations: 0
+
+== 4. Tracer attached to orders:order_done (semaphore-gated) ==
+  hit orders:order_done argc=3 arg0=101 arg1=189500 arg2="AAPL"
+    stop address matches the note location modulo the load base: yes
+    instruction at the site in the live process: brk (breakpoint instruction)
+    instruction gdb reports for the same address: nop (the saved original)
+    semaphore in the live process: 1
+  hit orders:order_done argc=3 arg0=102 arg1=10318750 arg2="MSFT"
+  hit orders:order_done argc=3 arg0=103 arg1=66550 arg2="NVDA"
+  hit orders:order_done argc=3 arg0=104 arg1=1333500 arg2="AMZN"
+  hit orders:order_done argc=3 arg0=105 arg1=3018000 arg2="F"
+  orders:order_done: 5 hits
+  traced program output:
+    orders handled: 5, fill checksum: 277980
+    expensive argument preparations: 5

@@ -1,0 +1,20 @@
+#!/usr/bin/env bpftrace
+/*
+ * trace.bt - the same two USDT probes, traced by the kernel instead of gdb.
+ *
+ * Run from the directory that holds the built binary, as root:
+ *     bpftrace trace.bt -c ./order_server
+ *
+ * bpftrace reads .note.stapsdt, registers one uprobe per probe site by file offset, passes
+ * the semaphore's file offset as the uprobe reference counter, and compiles argN into reads
+ * of the register or memory operand the note names.
+ */
+usdt:./order_server:orders:order_start
+{
+	printf("start id=%d qty=%d\n", arg0, arg1);
+}
+
+usdt:./order_server:orders:order_done
+{
+	printf("done id=%d notional=%d symbol=%s\n", arg0, arg1, str(arg2));
+}
