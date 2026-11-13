@@ -1,0 +1,59 @@
+== Scenario ==
+target rate: 200 req/s, one request every 5.000 ms, for 60 s
+planned requests: 12000
+service: one FIFO worker, 0.800 to 1.200 ms of work per request
+stalls: 6 x 125.000 ms, 1.25% of the run
+planned sends that fall inside a stall: 150 (1.25% of the plan)
+SLO: p99.9 under 10.000 ms
+
+== 1. Symptom: the load test and the callers disagree ==
+  latency in ms                            p50       p90       p99     p99.9    p99.99       max
+  load test report (loadgen_naive)       1.000     1.160     1.196     1.200   125.183   126.207
+  independent callers, same rate         1.003     1.166    46.527   118.335   126.207   126.207
+load test p99.9 1.200 ms: SLO PASS
+callers   p99.9 118.335 ms: SLO FAIL
+p99.9 understated by a factor of 99
+
+== 2. Evidence inside the load test's own numbers ==
+requests sent: 11856 of 12000 planned (144 never sent)
+achieved rate: 197.60 req/s against a target of 200
+samples slower than one send interval: 6 (0.051% of samples)
+callers slower than one send interval: 186 (1.550% of callers)
+p99.9 to max: 1.200 ms to 126.207 ms, a jump of 105x with nothing in between
+
+== 3. Repair the data: HdrHistogram expected-interval correction ==
+one 125.000 ms sample at a 5.000 ms expected interval backfills 24 samples, 120.000 ms down to 5.000 ms
+samples: 11856 recorded + 143 backfilled = 11999
+  latency in ms                            p50       p90       p99     p99.9    p99.99       max
+  naive, corrected after the fact        1.003     1.165    29.711   119.743   125.183   126.207
+  independent callers, same rate         1.003     1.166    46.527   118.335   126.207   126.207
+corrected p99 is 64% of the callers' p99: backfilled samples never queue behind each other
+
+== 4. A half-fix: intended-time clock, schedule reset when behind ==
+requests sent: 11856 of 12000 planned (144 never sent)
+  latency in ms                            p50       p90       p99     p99.9    p99.99       max
+  loadgen_resetting                      1.000     1.160     1.196     1.200   125.183   126.207
+p99.9 1.200 ms: SLO PASS
+identical to the naive report, sample for sample: yes
+
+== 5. Repair the generator: static schedule, latency from intended send time ==
+requests sent: 12000 of 12000 planned (0 never sent)
+  latency in ms                            p50       p90       p99     p99.9    p99.99       max
+  response time (from intended send)     1.003     1.166    46.527   118.335   126.207   126.207
+  service time (from actual send)        1.000     1.160     1.196     1.200   126.207   126.207
+  independent callers, same rate         1.003     1.166    46.527   118.335   126.207   126.207
+response time p99.9 118.335 ms: SLO FAIL
+requests sent late and timed from the plan: 186
+
+== 6. Schedule x clock: both must change ==
+  schedule   clock starts at    sent  p99.9 ms  SLO   source
+  resetting  actual send       11856     1.200  PASS  loadgen_naive
+  resetting  intended send     11856     1.200  PASS  loadgen_resetting
+  static     actual send       12000     1.200  PASS  loadgen_fixed, service time
+  static     intended send     12000   118.335  FAIL  loadgen_fixed, response time
+
+== 7. Checks ==
+fixed generator reproduces the callers' samples exactly: yes
+histogram percentiles land in the same bucket as an exact sort: yes
+largest quantization error against an exact sort: 0.045% (3 significant digits allow 0.1%)
+histogram layout for 1 us to 1 hour at 3 digits: 22 buckets x 2048 sub-buckets, 23552 counters

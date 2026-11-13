@@ -1,0 +1,69 @@
+== 1. Preflight gate on fixture hosts (benchmark CPU 7 of 8) ==
+default-desktop: FAIL
+  [fail   ] governor: cpu7 governor is schedutil, want performance
+  [fail   ] boost: frequency boost is allowed
+  [fail   ] smt: cpu7 shares a core with online cpu 3
+  [fail   ] isolation: cpu7 takes part in scheduler load balancing
+  [fail   ] irq: 6 of 6 IRQs may be delivered to cpu7
+  [note   ] tick: cpu7 is not in nohz_full, the scheduler tick still fires
+tuned-host: PASS
+  [ok     ] governor: cpu7 governor is performance
+  [ok     ] boost: frequency boost is off
+  [ok     ] smt: cpu7 has no online SMT sibling
+  [ok     ] isolation: cpu7 is isolated at boot (isolcpus)
+  [ok     ] irq: 0 of 6 IRQs may be delivered to cpu7
+  [ok     ] tick: cpu7 is in nohz_full
+tuned-but-sibling-online: FAIL
+  [ok     ] governor: cpu7 governor is performance
+  [ok     ] boost: frequency boost is off
+  [fail   ] smt: cpu7 shares a core with online cpu 3
+  [ok     ] isolation: cpu7 is isolated at boot (isolcpus)
+  [ok     ] irq: 0 of 6 IRQs may be delivered to cpu7
+  [ok     ] tick: cpu7 is in nohz_full
+nothing-exposed: FAIL (4 controls unknown, isolation fails closed)
+cpulist '0-2,6,10-11' parses to [0, 1, 2, 6, 10, 11]
+
+== 2. Schedule for 15 pairs (seed 20261109) ==
+sequential : AAAAAAAAAAAAAAABBBBBBBBBBBBBBB
+interleaved: AB AB BA AB AB BA BA BA AB AB BA AB BA BA AB
+sequential: A runs 15, B runs 15, mean position of B minus A = +15.00
+interleaved: A runs 15, B runs 15, mean position of B minus A = +0.07
+blocks that run A first: 8 of 15
+
+== 3. Mann-Whitney U against published values ==
+SciPy documentation example: U_males = 17, U_females = 3
+  exact two-sided p = 0.1111111111 (SciPy prints 0.1111111111111111)
+  normal two-sided p = 0.1113468865 (SciPy prints 0.11134688653314041)
+null distribution for n=5,4: 126 orderings (C(9,4) = 126), counts for U=0..3: [1, 1, 2, 3]
+  exact p from those counts: 2 * 7 / 126 = 1/9
+complete separation, n =  3 + 3 : smallest possible p = 0.1
+complete separation, n =  4 + 4 : smallest possible p = 0.0286
+complete separation, n =  5 + 5 : smallest possible p = 0.00794
+complete separation, n = 10 + 10: smallest possible p = 1.08e-05
+complete separation, n = 15 + 15: smallest possible p = 1.29e-08
+complete separation, n = 20 + 20: smallest possible p = 1.45e-11
+ties force the normal method: U_a = 4.5, p = 0.1116
+Hodges-Lehmann shift of [10, 11, 12] to [11, 13, 15]: 2
+
+== 4. Drift simulation: 200 sessions of 20+20 samples per scenario ==
+noise 0.3% Gaussian plus a 1-3% spike on 5% of samples; alpha 0.05, effect threshold 0.5%
+A and B identical, no drift:
+  sequential : B slower   0, B faster   0, below threshold   7, no difference 193; median estimated shift +0.01%
+  interleaved: B slower   0, B faster   0, below threshold  12, no difference 188; median estimated shift -0.01%
+A and B identical, 3% upward drift over the session:
+  sequential : B slower 200, B faster   0, below threshold   0, no difference   0; median estimated shift +1.55%
+  interleaved: B slower   0, B faster   0, below threshold   0, no difference 200; median estimated shift +0.00%
+B truly 1% faster, 3% upward drift over the session:
+  sequential : B slower 113, B faster   0, below threshold  51, no difference  36; median estimated shift +0.53%
+  interleaved: B slower   0, B faster 192, below threshold   0, no difference   8; median estimated shift -1.00%
+
+== 5. Live A/A and A/B run on this host (timings are on stderr) ==
+samples collected: A/A 15+15, A/B 15+15, one fresh process each
+every process was confined to exactly one CPU: yes
+every process started and ended its timed region on the chosen CPU: yes
+workload checksums: identical within a variant and different between variants: yes
+ADDR_NO_RANDOMIZE flag in every child matches what the harness requested: yes
+recorded ASLR state agrees with observed stack addresses (one address only when ASLR is off): yes
+A/B verdict: B slower; p < 0.01: yes; shift above +15%: yes
+A/A shift is smaller in magnitude than the A/B shift: yes
+result record fields: aa_cv_pct, aa_shift_pct, ab_p, ab_shift_pct, alpha, aslr, cpu, cpu_isolation, gate, kernel, min_effect_pct, pairs, seed
