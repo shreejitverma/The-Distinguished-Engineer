@@ -1,0 +1,80 @@
+== 1. Native debug build: no checker, every case runs to completion
+  reserved_foreign_read: exit 0
+  reserved_foreign_write: exit 0
+  write_past_element: exit 0
+  write_through_shared: exit 0
+  use_after_free: exit 0
+  uninit_read: exit 0
+  leak: exit 0
+  data_race: exit 0
+
+== 2. Miri, default aliasing model (Stacked Borrows)
+  reserved_foreign_read: exit 1
+    error: Undefined Behavior: attempting a write access using <TAG> at ALLOC[0x0], but that tag does not exist in the borrow stack for this location
+    help: <TAG> was created by a Unique retag at offsets [0x0..0x4]
+    help: <TAG> was later invalidated at offsets [0x0..0x4] by a read access
+  reserved_foreign_write: exit 1
+    error: Undefined Behavior: attempting a write access using <TAG> at ALLOC[0x0], but that tag does not exist in the borrow stack for this location
+    help: <TAG> was created by a Unique retag at offsets [0x0..0x4]
+    help: <TAG> was later invalidated at offsets [0x0..0x4] by a write access
+  write_past_element: exit 1
+    error: Undefined Behavior: attempting a write access using <TAG> at ALLOC[0x1], but that tag does not exist in the borrow stack for this location
+    help: <TAG> was created by a SharedReadWrite retag at offsets [0x0..0x1]
+  write_through_shared: exit 1
+    error: Undefined Behavior: attempting a write access using <TAG> at ALLOC[0x0], but that tag only grants SharedReadOnly permission for this location
+    help: <TAG> was created by a SharedReadOnly retag at offsets [0x0..0x4]
+  use_after_free: exit 1
+    error: Undefined Behavior: memory access failed: ALLOC has been freed, so this pointer is dangling
+  uninit_read: exit 1
+    error: Undefined Behavior: constructing invalid value of type i32: encountered uninitialized memory, but expected an integer
+  leak: exit 1
+    error: memory leaked: ALLOC (Rust heap, size: 4, align: 4), allocated here:
+  data_race: exit 1
+    error: Undefined Behavior: Data race detected between (1) non-atomic write on thread `main` and (2) non-atomic read on thread `unnamed-1` at ALLOC
+
+== 3. Miri, -Zmiri-tree-borrows
+  reserved_foreign_read: accepted (exit 0)
+  reserved_foreign_write: exit 1
+    error: Undefined Behavior: write access through <TAG> at ALLOC[0x0] is forbidden
+    help: the accessed tag <TAG> has state Disabled which forbids this child write access
+    help: the accessed tag <TAG> was created here, in the initial state Reserved
+    help: the accessed tag <TAG> later transitioned to Disabled due to a foreign write access at offsets [0x0..0x4]
+  write_past_element: accepted (exit 0)
+  write_through_shared: exit 1
+    error: Undefined Behavior: write access through <TAG> at ALLOC[0x0] is forbidden
+    help: the accessed tag <TAG> has state Frozen which forbids this child write access
+    help: the accessed tag <TAG> was created here, in the initial state Frozen
+  use_after_free: exit 1
+    error: Undefined Behavior: memory access failed: ALLOC has been freed, so this pointer is dangling
+  uninit_read: exit 1
+    error: Undefined Behavior: constructing invalid value of type i32: encountered uninitialized memory, but expected an integer
+  leak: exit 1
+    error: memory leaked: ALLOC (Rust heap, size: 4, align: 4), allocated here:
+  data_race: exit 1
+    error: Undefined Behavior: Data race detected between (1) non-atomic write on thread `main` and (2) non-atomic read on thread `unnamed-1` at ALLOC
+
+== 4. Control: Miri with -Zmiri-disable-stacked-borrows (aliasing checks off)
+  reserved_foreign_read: accepted (exit 0)
+  reserved_foreign_write: accepted (exit 0)
+  write_past_element: accepted (exit 0)
+  write_through_shared: accepted (exit 0)
+
+== 5. AddressSanitizer (-Zsanitizer=address, std not rebuilt, ASAN_OPTIONS=detect_leaks=1)
+  reserved_foreign_read: exit 0, no report
+  reserved_foreign_write: exit 0, no report
+  write_past_element: exit 0, no report
+  write_through_shared: exit 0, no report
+  use_after_free: exit 134, ERROR: AddressSanitizer: heap-use-after-free
+  uninit_read: exit 0, no report
+  leak: exit 1, ERROR: LeakSanitizer: detected memory leaks
+  data_race: exit 0, no report
+
+== 6. ThreadSanitizer on data_race
+  without -Zbuild-std:
+    build exit 101
+    error: mixing `-Zsanitizer` will cause an ABI mismatch in crate `miri_tree_borrows`
+  with -Zbuild-std (std rebuilt with TSan):
+    exit status of the last run: 134
+    runs reporting 'WARNING: ThreadSanitizer: data race': 5/5
+    with TSAN_OPTIONS=abort_on_error=0: exit 66
+    control, single-threaded reserved_foreign_read: exit 0, 0 reports
