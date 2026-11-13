@@ -1,0 +1,29 @@
+== Criterion.rs 0.8.2: sampling, estimates, change detection ==
+sampling mode: Linear
+samples: 100
+iteration counts are d, 2d, ..., 100d: yes
+slope point estimate equals sum(x*y) / sum(x*x) over sample.json: yes
+mean point estimate equals mean(time / iters) over all 100 samples: yes
+median point estimate equals the interpolated 50th percentile: yes
+tukey.json fences equal Q1 - 3 IQR, Q1 - 1.5 IQR, Q3 + 1.5 IQR, Q3 + 3 IQR: yes
+slope 95% confidence interval contains the slope point estimate: yes
+slow build against baseline 'base': Performance has regressed.
+p-value printed below the 0.05 significance level: yes
+lower bound of the mean-change interval is above the +1% noise threshold: yes
+mean change point estimate is between +200% and +500%: yes
+--baseline base left base/sample.json byte-for-byte unchanged: yes
+== Divan 0.1.21: AllocProfiler counts per iteration, n = 1000 ==
+push_grow: alloc 1, grow 8, shrink 0, dealloc 0
+push_reserved: alloc 1, grow 0, shrink 0, dealloc 0
+push_grow: 1 alloc and 8 grows (capacity 4 doubled to 1024): yes
+push_reserved: 1 alloc and 0 grows: yes
+== dhat 0.3.3: heap usage testing, n = 1000 ==
+predicted from RawVec growth: 9 blocks, 16352 bytes, final buffer 8192 bytes
+push_grow: total_blocks 9, total_bytes 16352, max_blocks 1, max_bytes 8192, curr_bytes 0
+push_reserved: total_blocks 1, total_bytes 8000, max_blocks 1, max_bytes 8000, curr_bytes 0
+push_grow matches the prediction (each realloc counts as a block): yes
+push_reserved is one 8000-byte block: yes
+everything was freed before HeapStats::get (curr_bytes 0): yes
+failing dhat::assert_eq! panics (exit 101) and saves dhat-heap.json: yes
+== Gungraun 0.20.0: Callgrind instruction counts ==
+skipped on darwin: Valgrind has no port for this system (the stage runs on Linux)

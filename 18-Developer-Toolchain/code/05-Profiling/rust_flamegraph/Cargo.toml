@@ -1,0 +1,18 @@
+[package]
+name = "rust_flamegraph"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+
+# The profile the note recommends: release codegen plus line tables, so
+# profilers can name inlined frames without changing the optimized code.
+[profile.profiling]
+inherits = "release"
+debug = "line-tables-only"
+
+# Only for comparison in the lab: full debug info on the same optimized code.
+[profile.profiling-full]
+inherits = "release"
+debug = "full"

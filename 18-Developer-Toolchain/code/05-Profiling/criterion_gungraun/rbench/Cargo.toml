@@ -1,0 +1,39 @@
+[package]
+name = "rbench"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+
+[features]
+# Builds the deliberately regressed checksum (four passes instead of one).
+slow = []
+
+[lib]
+# No implicit libtest bench harness: it would reject Criterion and Gungraun flags.
+bench = false
+
+[dev-dependencies]
+criterion = { version = "=0.8.2", default-features = false, features = ["cargo_bench_support"] }
+divan = "=0.1.21"
+dhat = "=0.3.3"
+
+# Valgrind has no arm64 macOS port, so Gungraun is only pulled in on Linux.
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+gungraun = "=0.20.0"
+
+[[bench]]
+name = "crit"
+harness = false
+
+[[bench]]
+name = "div"
+harness = false
+
+[[bench]]
+name = "gung"
+harness = false
+
+[profile.bench]
+# Gungraun needs symbols to find the benchmark function; it does not change codegen.
+debug = true
