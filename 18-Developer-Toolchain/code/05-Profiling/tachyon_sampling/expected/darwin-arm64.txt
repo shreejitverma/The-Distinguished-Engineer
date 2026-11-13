@@ -1,0 +1,49 @@
+
+[1 tracing hook]
+  interpreter: CPython 3.15 (GIL build)
+  profiling.tracing.Profile is cProfile.Profile: True
+  sys.monitoring tool 2 while enabled: 'cProfile'
+  sys.setprofile hook while enabled: NoneType
+  second Profile().enable() while one is active: ValueError: tool 2 is already in use
+  import profile raises DeprecationWarning: True
+
+[2 exact counts]
+  fib(15): ncalls 1973/1 (total/primitive); 2*F(16)-1 = 1973
+  add called 1000 times, all from call_heavy: ['call_heavy']
+  re-running gives identical counts: True
+  coroutine with 10 awaits: ncalls 11 (first start + one per PY_RESUME)
+  calls made by another thread recorded: 1 worker, 100 add
+
+[3 observer effect]
+  calibrated: call_heavy and loop_heavy take equal time unprofiled (ratio 0.67 to 1.5)
+  cProfile slowdown, call_heavy (300000 calls to add): 2.5 to 6.0x
+  cProfile slowdown, loop_heavy (no calls):        < 1.5x
+  cProfile cumtime share of call_heavy (truth 50%): 65 to 90%
+  sampler share of call_heavy (truth 50%):          35 to 65%
+  sampler slowdown of the whole run:                < 1.5x
+  samples in window: >= 200; requested 1000 Hz, achieved < 400 Hz
+
+[4 Tachyon collectors]
+  every row: tottime == direct samples * interval and cumtime == cumulative samples * interval: True
+  Tachyon pstats rows for two_line_work: 2, keyed by sampled line (def + [3, 5])
+  cProfile rows for two_line_work: 1, keyed by the def line (def + 0)
+  collapsed lines all match 'tid:N;file:func:line;... count': True
+  stack through add: tid:<TID>;lab.py:<module>:453;lab.py:main:444;lab.py:section_observer_effect:268;lab.py:call_heavy:62;lab.py:add:55 <COUNT>
+
+[5 in-process GIL view]
+  main thread had THREAD_STATUS_HAS_GIL in 0 samples (the sampler held it every time)
+  main thread had THREAD_STATUS_GIL_REQUESTED in some samples: True
+  sampler holds GIL during its own read: True
+
+[6 async-aware stacks]
+  plain thread stack top frame: KqueueSelector.select; user coroutine frames in it: 0
+  task graph: unavailable on this build (RuntimeError: AsyncioDebug section not available)
+
+[7 out-of-process attach]
+  profiling.sampling run as uid non-root: denied, exit status 1
+  reason: reading another task's memory (task_for_pid / ptrace access mode) needs privilege
+
+[8 samples needed]
+  p=0.05 n=   1000: 1.96*SE = +/-1.35 points, 3*SE = +/-2.07 points
+  p=0.05 n= 100000: 1.96*SE = +/-0.14 points, 3*SE = +/-0.21 points
+  p=0.50 n=   1000: 1.96*SE = +/-3.10 points, 3*SE = +/-4.74 points

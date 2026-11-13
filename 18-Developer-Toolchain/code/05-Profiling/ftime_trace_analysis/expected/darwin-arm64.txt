@@ -1,0 +1,71 @@
+== 1. Where the trace file goes (clang driver rules)
+-c tu_a.cpp -o obj/tu_a.o -ftime-trace                     -> obj/tu_a.json
+-c tu_a.cpp -o obj/other.o -ftime-trace=tracedir           -> other.json
+-c tu_a.cpp -o obj/third.o -ftime-trace=custom-name.json   -> custom-name.json
+main.cpp tu_a.cpp -o link/app -ftime-trace                 -> app-main.json app-tu_a.json
+
+== 2. Anatomy of one trace (tu_a.cpp, -O2, granularity 0)
+top-level keys: beginningOfTime, traceEvents
+phases: M=2 X=9892 b=4 e=4
+'Total <name>' summary events: 150, each on its own tid: yes
+Source spans written as async b/e pairs: 4 (speedscope 1.25.0 imports only B, E, X)
+Source spans: <command line>, cheap.hpp, heavy_meta.hpp, widget.hpp
+Frontend events: 2 (ParseAST, then BackendConsumer::HandleTranslationUnit)
+last complete event written: ExecuteCompiler
+tree roots after containment rebuild: ExecuteCompiler
+InstantiateClass events by template set:
+  Widget<$>: 1
+  meta::Build<$>: 701
+  meta::Fib<$>: 899
+  meta::Size<$>: 1
+every meta::Fib instantiation nests inside the heavy_meta.hpp Source span: yes
+meta::Fib events nested inside another InstantiateClass: 0 of 899
+deepest InstantiateClass nesting: 700 levels, under meta::Build<$>
+
+== 3. Granularity filters events, not totals
+complete and async events kept, granularity 0 us: 9746; default 500 us: fewer
+Total InstantiateClass count, granularity 0: 902; granularity 500: 902; equal: yes
+InstantiateClass events in the granularity-0 trace: 1602, topmost only: 902
+Total count equals the topmost-only count: yes
+Total InstantiateClass dur equals the sum over topmost events (within 1 us each): yes
+sum of every InstantiateClass dur is more than 10x the Total (nested time counted at every level): yes
+
+== 4. Build-wide aggregation (ClangBuildAnalyzer's algorithm over 5 traces)
+dominant phase per TU (Frontend vs Backend, needs a 3x margin):
+  backend_heavy: Backend
+  tu_a: Frontend
+  tu_b: Frontend
+  tu_c: Frontend
+header inclusions: cheap.hpp 3x, heavy_meta.hpp 3x, widget.hpp 3x
+most expensive header by summed Source time: heavy_meta.hpp (10x ahead of every other header: yes)
+heavy_meta.hpp share of all Frontend time over 50%: yes
+template sets: raw instantiation events -> counted after skipping same-set ancestors:
+  Widget<$>: 3 -> 3
+  Widget<$>::crunch: 3 -> 3
+  Widget<$>::fast: 3 -> 3
+  meta::Build<$>: 2103 -> 3
+  meta::Fib<$>: 2697 -> 2697
+  meta::Size<$>: 3 -> 3
+most expensive template set: meta::Build<$> (10x ahead of every other set: yes)
+
+== 5. extern template: who instantiates Widget<int> members
+InstantiateFunction events summed over tu_a, tu_b, tu_c:
+  configuration          crunch (out of class)   fast (in class, inline)
+  implicit, -O0          3                       3
+  implicit, -O2          3                       3
+  extern template, -O0   0                       3
+  extern template, -O2   0                       3
+widget_inst.cpp (explicit instantiation definition): crunch 1, fast 1
+
+== 6. A precompiled header moves the header cost into one compile
+heavy_meta.hpp Source spans: tu_a 1, tu_a with -include-pch 0
+meta::Fib InstantiateClass events: tu_a 899, tu_a with -include-pch 0, PCH build 899
+tu_a Frontend time is lower with the PCH: yes
+AST-loading events: without PCH [], with PCH [ReadAST, Read Loaded AST]
+
+== 7. -ftime-trace-verbose
+InstantiateClass args keys: default [detail], verbose [detail, file, line]
+InstantiateFunction args keys: default [detail], verbose [detail, file, line]
+Frontend args keys: default [(none)], verbose [file]
+meta::Fib<900> location: heavy_meta.hpp:13
+
