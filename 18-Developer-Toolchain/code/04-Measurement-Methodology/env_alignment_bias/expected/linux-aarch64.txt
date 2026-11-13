@@ -1,0 +1,36 @@
+== A. Environment bytes move the exec string area by exactly that many bytes ==
+PAD chars  argv[0] page offset  moved mod 4096  layout prediction
+        0                 4059               0  matches
+        1                 4058               1  matches
+       15                 4044              15  matches
+       16                 4043              16  matches
+       63                 3996              63  matches
+       64                 3995              64  matches
+     4095                 4060            4095  matches
+     4096                 4059               0  matches
+argv[0] offset equals the page-aligned-top prediction for every size: yes
+
+== B. The same binary and environment, launched 64 times ==
+buffer address mod 16 identical in every launch: yes
+distinct 16-byte slots used within a 64-byte line: 4 of 4
+distinct page offsets seen: more than one: yes
+64-byte buffer fits in one cache line in some launches: yes
+64-byte buffer straddles two cache lines in some launches: yes
+
+== C. A harness can move the frame itself: alloca(k) in the caller ==
+k bytes  frame moved by  cache-line slot change
+      0               0                       0
+      8              16                       1
+     16              16                       1
+     24              32                       2
+     32              32                       2
+     48              48                       3
+     64              64                       0
+
+== D. Link order moves an unchanged function ==
+ default alignment, pad_first: hot_loop offset within its 64-byte line = 16, hot_loop - lab_pad =   44 bytes
+ default alignment, hot_first: hot_loop offset within its 64-byte line = 48, hot_loop - lab_pad =  -52 bytes
+ align64 alignment, pad_first: hot_loop offset within its 64-byte line =  0, hot_loop - lab_pad =   92 bytes
+ align64 alignment, hot_first: hot_loop offset within its 64-byte line =  0, hot_loop - lab_pad =  -52 bytes
+default build: line offset depends on link order: yes
+-falign-functions=64 build: offset 0 in both orders: yes

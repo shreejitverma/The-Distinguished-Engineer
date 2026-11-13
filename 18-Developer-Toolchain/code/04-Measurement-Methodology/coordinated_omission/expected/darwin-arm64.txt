@@ -1,0 +1,58 @@
+== Part 1: coordinated omission (simulated, integer microseconds)
+schedule: 10000 requests, one every 10 ms; service 1 ms; one server pause of 2000 ms at t=50.0005 s
+
+Requests sent while the server was paused:
+  open loop: 200; closed catch-up: 0; closed skip: 0
+  closed skip dropped 200 scheduled requests; the correction synthesized 199 values
+
+HdrHistogram(1, 3600000000, 3) percentiles in ms (highest equivalent value):
+  generator and recording                         count       p50       p90       p99     p99.9    p99.99       max
+  closed, skip missed ticks, raw                   9800     1.000     1.000     1.000     1.000  2001.919  2001.919
+  closed, skip, recordValueWithExpectedInterval    9999     1.000     1.000  1011.199  1911.807  2001.919  2001.919
+  closed, catch up, from actual send              10000     1.000     1.000     1.000     1.000     1.000  2001.919
+  closed, catch up, from intended send            10000     1.000     1.000  1101.823  1911.807  1992.703  2001.919
+  open loop (ground truth)                        10000     1.000     1.000  1101.823  1911.807  1992.703  2001.919
+
+Ground truth: 223 of 10000 requests (2.23%) waited longer than the 1 ms service time
+Catch-up loop timed from intended send matches open loop for 10000/10000 requests
+p99 understated by the raw closed loop: 1102x
+
+== Part 2: HdrHistogram(lowest=1, highest=3600000000, digits=3) layout
+unitMagnitude=0 subBucketCount=2048 subBucketHalfCount=1024 bucketCount=22
+countsArrayLength=23552 -> 188416 bytes of long counts; README estimate 188928 bytes
+
+         value  bucket   sub  index  lowest equiv  highest equiv   width
+             1       0     1      1             1              1       1
+          1000       0  1000   1000          1000           1000       1
+          2047       0  2047   2047          2047           2047       1
+          2048       1  1024   2048          2048           2049       2
+          2049       1  1024   2048          2048           2049       2
+          4095       1  2047   3071          4094           4095       2
+          4096       2  1024   3072          4096           4099       4
+       1000000       9  1953  11169        999936        1000447     512
+       2001000      10  1954  12194       2000896        2001919    1024
+    3600000000      21  1716  23220    3598712832     3600809983 2097152
+
+Exhaustive slot walk: 23552 slots tile [0, 4294967295] with no gaps; values below 2048 are exact; worst slot width / value above that = 1/1024
+
+Reported percentile vs exact nearest-rank on the open-loop data (us):
+  p50: exact 1000, HdrHistogram 1000, over by 0.000%
+  p99: exact 1101000, HdrHistogram 1101823, over by 0.075%
+  p99.9: exact 1911000, HdrHistogram 1911807, over by 0.042%
+  p100: exact 2001000, HdrHistogram 2001919, over by 0.046%
+
+== Part 3: robust statistics (seeded PRNG, random.Random(20261108).random() only)
+MAD consistency constant 1/Phi^-1(0.75) = 1.4826
+
+  variant      mean    stdev   median     MAD  1.4826*MAD      max
+  A          113.79    52.06   100.03    1.05        1.55   394.30
+  B          104.38    37.59    97.22    0.96        1.42   374.33
+
+Tail samples above 1.2x the median: A 15, B 9 (both drawn with a 6% tail rate)
+Difference of means A-B: 9.41 us, normal 95% CI [0.51, 18.31]
+Ratio of means B/A: 0.9173; ratio of medians B/A: 0.9719; true body ratio 0.9700
+Bootstrap (10000 resamples) 95% percentile CI of median A: [99.75, 100.30]
+Bootstrap (10000 resamples) 95% percentile CI of median B: [96.93, 97.37]
+Bootstrap 95% CI of median(B)/median(A): [0.9681, 0.9751]
+95% CI width as % of A's median: difference of means 17.79%, ratio of medians 0.70%
+Verdict from the median ratio: B faster
