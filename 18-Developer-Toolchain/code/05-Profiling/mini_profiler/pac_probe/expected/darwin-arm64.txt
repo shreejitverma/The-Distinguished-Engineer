@@ -1,0 +1,10 @@
+== Pointer authentication in AArch64 frame records ==
+arm64e: prologue signs x30 with pacibsp: yes
+arm64e: saved return address carries a PAC: yes
+arm64e: xpaclri recovers the unsigned return address: yes
+arm64, default flags: prologue signs x30: no
+arm64, default flags: saved return address carries a PAC: no
+arm64, default flags: xpaclri leaves the unsigned return address unchanged: yes
+arm64, -mbranch-protection=pac-ret: prologue signs x30 with paciasp: yes
+arm64, -mbranch-protection=pac-ret: saved return address carries a PAC: no
+arm64, -mbranch-protection=pac-ret: xpaclri leaves the unsigned return address unchanged: yes

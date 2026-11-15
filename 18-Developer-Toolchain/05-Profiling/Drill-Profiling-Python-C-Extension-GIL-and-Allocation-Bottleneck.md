@@ -2,50 +2,53 @@
 type: problem
 track: [sde, distinguished, ai-eng]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
-  - "Python Software Foundation, CPython 3.15.2 source, Python/ceval_gil.c (take_gil, drop_gil, drop_gil_impl, DEFAULT_INTERVAL, implementation notes), 2026, https://github.com/python/cpython/blob/v3.15.2/Python/ceval_gil.c"
-  - "Python Software Foundation, CPython 3.15.2 source, Python/pystate.c (PyGILState_Ensure, PyGILState_Release, _PyThreadState_Attach, detach_thread), 2026, https://github.com/python/cpython/blob/v3.15.2/Python/pystate.c"
+  - "Python Software Foundation, CPython 3.15.2 source, Python/ceval_gil.c (implementation notes, DEFAULT_INTERVAL, take_gil, drop_gil, drop_gil_impl, PyEval_SaveThread, PyEval_RestoreThread, _PyEval_AcquireLock), 2026, https://github.com/python/cpython/blob/v3.15.2/Python/ceval_gil.c"
+  - "Python Software Foundation, CPython 3.15.2 source, Python/pystate.c (PyGILState_Ensure, PyGILState_Release, _PyThreadState_Attach, detach_thread, tstate_try_attach, tstate_wait_attach), 2026, https://github.com/python/cpython/blob/v3.15.2/Python/pystate.c"
   - "Python Software Foundation, CPython 3.15.2 source, Include/ceval.h (Py_BEGIN_ALLOW_THREADS, Py_BLOCK_THREADS, Py_UNBLOCK_THREADS, Py_END_ALLOW_THREADS), 2026, https://github.com/python/cpython/blob/v3.15.2/Include/ceval.h"
-  - "Python Software Foundation, CPython 3.15.2 source, Include/internal/pycore_gil.h (FORCE_SWITCHING, struct _gil_runtime_state), 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_gil.h"
-  - "Python Software Foundation, CPython 3.15.2 source, Include/internal/pycore_obmalloc.h (SMALL_REQUEST_THRESHOLD, ARENA_BITS, POOL_BITS), 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_obmalloc.h"
-  - "Python Software Foundation, CPython 3.15.2 source, Objects/longobject.c (_PyLong_FromMedium, PyLong_FromLong) and Include/internal/pycore_freelist_state.h (Py_ints_MAXFREELIST), 2026, https://github.com/python/cpython/blob/v3.15.2/Objects/longobject.c"
+  - "Python Software Foundation, CPython 3.15.2 source, Include/internal/pycore_obmalloc.h (SMALL_REQUEST_THRESHOLD, ARENA_BITS, POOL_BITS, USE_LARGE_ARENAS), 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_obmalloc.h"
+  - "Python Software Foundation, CPython 3.15.2 source, Objects/longobject.c (_PyLong_FromMedium) and Include/internal/pycore_freelist_state.h (Py_ints_MAXFREELIST), 2026, https://github.com/python/cpython/blob/v3.15.2/Objects/longobject.c"
   - "Python Software Foundation, CPython 3.15.2 source, Objects/unicodeobject.c (PyUnicode_FromFormatV) and Objects/unicode_writer.c (_PyUnicodeWriter_PrepareInternal, _PyUnicodeWriter_Finish), 2026, https://github.com/python/cpython/blob/v3.15.2/Objects/unicode_writer.c"
-  - "Python Software Foundation, CPython 3.15.2 source, Modules/_remote_debugging/threads.c (thread status flags, holds_gil and gil_requested reads, get_thread_status), 2026, https://github.com/python/cpython/blob/v3.15.2/Modules/_remote_debugging/threads.c"
-  - "Python Software Foundation, profiling.sampling - Statistical profiler, Python 3.15.2 documentation, 2026, https://docs.python.org/3.15/library/profiling.sampling.html"
-  - "Python Software Foundation, Thread states and the global interpreter lock, Python/C API Reference Manual 3.15.2, 2026, https://docs.python.org/3.15/c-api/threads.html"
-  - "Python Software Foundation, Memory Management, Python/C API Reference Manual 3.15.2, 2026, https://docs.python.org/3.15/c-api/memory.html"
-  - "Python Software Foundation, Exception Handling (PyErr_CheckSignals), Python/C API Reference Manual 3.15.2, 2026, https://docs.python.org/3.15/c-api/exceptions.html"
-  - "Python Software Foundation, tracemalloc - Trace memory allocations, Python 3.15.2 documentation, 2026, https://docs.python.org/3.15/library/tracemalloc.html"
-  - "Python Software Foundation, sys - System-specific parameters and functions (setswitchinterval, _is_gil_enabled), Python 3.15.2 documentation, 2026, https://docs.python.org/3.15/library/sys.html"
-  - "Python Software Foundation, C API Extension Support for Free Threading, Python 3.15.2 HOWTO, 2026, https://docs.python.org/3.15/howto/free-threading-extensions.html"
-  - "Raymond Hettinger (editor), What's New In Python 3.2, section Multi-threading, Python documentation, 2011, https://docs.python.org/3/whatsnew/3.2.html"
+  - "Python Software Foundation, CPython 3.15.2 source, Modules/_remote_debugging/threads.c (get_thread_status, holds_gil and gil_requested reads), 2026, https://github.com/python/cpython/blob/v3.15.2/Modules/_remote_debugging/threads.c"
+  - "Python Software Foundation, profiling.sampling - Statistical profiler, Python 3.15 documentation, 2026, https://docs.python.org/3.15/library/profiling.sampling.html"
+  - "Python Software Foundation, Thread states and the global interpreter lock, Python/C API Reference Manual 3.15, 2026, https://docs.python.org/3.15/c-api/threads.html"
+  - "Python Software Foundation, Memory Management, Python/C API Reference Manual 3.15, 2026, https://docs.python.org/3.15/c-api/memory.html"
+  - "Python Software Foundation, Exception Handling (PyErr_CheckSignals), Python/C API Reference Manual 3.15, 2026, https://docs.python.org/3.15/c-api/exceptions.html"
+  - "Python Software Foundation, tracemalloc - Trace memory allocations, Python 3.15 documentation, 2026, https://docs.python.org/3.15/library/tracemalloc.html"
+  - "Python Software Foundation, sys - System-specific parameters and functions (setswitchinterval, _is_gil_enabled), Python 3.15 documentation, 2026, https://docs.python.org/3.15/library/sys.html"
+  - "Python Software Foundation, C API Extension Support for Free Threading, Python 3.15 HOWTO, 2026, https://docs.python.org/3.15/howto/free-threading-extensions.html"
+  - "Python Software Foundation, What's New In Python 3.2, section Multi-threading, Python documentation, 2011, https://docs.python.org/3/whatsnew/3.2.html"
   - "Pablo Galindo Salgado and Laszlo Kiss Kollar, PEP 799 - A dedicated profiling package for organizing Python profiling tools, Python Enhancement Proposals, 2025, https://peps.python.org/pep-0799/"
   - "Sam Gross, PEP 703 - Making the Global Interpreter Lock Optional in CPython, Python Enhancement Proposals, 2023, https://peps.python.org/pep-0703/"
   - "Thomas Wouters, Matt Page, and Sam Gross, PEP 779 - Criteria for supported status for free-threaded Python, Python Enhancement Proposals, 2025, https://peps.python.org/pep-0779/"
-  - "Peter Bierma, PEP 788 - Protecting the C API from interpreter finalization (PyThreadState_Ensure), Python Enhancement Proposals, 2025, https://peps.python.org/pep-0788/"
+  - "Peter Bierma, PEP 788 - Protecting the C API from interpreter finalization, Python Enhancement Proposals, 2025, https://peps.python.org/pep-0788/"
   - "Bloomberg Finance L.P., Memray documentation: The run subcommand, 2026, https://bloomberg.github.io/memray/run.html"
   - "Bloomberg Finance L.P., Memray documentation: Temporary allocations, 2026, https://bloomberg.github.io/memray/temporary_allocations.html"
   - "Bloomberg Finance L.P., Memray documentation: Python allocators, 2026, https://bloomberg.github.io/memray/python_allocators.html"
   - "Bloomberg Finance L.P., Memray documentation: Symbolic information in native mode, 2026, https://bloomberg.github.io/memray/native_mode.html"
-  - "Bloomberg Finance L.P., Memray documentation: Supported environments, 2026, https://bloomberg.github.io/memray/supported_environments.html"
   - "Bloomberg Finance L.P., Memray v1.20.0 source, src/memray/_memray/hooks.h and hooks.cpp (MEMRAY_HOOKED_FUNCTIONS, PyGILState_Ensure hook), 2026, https://github.com/bloomberg/memray/blob/v1.20.0/src/memray/_memray/hooks.h"
-  - "Bloomberg Finance L.P., Memray v1.20.0 source, src/memray/_memray/elf_shenanigans.cpp and macho_shenanigans.cpp (symbol patching), 2026, https://github.com/bloomberg/memray/blob/v1.20.0/src/memray/_memray/elf_shenanigans.cpp"
-  - "Ben Frederickson, py-spy README (GIL detection, --gil, --native platform table), py-spy repository, 2026, https://github.com/benfred/py-spy/blob/master/README.md"
+  - "Ben Frederickson, py-spy README (supported versions, GIL detection caveat, --native platform table), py-spy repository, 2026, https://github.com/benfred/py-spy/blob/master/README.md"
   - "Michael Kerrisk, getrusage(2), Linux man-pages, 2026, https://man7.org/linux/man-pages/man2/getrusage.2.html"
-  - "Apple Inc., XNU source, bsd/kern/kern_resource.c (ru_nivcsw computed from task context switch count), 2026, https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c"
+  - "Michael Kerrisk and procps-ng contributors, ps(1) (PROCESS STATE CODES), Linux man-pages, 2026, https://man7.org/linux/man-pages/man1/ps.1.html"
+  - "Linux kernel contributors, fs/proc/array.c (task_state_array), Linux source tree, 2026, https://github.com/torvalds/linux/blob/master/fs/proc/array.c"
+  - "Apple Inc., XNU source, bsd/kern/kern_resource.c (ru_nivcsw derived from the task context switch count), 2026, https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c"
   - "Michael Kerrisk, proc_pid_status(5), Linux man-pages, 2026, https://man7.org/linux/man-pages/man5/proc_pid_status.5.html"
   - "Sebastien Godard, pidstat(1), sysstat manual via Linux man-pages, 2026, https://man7.org/linux/man-pages/man1/pidstat.1.html"
-  - "Michael Kerrisk, mallopt(3) (M_ARENA_MAX, M_MMAP_THRESHOLD), Linux man-pages, 2026, https://man7.org/linux/man-pages/man3/mallopt.3.html"
+  - "Michael Kerrisk, mallopt(3) (M_ARENA_MAX), Linux man-pages, 2026, https://man7.org/linux/man-pages/man3/mallopt.3.html"
   - "David Beazley, Convoy effect with I/O bound threads and New GIL, CPython issue 52194 (bpo-7946), 2010, https://github.com/python/cpython/issues/52194"
   - "David Beazley, Understanding the Python GIL, PyCon 2010 talk page, 2010, https://www.dabeaz.com/GIL/"
   - "Cython developers, Cython and the GIL, Cython documentation, 2026, https://cython.readthedocs.io/en/latest/src/userguide/nogil.html"
-  - "Wenzel Jakob and pybind11 contributors, Miscellaneous: Global Interpreter Lock (GIL), pybind11 documentation, 2026, https://pybind11.readthedocs.io/en/stable/advanced/misc.html"
-  - "PyO3 Project, Parallelism, PyO3 user guide, 2026, https://pyo3.rs/latest/parallelism.html"
-  - "PyO3 Project, Migrating from older PyO3 versions (rename of Python::with_gil and Python::allow_threads), PyO3 user guide, 2026, https://pyo3.rs/latest/migration.html"
-  - "NumPy Developers, Array API: Threading support, NumPy C-API reference, 2026, https://numpy.org/doc/stable/reference/c-api/array.html"
+  - "Wenzel Jakob and pybind11 contributors, Miscellaneous: Global Interpreter Lock (GIL), pybind11 documentation, 2026, https://github.com/pybind/pybind11/blob/master/docs/advanced/misc.rst"
+  - "PyO3 Project, Migrating from older PyO3 versions (0.25 to 0.26: Python::with_gil and Python::allow_threads renamed), PyO3 user guide, 2026, https://pyo3.rs/latest/migration.html"
+  - "NumPy Developers, numpy/_core/include/numpy/ndarraytypes.h (NPY_BEGIN_THREADS, NPY_ALLOW_C_API), NumPy source, 2026, https://github.com/numpy/numpy/blob/main/numpy/_core/include/numpy/ndarraytypes.h"
   - "Apple Inc., sample(1) manual page, macOS 27.2, read locally with man sample, 2026"
+  - "Python Software Foundation, CPython 3.15.2 source, Python/import.c (GIL re-enable RuntimeWarning text), 2026, https://github.com/python/cpython/blob/v3.15.2/Python/import.c"
+  - "Python Software Foundation, CPython 3.15.2 source, configure.ac (--with-pymalloc-hugepages, MAP_HUGETLB check), 2026, https://github.com/python/cpython/blob/v3.15.2/configure.ac"
+  - "Python Software Foundation, CPython 3.15.2 source, Include/internal/pycore_runtime_structs.h (_PY_NSMALLPOSINTS, _PY_NSMALLNEGINTS), 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_runtime_structs.h"
+  - "Python Software Foundation, CPython 3.15.2 source, Include/internal/pycore_freelist_state.h (Py_ints_MAXFREELIST), 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_freelist_state.h"
+  - "Python Software Foundation, CPython 3.15.2 source, Lib/profiling/sampling (cli.py default 1khz rate, dump.py state labels, flame graph thread statistics), 2026, https://github.com/python/cpython/tree/v3.15.2/Lib/profiling/sampling"
 ---
 
 # Drill: Profiling Python-C Extension GIL and Allocation Bottleneck
@@ -80,7 +83,7 @@ flowchart TD
     CALL --> M
 
     subgraph TOOLS["What each tool can see"]
-        T1["Tachyon --mode wall<br/>only the Python line"]
+        T1["Tachyon --mode wall or cpu<br/>only the Python line"]
         T2["Tachyon --mode gil, dump -a<br/>tstate holds_gil and gil_requested"]
         T3["sample(1) or perf<br/>take_gil under PyGILState_Ensure"]
         T4["memray --temporary-allocations<br/>one malloc per record"]
@@ -123,7 +126,7 @@ The files are:
 The probed flavor is used only for counting.
 Every timed phase uses the plain build, so the counters cannot perturb the timings.
 
-Release 1.5 added two features to the loop that release 1.4 ran without the GIL:
+Release 1.5 added two features to the loop that release 1.4 ran without the GIL (`recscore.c`, `VARIANT_REGR`):
 
 ```c
 Py_BEGIN_ALLOW_THREADS
@@ -149,6 +152,9 @@ for (Py_ssize_t i = 0; i < nrec && !failed; i++) {
 Py_END_ALLOW_THREADS
 ```
 
+`stats_add()` builds the key with `PyUnicode_FromFormat("venue-%d", venue)`, reads the old count with `PyDict_GetItemWithError()`, and stores `PyLong_FromLong(cur + n)` with `PyDict_SetItem()`.
+`score()` is six rounds of FNV-1a over the 64-byte record, a serial dependency chain, so the useful work per record is fixed and small.
+
 Run the whole drill with:
 
 ```bash
@@ -172,7 +178,7 @@ The service was upgraded from recscore 1.4 to 1.5.
 The single-threaded benchmark in CI moved a little and was waived as the price of the new per-venue statistics.
 In production, with eight worker threads per process, throughput fell by more than five times, CPU utilization per process dropped instead of rising, and the memory graph stayed flat.
 
-The harness produces the following output on `darwin-arm64` (macOS 27.2, Apple M3 Pro, CPython 3.15.2, Apple clang 21, as of 2026-11):
+The harness produces the following output on `darwin-arm64` (macOS 27.2, Apple M3 Pro, CPython 3.15.2, Apple clang 21, as of 2026-11), copied from `expected/darwin-arm64.txt`:
 
 ```text
 interpreter has a GIL: yes
@@ -239,11 +245,13 @@ Each configuration is timed in five 0.4 second windows, the variants take turns,
 Phase 2 is the same eight-thread windows seen through `getrusage(2)`.
 The baseline keeps at least 2.5 cores busy with almost no context switches and almost no system time.
 The regressed build keeps fewer than 2.5 cores busy with eight runnable threads, switches context at least 20 times per 1000 records, and spends at least a tenth of its CPU time in the kernel.
-The lab adds `ru_nvcsw` and `ru_nivcsw` because the two systems split them differently: Linux counts a thread that blocks under `ru_nvcsw` (getrusage(2)), while XNU reports `ru_nvcsw` as zero and derives `ru_nivcsw` from the task's total context-switch count (`bsd/kern/kern_resource.c`).
+The lab adds `ru_nvcsw` and `ru_nivcsw` together because the two systems account for them differently.
+Linux counts a switch "due to a process voluntarily giving up the processor before its time slice was completed (usually to await availability of a resource)" under `ru_nvcsw` (getrusage(2)), which is where a thread that sleeps in `take_gil()` lands.
+XNU computes `ru_nivcsw` as the task's total context-switch count (`teventsinfo.csw`) minus `ru_nvcsw` (`bsd/kern/kern_resource.c`), so on macOS only the sum is comparable with Linux.
 
 Phase 3 counts calls in the probed build.
 Across 200 `score_batch` calls and 400000 records, the regressed build calls `PyGILState_Ensure` 400000 times and `malloc` 400000 times: exactly once per record each.
-Every variant except `hold` releases the GIL once per call, which is the `SaveThread` column.
+Every variant except `hold` releases the GIL once per call, which is the `SaveThread` column; `PyGILState_Release()` reaches `PyEval_SaveThread()` too, but from inside libpython, where the `-include` wrapper cannot see it.
 
 Phase 4 counts calls into CPython's own allocator domains with `allocspy`.
 The regressed build makes one object-domain `malloc`, one object-domain `realloc`, and one object-domain `free` per record, and no other variant makes any.
@@ -271,32 +279,34 @@ On Linux this phase prints one line saying it was skipped.
 > [!tip]- Hint 2: The wall-clock Python profile cannot tell the two builds apart
 > Attach Tachyon to the running service with every thread selected:
 > `python -m profiling.sampling attach -a --mode wall -d 30 <PID>`.
+> Without `-a`, only the main thread is sampled, and in this service the main thread is parked in `join()`.
 > The report puts essentially every worker sample on the one Python line that calls `score_batch`, in the healthy build and in the regressed build alike.
-> Tachyon walks Python frames, so time inside a C function is attributed to the calling Python line, and `--native` adds only a synthetic `<native>` frame, not C symbols (profiling.sampling documentation, "Special frames").
+> Tachyon walks Python frames, so "without this option, native code execution appears as time in the Python function that made the call", and `--native` adds only a synthetic `<native>` frame, not C symbols (profiling.sampling documentation, "Special frames").
 > A profile that looks the same before and after a 5x regression means you are asking the wrong question of the right tool.
 > Change the mode before changing the tool.
 
 > [!tip]- Hint 3: Ask who holds the GIL and who is waiting for it
-> `--mode gil` keeps only samples from the thread that holds the GIL at that instant.
+> `--mode gil` keeps only samples from a thread whose `holds_gil` field is set at that instant.
 > A function that releases the GIL for its whole body should almost vanish from a GIL-mode profile.
 > Compare `python -m profiling.sampling attach -a --mode gil -d 30 <PID>` between the two releases.
 > Then take a few stack dumps with `python -m profiling.sampling dump -a <PID>`: each thread header names its state, such as `has GIL, on CPU` or `on CPU, waiting for GIL`.
-> The flame graph output (`--flamegraph -o out.html`) carries the same facts as thread statistics: GIL Held, GIL Released, and Waiting GIL.
-> A worker that is inside a C call and is listed as waiting for the GIL is a contradiction of the extension's design.
+> The flame graph output (`--flamegraph -o out.html`) carries the same facts as thread statistics: GIL Held, GIL Released, Waiting GIL, and GC.
+> A worker that is inside a C call and is listed as waiting for the GIL contradicts the extension's design.
 
 > [!tip]- Hint 4: Get native stacks for the waiting threads
-> Tachyon tells you that the GIL is contended inside `score_batch`; it cannot tell you which C line asks for it.
-> On macOS, `sample <PID> 5 -file /tmp/svc.txt` suspends the process every millisecond and records the native call stack of every thread, with no root needed for your own process.
+> Tachyon can tell you that the GIL is contended inside `score_batch`; it cannot tell you which C line asks for it.
+> On macOS, `sample <PID> 5 -file /tmp/svc.txt` suspends the process every millisecond (the default interval) and records the call stacks of all threads, with no root needed for your own process.
 > On Linux, use `perf record -g -p <PID>` as described in [[Linux-perf-in-Depth-and-perf-c2c]], or count callers with a uprobe on `PyGILState_Ensure` as described in [[eBPF-bpftrace-ftrace-uprobes-and-USDT]].
 > Look for `take_gil` in the stacks and read upward: which exported API called it, and which line of the extension called that.
 > Build the extension with `-g -fno-omit-frame-pointer` so the answer includes a file and line.
 
 > [!tip]- Hint 5: Count allocations, because nothing here is leaking
 > The memory graph is flat, so a peak-memory report has nothing to show.
-> Run the service under `memray run --native -o regr.bin service.py ...` and read `memray stats regr.bin`: compare "Total allocations" with the number of records processed.
-> Then ask for churn explicitly with `memray flamegraph --temporary-allocations regr.bin` or `memray summary --temporary-allocations regr.bin`.
+> Run the service under `memray run --native -o regr.bin service.py ...` and read `memray stats regr.bin`: compare "Total allocations" and the top location by number of allocations with the number of records processed.
+> Then ask for churn explicitly with `memray summary --temporary-allocations regr.bin` or `memray flamegraph --temporary-allocations regr.bin`.
 > A count that is an exact multiple of the record count is a per-record allocation.
-> Repeat with `memray run --trace-python-allocators` to see whether Python objects are also being created per record, because creating a Python object requires an attached thread state, and that is a second, independent proof that the loop is taking the GIL.
+> Repeat with `memray run --trace-python-allocators` to see whether Python objects are also being created per record.
+> Creating a Python object requires an attached thread state, so per-record object allocations are a second, independent proof that the loop is taking the GIL.
 
 > [!tip]- Hint 6: Separate the two costs before you ship the fix
 > There are two per-record defects, and they are not equally expensive.
@@ -316,12 +326,14 @@ On Linux this phase prints one line saying it was skipped.
 > Threads that are neither computing nor sleeping on I/O, and that enter the kernel constantly, are handing a lock back and forth.
 >
 > ### Step 2: Prove that the lock is the GIL
-> The wall-clock Tachyon profile is identical for both releases, because both spend their time under the same Python line.
-> `--mode gil` is not identical.
-> In a separate run on the Linux container (CPython 3.15.2, linux-aarch64, as of 2026-11; not part of the recorded lab output) the baseline's request line nearly disappeared from the GIL-mode profile, while in the regressed build it was the top entry, and the flame graph's thread statistics moved "Waiting GIL" from a negligible share to a large one.
-> `dump -a` printed worker threads stopped on `return mod.score_batch(data, stats)` with the states `has GIL, on CPU` and `on CPU, waiting for GIL`.
-> Tachyon reads those states from the target's memory: `take_gil()` sets `tstate->gil_requested = 1` before it waits and `tstate->holds_gil = 1` once it owns the lock, `drop_gil_impl()` clears both, and `Modules/_remote_debugging/threads.c` turns the two fields into `THREAD_STATUS_HAS_GIL` and `THREAD_STATUS_GIL_REQUESTED`.
+> The wall-clock Tachyon profile is the same for both releases, because both spend their time under the same Python line.
+> The GIL-mode profile cannot be the same, and the reason is in how Tachyon reads thread state.
+> `take_gil()` sets `tstate->gil_requested = 1` right after it locks `gil->mutex`, and sets `gil_requested = 0` and `holds_gil = 1` once it owns the GIL; `drop_gil_impl()` clears both (`Python/ceval_gil.c`).
+> `Modules/_remote_debugging/threads.c` reads `holds_gil` and `gil_requested` out of the target's thread state and turns them into `THREAD_STATUS_HAS_GIL` and, when the thread does not hold the GIL, `THREAD_STATUS_GIL_REQUESTED`.
+> In release 1.4 a worker holds the GIL only while `score_batch` parses its arguments and builds its result, so the request line should almost disappear from a GIL-mode profile.
+> In release 1.5 a worker holds the GIL for `stats_add()` on every record and spends much of the remaining time with `gil_requested` set, so the request line stays on top in GIL mode, `dump -a` shows workers on `return mod.score_batch(data, stats)` in the state `waiting for GIL`, and the flame graph's Waiting GIL share grows.
 > The extension was designed to hold the GIL only at entry and exit, so a worker that is waiting for the GIL in the middle of the call is the defect, observed directly.
+> The lab does not run Tachyon, because on macOS it needs root or the `com.apple.security.cs.debugger` entitlement (profiling.sampling documentation, "Permissions"), and the recorded lab must run unprivileged; Practice Drill item 4 runs it by hand.
 >
 > ### Step 3: Find the C line
 > Phase 6 is the native view.
@@ -330,21 +342,27 @@ On Linux this phase prints one line saying it was skipped.
 > Phase 3 turns the sample into an exact count: 400000 calls to `PyGILState_Ensure` for 400000 records.
 >
 > ### Root Cause 1: The GIL is taken and dropped once per record
-> `PyGILState_Ensure()` (`Python/pystate.c`) looks up the calling thread's thread state, sees that it does not hold the GIL, and calls `PyEval_RestoreThread()`, which attaches the thread state through `_PyThreadState_Attach()` and `_PyEval_AcquireLock()`, which is `take_gil()`.
-> `PyGILState_Release()` calls `PyEval_SaveThread()` when the state it was handed is `PyGILState_UNLOCKED`, and that path ends in `drop_gil()`.
-> The implementation notes at the head of `Python/ceval_gil.c` describe the lock: the GIL is a boolean, `locked`, protected by a mutex and signalled by a condition variable.
-> One round trip therefore costs, in CPython 3.15.2:
+> `PyGILState_Ensure()` (`Python/pystate.c`) looks up the calling thread's thread state, sees that it does not hold the GIL, and calls `PyEval_RestoreThread()`.
+> `PyEval_RestoreThread()` calls `_PyThreadState_Attach()`, which calls `_PyEval_AcquireLock()`, which is `take_gil()`.
+> `PyGILState_Release()` calls `PyEval_SaveThread()` when it is handed `PyGILState_UNLOCKED`, and `PyEval_SaveThread()` calls `_PyThreadState_Detach()`, whose `detach_thread()` ends in `_PyEval_ReleaseLock()` and `drop_gil()`.
+> The implementation notes at the head of `Python/ceval_gil.c` describe the lock: "The GIL is just a boolean variable (locked) whose access is protected by a mutex (gil_mutex), and whose changes are signalled by a condition variable (gil_cond). gil_mutex is taken for short periods of time, and therefore mostly uncontended."
+> That last sentence is a design assumption, and per-record acquisition from eight threads is exactly what breaks it.
+> One round trip costs, in CPython 3.15.2:
 >
-> 1. `take_gil()`: lock `gil->mutex`; while `locked` is set, wait on `gil->cond` with a timeout of the switch interval; lock `gil->switch_mutex`; set `locked`; update `last_holder` and `switch_number`; signal `gil->switch_cond`; unlock both mutexes.
-> 2. `drop_gil()`: lock `gil->mutex`; clear `locked`; signal `gil->cond`; unlock; and, if another thread had set the drop-request bit, wait on `gil->switch_cond` until a different thread has taken the GIL (the `FORCE_SWITCHING` path).
+> 1. `take_gil()`: save `errno`; lock `gil->mutex`; set `gil_requested`; while `locked` is set, wait on `gil->cond` with a timeout of the switch interval; then lock `gil->switch_mutex`, set `locked`, and, if the previous holder was another thread, update `last_holder` and increment `switch_number`; signal `gil->switch_cond`; unlock `switch_mutex`; set `holds_gil`; unlock `gil->mutex`; restore `errno`.
+> 2. `drop_gil()`: record `last_holder`; in `drop_gil_impl()` lock `gil->mutex`, clear `locked`, clear `holds_gil` and `gil_requested`, signal `gil->cond`, unlock; then, only if this thread's drop-request bit is set, lock `gil->switch_mutex` and wait on `gil->switch_cond` until `last_holder` changes (the `FORCE_SWITCHING` path).
 >
 > With one thread these are uncontended user-space operations, which is why the single-thread comparison in Phase 1 stays under 3x and why the heartbeat in Phase 5 is never starved.
-> With eight threads doing this once per record, the mutex and the condition variable are contended on every record, each lost race is a sleep in the kernel and a wake-up by another thread, and the eight threads spend their time passing one lock around.
+> With eight threads doing this once per record, `gil->mutex` and the `locked` flag are contended on every record, each lost race is a sleep in the kernel and a wake-up by another thread, and the eight threads spend their time passing one lock around.
 > That is the convoy: Phase 2's context switches and system time are its cost, and Phase 1's missing scaling is its result.
-> The 5 ms switch interval plays no part, because every holder gives the GIL up voluntarily after one short critical section; the expense is the handoff itself, not waiting for a timeslice.
+>
+> The 5 ms switch interval plays almost no part.
+> A waiter whose timed wait expires sets the holder's drop-request bit only if `locked` is still set and `switch_number` has not changed since it started waiting.
+> Here the GIL changes hands thousands of times per interval, so `switch_number` always moves and the forced-switch path almost never runs.
+> Every holder gives the GIL up voluntarily after one short critical section; the expense is the handoff itself, not waiting for a timeslice.
 >
 > The author's reasoning was locally correct, which is what makes this defect common.
-> `stats_add()` creates Python objects and `PyErr_CheckSignals()` may run Python code, and both require an attached thread state, so calling them inside `Py_BEGIN_ALLOW_THREADS` without reacquiring would be a crash.
+> `stats_add()` creates Python objects and `PyErr_CheckSignals()` may run Python signal handlers, and both require an attached thread state, so calling them inside `Py_BEGIN_ALLOW_THREADS` without reacquiring would be a crash.
 > Reacquiring per record made the code correct and destroyed the property the loop existed to provide.
 >
 > ### Root Cause 2: Three allocations per record, each visible to a different tool
@@ -353,36 +371,43 @@ On Linux this phase prints one line saying it was skipped.
 > | Allocation | Where it comes from | Lab evidence | memray default | memray `--trace-python-allocators` | tracemalloc |
 > |:---|:---|:---|:---|:---|:---|
 > | 64-byte scratch buffer | `malloc()` in `score_batch` | Phase 3: malloc/record 1.00 | counted as `MALLOC`, one per record | counted | never: libc `malloc` is outside CPython's domains |
-> | venue key string | `PyUnicode_FromFormat` in `stats_add` | Phase 4: obj malloc and obj realloc 1.00 each | not counted: pymalloc serves it from an arena it already owns | counted as `PYMALLOC_MALLOC` and `PYMALLOC_REALLOC` | traced while alive, gone before any snapshot |
+> | venue key string | `PyUnicode_FromFormat` in `stats_add` | Phase 4: obj malloc and obj realloc 1.00 each | not counted: served from an arena the object allocator already owns | counted as `PYMALLOC_MALLOC` and `PYMALLOC_REALLOC` | traced while alive, gone before any snapshot |
 > | updated count | `PyLong_FromLong` in `stats_add` | Phase 4: no third allocation | not counted | not counted | no new trace |
 >
 > The scratch buffer goes straight to libc.
-> Memray sees it because it patches the symbol pointers of every loaded image so that calls to `malloc`, `free`, `calloc`, `realloc`, `posix_memalign`, `aligned_alloc`, `valloc`, `mmap`, and `munmap` go through its hooks (`hooks.h`, `elf_shenanigans.cpp`, `macho_shenanigans.cpp`).
-> In the container run, `memray stats` reported a total allocation count dominated by one location, the `handle_request` line, with a count equal to the number of records processed, while its peak memory figure stayed small.
-> The default flame graph, which shows the high-water mark, did not contain that line at all; `--temporary-allocations` did.
+> Memray sees it because it patches the symbol tables of every loaded image so that calls to the functions in `MEMRAY_HOOKED_FUNCTIONS` go through its hooks; in v1.20.0 that list is `malloc`, `free`, `calloc`, `realloc`, `valloc`, `posix_memalign`, `aligned_alloc`, `mmap`, `munmap`, `dlopen`, `dlclose`, `PyGILState_Ensure`, `free_sized`, and `free_aligned_sized`, plus platform-specific entries (`src/memray/_memray/hooks.h`).
+> A run of the service under memray 1.20.0 on macOS 27.2 arm64 (CPython 3.14.6 free-threaded build, with the GIL re-enabled by the import, one thread, as of 2026-11; not part of the lab's recorded output) showed the shape to look for:
+>
+> - `memray stats`: the top location by number of allocations was `handle_request` at the `return mod.score_batch(data, stats)` line, its count equal to the number of records the service reported processing, and its size exactly 64 bytes times that count; the allocator distribution was almost all `MALLOC`; peak memory stayed in kilobytes.
+> - `memray summary` without options, which describes the high-water mark, had no `score_batch` row at all.
+> - `memray summary --temporary-allocations` put the native frame `score_batch` first, owning all of that memory with an allocation count equal to the record count, under `cfunction_call`.
+> - The same run of the `fixed` variant had no location whose count grew with the record count.
 >
 > The key string is created by `PyUnicode_FromFormatV()`, which builds the text in a `_PyUnicodeWriter`.
-> In `Objects/unicode_writer.c`, `_PyUnicodeWriter_PrepareInternal()` allocates the buffer with `PyUnicode_New()` and `_PyUnicodeWriter_Finish()` trims it with `_PyUnicode_ResizeCompact()`, hence one object-domain `malloc` and one `realloc`.
-> Requests of 512 bytes or less are served by pymalloc from arenas it has already mapped, so a tool that hooks only the system allocator sees nothing; `memray run --trace-python-allocators` hooks the Python allocators as well and reported one `PYMALLOC_MALLOC` and one `PYMALLOC_REALLOC` per record in the container run, matching Phase 4.
+> In `Objects/unicode_writer.c`, `_PyUnicodeWriter_PrepareInternal()` allocates the buffer with `PyUnicode_New()` and `_PyUnicodeWriter_Finish()` trims it with `_PyUnicode_ResizeCompact()` when the buffer is longer than the text, hence one object-domain `malloc` and one `realloc`.
+> In the default build, requests of 512 bytes or less (`SMALL_REQUEST_THRESHOLD`) are served by pymalloc from arenas it has already mapped; in the free-threaded build the default object allocator is mimalloc (C API memory documentation, "Changed in version 3.13").
+> Either way the request never reaches libc, so a tool that hooks only the system allocator sees nothing.
+> `memray run --trace-python-allocators` hooks the Python allocators as well; in the same macOS run it reported `MALLOC` equal to the record count and `PYMALLOC_MALLOC` and `PYMALLOC_REALLOC` each at the record count plus a small background, which is Phase 4's one object-domain `malloc` and one `realloc` per record.
 >
 > The updated count never reaches an allocator.
-> `PyLong_FromLong()` calls `_PyLong_FromMedium()`, which first pops an object from a freelist of up to 100 integers (`Py_ints_MAXFREELIST`) and calls `PyObject_Malloc()` only when the freelist is empty.
+> `PyLong_FromLong()` returns a cached object for -5 through 1024 (`_PY_NSMALLNEGINTS` 5 and `_PY_NSMALLPOSINTS` 1025 in CPython 3.15.2), and for a larger single-digit value it calls `_PyLong_FromMedium()`.
+> `_PyLong_FromMedium()` first pops an object from the `ints` freelist, which holds up to 100 objects (`Py_ints_MAXFREELIST`), and calls `PyObject_Malloc()` only when the freelist is empty.
 > Each iteration frees the previous count object back to the freelist and takes it out again, so no allocator hook fires.
-> Freelists are a layer of object churn that no allocation profiler can see; only a CPU profile shows their cost.
+> Freelists and caches are a layer of object churn that no allocation profiler can see; only a CPU profile shows their cost.
 >
 > `tracemalloc` is the wrong instrument for all three.
-> It records a trace for each live block in CPython's domains and reports differences between snapshots, so memory that is allocated and freed inside one C call leaves nothing behind, which is what the two `tracemalloc` lines of Phase 4 assert.
+> It records a trace for each live memory block in CPython's domains and reports differences between snapshots, so memory that is allocated and freed inside one C call leaves nothing behind, which is what the two `tracemalloc` lines of Phase 4 assert.
 >
 > ### Which defect was the bottleneck
 > Phase 7 answers with the `gilfix` variant.
 > It still calls `malloc` and `free` once per record (Phase 3 shows 400000 of each) and it scales: eight threads deliver at least twice the throughput of one, and at least half of the baseline's eight-thread throughput.
 > The lab does not assert any timing difference between `gilfix` and `fixed`, because on the recording host that difference was inside run-to-run noise.
 > The allocation that hurt was the one that needed the GIL.
-> The libc allocation is worth removing because it is free to remove, because its cost depends on an allocator you do not control, and because the next platform may be less forgiving: glibc's own documentation of `M_ARENA_MAX` says applications "may in some cases exhibit high contention when accessing arenas".
+> The libc allocation is worth removing because it is free to remove, because its cost depends on an allocator you do not control, and because the next platform may be less forgiving: glibc's mallopt(3) says of `M_ARENA_MAX` that "applications may in some cases exhibit high contention when accessing arenas".
 > Allocator scalability itself is owned by [[Cpp-Memory-Profiling-heaptrack-Massif-DHAT-and-Allocators]].
 >
 > ### The Fix
-> Do the per-record work with plain C state, and touch Python once per batch, after the GIL has been taken back by `Py_END_ALLOW_THREADS`:
+> Do the per-record work with plain C state, and touch Python once per batch, after the GIL has been taken back by `Py_END_ALLOW_THREADS` (`recscore.c`, `VARIANT_FIXED`):
 >
 > ```c
 > long counts[NVENUE] = {0};
@@ -410,11 +435,11 @@ On Linux this phase prints one line saying it was skipped.
 > Three rules produce this shape.
 > First, a region without the GIL accumulates into C variables and publishes once; it never calls an API that needs a thread state.
 > Second, scratch memory whose size is known lives on the stack or is allocated once per call, never once per record.
-> Third, signals are checked at batch granularity: one batch here is 2000 small records, so a check per batch still satisfies the C API's advice that `PyErr_CheckSignals()` be called "frequently enough so that the response appears immediate to humans".
+> Third, signals are checked at batch granularity: one batch here is 2000 small records, so a check per batch still satisfies the C API's advice that `PyErr_CheckSignals()` "should be called by long-running C code frequently enough so that the response appears immediate to humans".
 > If a batch could run for seconds, check every few thousand records with `Py_BLOCK_THREADS` and `Py_UNBLOCK_THREADS`, and accept one GIL round trip per check, not per record.
 >
 > ### Verification Output
-> Phase 7 of the harness on `darwin-arm64` (the block ends at the last line of the recording):
+> Phase 7 of the harness on `darwin-arm64`, copied from `expected/darwin-arm64.txt` (the block ends at the last line of the recording):
 >
 > ```text
 > == Phase 7: the fix keeps the output and restores scaling ==
@@ -434,8 +459,8 @@ On Linux this phase prints one line saying it was skipped.
 ## 5. Core Takeaway
 
 A C extension has two contracts with the interpreter, and a profile of Python frames can verify neither.
-The first is where the extension holds the GIL: taking it once per item inside a loop that runs without it converts a parallel loop into a lock convoy that is slower than never releasing the GIL at all on enough threads, while leaving the single-thread benchmark and the wall-clock Python profile almost unchanged.
-The second is where it allocates: churn that is freed inside one call never appears in a peak-memory report or a `tracemalloc` snapshot, and the three allocation layers (libc, pymalloc, object freelists) are each visible to a different instrument or to none.
+The first is where the extension holds the GIL: taking it once per item inside a loop that runs without it converts a parallel loop into a lock convoy, while leaving the single-thread benchmark and the wall-clock Python profile almost unchanged.
+The second is where it allocates: churn that is freed inside one call never appears in a peak-memory report or a `tracemalloc` snapshot, and the three allocation layers (libc, the object allocator, object freelists and caches) are each visible to a different instrument or to none.
 
 Diagnose in the order the evidence gets more expensive: scaling and operating system counters first, then the GIL view of a sampling profiler, then native stacks, then allocation counts.
 The sampling modes and their biases are owned by [[Python-cProfile-Tachyon-and-Sampling-Profilers]], and allocation tracking is owned by [[Python-Memory-Profiling-Memray-and-Line-Profiler]].
@@ -446,27 +471,30 @@ Reference values and commands for GIL and allocation diagnosis in mixed Python a
 
 | Parameter / Tool / Flag | Value / Command | Target Platform | Mechanism and Operational Significance |
 |:---|:---|:---|:---|
-| GIL switch interval | 5 ms (`DEFAULT_INTERVAL 5000` microseconds in `Python/ceval_gil.c`; `sys.getswitchinterval()`) | Both | How long a waiter lets the holder run before setting the drop request; in effect since Python 3.2; the lab prints it. |
-| GIL data structure | `locked` flag, `gil->mutex`, `gil->cond`, `gil->switch_mutex`, `gil->switch_cond` | Both | One take and one drop touch `gil->mutex` twice and signal `gil->cond` once; contention turns each into a kernel sleep and wake. |
-| Release the GIL in C | `Py_BEGIN_ALLOW_THREADS` ... `Py_END_ALLOW_THREADS` | Both | Expands to `PyEval_SaveThread()` and `PyEval_RestoreThread(_save)`; no Python API may be called in between. |
-| Reacquire inside a released region | `Py_BLOCK_THREADS` / `Py_UNBLOCK_THREADS`, or `PyGILState_Ensure()` / `PyGILState_Release()` | Both | Each pair is one full GIL round trip; the `PyGILState_*` family is soft deprecated in 3.15 in favor of `PyThreadState_Ensure()` (PEP 788). |
-| Tachyon, all threads | `python -m profiling.sampling attach -a -d 30 <PID>` | Both | Without `-a` only the main thread is sampled; default rate is 1 kHz; module added in Python 3.15 (PEP 799). |
-| Tachyon GIL mode | `--mode gil` | Both | Keeps only samples from the thread whose `holds_gil` is set; a function that releases the GIL should nearly vanish. |
-| Tachyon thread states | `python -m profiling.sampling dump -a <PID>` | Both | Prints each thread with `has GIL`, `on CPU`, `waiting for GIL`, or `idle`. |
-| Tachyon thread statistics | `--flamegraph -o out.html` | Both | Sidebar reports GIL Held, GIL Released, Waiting GIL, and GC percentages. |
-| Tachyon privileges | root, `CAP_SYS_PTRACE`, or `ptrace_scope` 0 on Linux; root or the debugger entitlement on macOS | Both | Reads target memory out of process (`process_vm_readv` or ptrace on Linux, `task_for_pid()` on macOS); an unprivileged run on macOS 27.2 failed with a permission error (observed 2026-11). |
+| GIL switch interval | 5 ms (`DEFAULT_INTERVAL 5000` microseconds in `Python/ceval_gil.c`; `sys.getswitchinterval()`) | Both | How long a waiter waits before setting the drop request, and only if no switch happened meanwhile; the default since the Python 3.2 GIL rewrite. |
+| GIL data structure | `locked` flag, `gil->mutex`, `gil->cond`, `gil->switch_mutex`, `gil->switch_cond`, `last_holder`, `switch_number` | Both | One take and one drop lock `gil->mutex` twice and signal `gil->cond` once; contention turns each into a kernel sleep and wake. |
+| Release the GIL in C | `Py_BEGIN_ALLOW_THREADS` ... `Py_END_ALLOW_THREADS` | Both | Expands to `PyEval_SaveThread()` and `PyEval_RestoreThread(_save)`; no API that needs a thread state may be called in between. |
+| Reacquire inside a released region | `Py_BLOCK_THREADS` / `Py_UNBLOCK_THREADS`, or `PyGILState_Ensure()` / `PyGILState_Release()` | Both | Each pair is one full GIL round trip; the `PyGILState_*` family is soft deprecated since 3.15 in favor of `PyThreadState_Ensure(guard)` and `PyThreadState_Release(token)` (PEP 788). |
+| Calls from a foreign thread | `PyThreadState_New()` once, then attach and detach it per call | Both | `PyGILState_Ensure` on a thread with no thread state creates one, and the matching `Release` deletes it when its counter reaches zero. |
+| Tachyon, all threads | `python -m profiling.sampling attach -a -d 30 <PID>` | Both | Without `-a` only the main thread is sampled; default rate 1 kHz; module added in Python 3.15 (PEP 799). |
+| Tachyon GIL mode | `--mode gil` | Both | Keeps only samples from a thread whose `holds_gil` is set; a function that releases the GIL should nearly vanish. |
+| Tachyon CPU mode | `--mode cpu` | Both | Linux: state `R` in `/proc/<pid>/task/<tid>/stat`; macOS: `pth_run_state == TH_STATE_RUNNING`; says nothing about the GIL. |
+| Tachyon thread states | `python -m profiling.sampling dump -a <PID>` | Both | One snapshot; each thread annotated as main thread, `has GIL`, `on CPU`, `waiting for GIL`, `has exception`, or `idle`. |
+| Tachyon thread statistics | `--flamegraph -o out.html` | Both | Reports GIL Held, GIL Released, Waiting GIL, and GC percentages. |
+| Tachyon privileges | root, `CAP_SYS_PTRACE`, or `ptrace_scope` 0 on Linux; root, the `com.apple.security.cs.debugger` entitlement, or SIP disabled on macOS | Both | Reads target memory out of process (`ptrace` or `process_vm_readv` on Linux, `task_for_pid()` on macOS). |
 | Native stacks without root | `sample <PID> 5 -file out.txt` | macOS | Suspends the process every 1 ms by default and records every thread's call stack; default duration 10 s. |
 | Scheduler counters | `pidstat -u -w -t -p <PID> 1`; `/proc/<PID>/status` | Linux | `cswch/s` and `nvcswch/s` per thread; `voluntary_ctxt_switches` and `nonvoluntary_ctxt_switches` per task. |
-| Context switches from inside | `resource.getrusage(RUSAGE_SELF)` | Both | Linux splits `ru_nvcsw` and `ru_nivcsw`; macOS leaves `ru_nvcsw` at 0, so compare the sum. |
-| memray native capture | `memray run --native -o out.bin script.py` | Both | Records the native stack of each allocation; moderate overhead; reports must be generated on the same machine. |
-| memray churn report | `memray flamegraph --temporary-allocations out.bin` | Both | Same as `--temporary-allocation-threshold=1`: freed after at most one other allocation; also accepted by `summary` and `transform`. |
-| memray small objects | `memray run --trace-python-allocators` | Both | Hooks the Python allocators so requests of 512 bytes or less are recorded; much slower and much larger files. |
-| memray totals | `memray stats out.bin` | Both | Total allocation count, size histogram, and allocator type distribution; the fastest way to spot a per-record count. |
-| pymalloc threshold | 512 bytes (`SMALL_REQUEST_THRESHOLD`) | Both | Larger requests go to the raw allocator and therefore to libc `malloc`. |
-| pymalloc arena | 1 MiB on 64-bit, 256 KiB on 32-bit | Both | Mapped once and subdivided, which is why per-object churn is invisible to a hook on `malloc` and `mmap`. |
-| Integer freelist | up to 100 objects (`Py_ints_MAXFREELIST`) | Both | `PyLong_FromLong` for a medium integer pops the freelist before calling `PyObject_Malloc`; CPython 3.15.2. |
+| Context switches from inside | `resource.getrusage(resource.RUSAGE_SELF)` | Both | Linux splits `ru_nvcsw` and `ru_nivcsw` by cause; XNU derives `ru_nivcsw` from the task total, so compare the sum. |
+| memray native capture | `memray run --native -o out.bin script.py` | Both | Records the native stack of each allocation; "moderate impact on performance"; reports must be generated on the same machine. |
+| memray churn report | `memray summary --temporary-allocations out.bin` | Both | Same as `--temporary-allocation-threshold=1`; accepted by `flamegraph`, `table`, `tree`, `summary`, and `transform` in 1.20.0, not by `stats`. |
+| memray small objects | `memray run --trace-python-allocators` | Both | Records the Python allocators too; "records a lot more data and makes profiling much slower". |
+| memray totals | `memray stats out.bin` | Both | Total allocation count, size histogram, allocator type distribution, and top locations by size and by count. |
+| pymalloc threshold | 512 bytes (`SMALL_REQUEST_THRESHOLD`) | Both | Larger requests fall back to `PyMem_RawMalloc()` and therefore to libc `malloc`; default build only. |
+| pymalloc arena and pool | arena 1 MiB on 64-bit (2 MiB with `--with-pymalloc-hugepages`, which `configure.ac` honors only where `MAP_HUGETLB` exists, so in practice Linux), 256 KiB on 32-bit; pool 16 KiB on 64-bit with the radix tree, else 4 KiB | Both | Mapped once and subdivided, which is why per-object churn is invisible to a hook on `malloc` and `mmap`; CPython 3.15.2. |
+| Free-threaded object allocator | mimalloc | Both | Default in the free-threaded build since 3.13; equally invisible to a libc hook. |
+| Small-integer cache and int freelist | -5 to 1024 cached; up to 100 freed ints reused (`Py_ints_MAXFREELIST`) | Both | `PyLong_FromLong` allocates only when both miss; CPython 3.15.2. |
 | tracemalloc scope | PYMEM raw, mem, and obj domains; live blocks only | Both | Blind to libc `malloc` in an extension and to anything freed before the next snapshot. |
-| Free-threaded opt-in | `Py_mod_gil` slot or `PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED)` | Both | Without it, importing the module on a free-threaded build enables the GIL and emits a `RuntimeWarning`. |
+| Free-threaded opt-in | `Py_mod_gil` slot with `Py_MOD_GIL_NOT_USED`, or `PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED)` for single-phase init | Both | Without it, importing the module on a free-threaded build enables the GIL and emits a `RuntimeWarning`; `PYTHON_GIL=0` or `-Xgil=0` overrides. |
 
 ## How Binding Layers Spell the Same Two Operations
 
@@ -475,14 +503,17 @@ Every binding layer has a way to release the GIL around native work and a way to
 | Layer | Release for native work | Take back inside the released region | What to grep for in a hot loop |
 |:---|:---|:---|:---|
 | CPython C API | `Py_BEGIN_ALLOW_THREADS` / `Py_END_ALLOW_THREADS` | `Py_BLOCK_THREADS`, `PyGILState_Ensure()`, `PyThreadState_Ensure()` | Any of the three inside a `for` or `while` body. |
-| Cython | `with nogil:` block or `nogil` function | `with gil:` block; a `nogil` function with an `except *` specification reacquires after every call to check for an exception | `with gil:` inside a loop; `cdef void f() nogil` without `noexcept`. |
+| Cython | `with nogil:` block or `nogil` function | `with gil:` block; a `nogil` function declared `except *` reacquires after every call to check for an exception | `with gil:` inside a loop; `cdef void f() except * nogil` called per element. |
 | pybind11 | `py::gil_scoped_release` or `py::call_guard<py::gil_scoped_release>()` | `py::gil_scoped_acquire` | `gil_scoped_acquire` in a callback or virtual override called per element. |
-| PyO3 | `Python::detach` (formerly `allow_threads`) | `Python::attach` (formerly `with_gil`) | `Python::attach` inside a closure passed to a parallel iterator. |
-| NumPy C API | `NPY_BEGIN_ALLOW_THREADS` / `NPY_END_ALLOW_THREADS`, `NPY_BEGIN_THREADS` | `NPY_ALLOW_C_API` / `NPY_DISABLE_C_API` | `NPY_ALLOW_C_API` inside an inner loop. |
+| PyO3 | `Python::detach` (named `allow_threads` before 0.26) | `Python::attach` (named `with_gil` before 0.26) | `Python::attach` inside a closure passed to a parallel iterator. |
+| NumPy C API | `NPY_BEGIN_ALLOW_THREADS` / `NPY_END_ALLOW_THREADS`, `NPY_BEGIN_THREADS` | `NPY_ALLOW_C_API` / `NPY_DISABLE_C_API`, which expand to `PyGILState_Ensure()` and `PyGILState_Release()` | `NPY_ALLOW_C_API` inside an inner loop. |
 
 The Cython case deserves attention because nothing in the source says "GIL".
-The Cython documentation states that a function with an `except *` specification "will be expensive to call because Cython will need to temporarily reacquire the GIL after every call to check the exception state".
-A missing `noexcept` on a helper called per element is this drill's defect with no visible reacquisition in the code.
+The Cython documentation states that a function with an `except *` exception specification "will be expensive to call" because "Cython will need to temporarily reacquire the GIL after every call to check the exception state", while other specifications acquire the GIL only if an exception is actually raised.
+An `except *` on a `void` helper called per element is this drill's defect with no visible reacquisition in the code; `noexcept` removes it when the helper cannot raise.
+
+The NumPy case is the same defect one macro away: `ndarraytypes.h` defines `NPY_ALLOW_C_API` as `__save__ = PyGILState_Ensure()`, so a call per element is exactly release 1.5.
+NumPy's own loops show the opposite instinct: `NPY_BEGIN_THREADS_THRESHOLDED(loop_size)` releases the GIL only when `loop_size` exceeds 500, because a release that covers too little work costs more than it frees.
 
 ## Pitfalls
 
@@ -492,28 +523,31 @@ A missing `noexcept` on a helper called per element is this drill's defect with 
 >    A benchmark suite for an extension that releases the GIL needs a thread-scaling case, as [[Performance-Regression-Detection-in-CI]] argues for any concurrent code.
 > 2. **Reading the wall-clock profile as "nothing changed":** Tachyon attributes native time to the calling Python line, so the wall-clock profile of the regressed build matches the baseline.
 >    The modes are different questions: wall asks where threads are, GIL asks who is serializing whom.
-> 3. **Expecting CPU mode to expose the convoy:** In the container run, `--mode cpu` kept the request line on top for both builds and did not separate them.
->    Tachyon's CPU mode on Linux classifies a thread from the state character in `/proc/<pid>/task/<tid>/stat` (`get_thread_status` in `threads.c`).
->    UNVERIFIED: why threads that Phase 2 shows are mostly not consuming CPU were still classified as running in most samples was not established; do not rely on CPU mode for this diagnosis.
+> 3. **Expecting CPU mode to expose the convoy:** CPU mode answers "was this thread schedulable at the sample instant", not "was it waiting for the GIL".
+>    On Linux, `get_thread_status()` in `Modules/_remote_debugging/threads.c` reads the state character from `/proc/<pid>/task/<tid>/stat` and counts only `R` as on CPU; `R` is "running or runnable (on run queue)" (ps(1)), the `0x00` entry `R (running)` of `task_state_array` in `fs/proc/array.c`, so a thread that has just been woken and is waiting for a core counts as on CPU.
+>    On macOS the same function asks `proc_pidinfo(PROC_PIDTHREADINFO)` for `pth_run_state == TH_STATE_RUNNING`.
+>    Both builds spend all their CPU, user and system alike, under the same Python line, so a CPU-mode profile ranks the same line first in both; the GIL fields are what separate them.
 > 4. **Using `--native` and expecting C symbols:** Tachyon's `--native` adds a synthetic `<native>` frame.
 >    For C function names and lines you need a native sampler or the perf trampoline described in [[Python-CPython-perf-Trampoline-and-Tachyon-Internals]].
-> 5. **Looking for churn in a peak-memory report:** memray's default flame graph, table, and CSV describe the high-water mark.
+> 5. **Looking for churn in a peak-memory report:** memray's default flame graph, table, summary, and CSV describe the high-water mark.
 >    A per-record allocation that is freed immediately contributes at most one block to the peak, so the report is correct and useless; ask for `--temporary-allocations`.
-> 6. **Assuming memray's flame graph will show the C frame:** With `--native`, memray reporters show a hybrid stack that interleaves native and Python frames.
->    In the container run (memray 1.20.0, linux-aarch64, CPython 3.15.2 and 3.14.10, as of 2026-11) the native unwind returned only `score_batch` at the `malloc` line and `cfunction_call`, and the merged stack in the flame graph showed Python frames only; the native frames were still readable through `memray.FileReader(...).get_temporary_allocation_records()` and `native_stack_trace()`.
->    Check the raw records before concluding that an allocation has no native caller.
-> 7. **Forgetting that the profiler hooks the function under suspicion:** memray's list of hooked functions includes `PyGILState_Ensure`, and its hook calls `install_trace_function()` after the real call (`hooks.cpp`).
+> 6. **Reading `<unknown>` as "no native caller":** In the macOS run, `memray summary` printed "No symbol information was found for the Python interpreter" and listed frames as `score_batch at <unknown>`: the function name resolved, the file and line did not.
+>    The symbol requirements are in memray's native-mode documentation; the records themselves are also readable with `memray.FileReader(path).get_temporary_allocation_records()` and each record's `native_stack_trace()` and `hybrid_stack_trace()`.
+> 7. **Forgetting that the profiler hooks the function under suspicion:** `PyGILState_Ensure` is in memray's `MEMRAY_HOOKED_FUNCTIONS`, and its hook calls `tracking_api::install_trace_function()` after the real call (`hooks.cpp`).
 >    A program that calls `PyGILState_Ensure` once per record pays that extra work once per record while memray is attached, so throughput under memray is not the throughput you are diagnosing.
 > 8. **Counting on `tracemalloc` for extension memory:** `tracemalloc` hooks CPython's allocator domains.
 >    A C or C++ library that calls `malloc` or `operator new` directly is outside its view, and so is everything freed between snapshots; the scope and the leak workflow are covered in [[Python-tracemalloc-gc-and-Memory-Leaks]].
-> 9. **Assuming every installed profiler supports the interpreter:** py-spy 0.4.3 failed against CPython 3.15.2 in the container with "Failed to find python version from target process" (linux-aarch64, as of 2026-11), although the README on the master branch lists 3.15.
->    Its `--native` mode is documented for Linux and Windows only, not macOS.
->    Verify the tool against the exact interpreter before an incident, not during one.
-> 10. **Fixing the allocation and declaring victory:** The count of allocations says how many, never how expensive.
+> 9. **Assuming every installed profiler supports the interpreter:** The py-spy README on the master branch lists interpreter versions 3.3 through 3.15 and documents `--native` only for Linux (x86-64, ARM, aarch64) and Windows (x86-64), not macOS (as of 2026-11).
+>    It also warns that its `--gil` filter "will miss activity in extensions that release the GIL while still active".
+>    A README is a claim, not a test: verify each tool against the exact interpreter build before an incident, not during one.
+> 10. **Calling back into Python from a native thread pool:** If the per-record `PyGILState_Ensure` runs on a thread that CPython has never seen, `PyGILState_Ensure()` creates a new thread state, and the matching `PyGILState_Release()` clears and deletes it when its counter returns to zero (`Python/pystate.c`).
+>     Each callback then pays thread-state creation and destruction on top of the GIL round trip.
+>     The C API documentation says both `PyThreadState_Ensure()` and `PyGILState_Ensure()` "do not guarantee a persistent thread state" and recommends `PyThreadState_New()` when one thread state should be reused across calls.
+> 11. **Fixing the allocation and declaring victory:** The count of allocations says how many, never how expensive.
 >     Here the libc allocation is the easiest finding and the least important one; `gilfix` keeps it and still scales.
 >     Rank findings by measured time with one change at a time.
-> 11. **Calling Python APIs without the GIL to "fix" the convoy:** Removing `PyGILState_Ensure` while leaving `stats_add` in the loop turns a slow program into a crashing one.
->     `PYTHONMALLOC=debug` and debug builds check that an attached thread state exists when the object and mem domains are used (C API memory documentation).
+> 12. **Calling Python APIs without the GIL to "fix" the convoy:** Removing `PyGILState_Ensure` while leaving `stats_add` in the loop turns a slow program into a crashing one.
+>     `PYTHONMALLOC=debug` installs hooks that "check that there is an attached thread state when allocator functions of `PYMEM_DOMAIN_OBJ` ... and `PYMEM_DOMAIN_MEM` ... domains are called" (C API memory documentation), so run the test suite under it after any change to GIL handling.
 
 ## At Scale: Native Extensions in a Threaded Python Fleet
 
@@ -541,9 +575,10 @@ At the scale of thousands of services importing hundreds of wheels, the same def
    The table in "How Binding Layers Spell the Same Two Operations" is the grep list.
 
 6. **Plan for free threading without assuming it removes the problem.**
-   Free-threaded CPython is officially supported from 3.14 (PEP 779), and an extension must declare support with the `Py_mod_gil` slot.
+   Free-threaded CPython became officially supported with Python 3.14 (PEP 779, status Final), and an extension must declare support with the `Py_mod_gil` slot or `PyUnstable_Module_SetGIL()`.
    An extension that does not declare it puts the whole process back under the GIL at import, so one legacy wheel reintroduces every GIL bottleneck in the service.
    Under free threading the convoy on the GIL disappears, but each per-record attach and detach still costs, and code that relied on the GIL to make a read-modify-write atomic is now racy; these bugs are owned by [[Python-Concurrency-Asyncio-Multiprocessing-and-Free-Threading-Bugs]].
+   Wheel tags for free-threaded builds (`cp314t`) are owned by [[Python-Wheels-Platform-Tags-Manylinux-and-ABI3]].
 
 Decision rule: a GIL round trip is only worth paying when the work it frees is long compared with a contended handoff, so batch the work until one release covers a meaningful amount of computation, release once per batch, and prove the choice with a thread-scaling measurement.
 
@@ -553,8 +588,8 @@ Decision rule: a GIL round trip is only worth paying when the work it frees is l
 > 1. Run `DRILL_RAW=1 bash run.sh` and write down the raw throughput of `base` and `regr` at one and eight threads on your machine; compute the two ratios the lab asserts.
 > 2. Add a sixth variant that keeps the per-record `PyGILState_Ensure` but replaces `stats_add` with a bare `PyErr_CheckSignals()`; predict, then measure, whether the convoy needs the allocations to exist.
 > 3. Change `stats_add` in the `fixed` variant so that it is called every 256 records with `Py_BLOCK_THREADS` and `Py_UNBLOCK_THREADS`; confirm with the probed build that `SaveThread` rises to the expected count and that scaling survives.
-> 4. Start `service.py` with `--variant regr` and capture it with a native sampler for your platform; find the frame that calls `take_gil` and the source line that calls it.
-> 5. If you have memray installed for the same interpreter, run the service under `memray run --native` and reproduce the identity "allocations at the request line equals records processed"; then repeat with `--trace-python-allocators` and explain each new allocator type in `memray stats`.
+> 4. Start `service.py` with `--variant base`, then `--variant regr`, and run `sudo python3 -m profiling.sampling attach -a --mode gil -d 10 <PID>` and `dump -a` against each; write down the GIL-mode sample count on the request line and the thread states, and check them against Step 2 of the solution.
+> 5. Run the service under `memray run --native` and reproduce the identity "allocations at the request line equals records processed"; then repeat with `--trace-python-allocators` and explain each allocator type in `memray stats`.
 > 6. Rebuild `recscore.c` against a free-threaded interpreter, import it, and read the warning; then add the `PyUnstable_Module_SetGIL` call and explain why the `regr` variant's statistics are no longer trustworthy.
 
 ## Interview Questions
@@ -568,8 +603,8 @@ What do the macros expand to, what may the code between them do, and what must i
 > `PyEval_SaveThread()` detaches the calling thread's thread state, which on a build with the GIL ends in `drop_gil()`; `PyEval_RestoreThread()` attaches it again, which ends in `take_gil()` and blocks until the GIL is available.
 >
 > Between the macros the thread has no attached thread state.
-> It may do anything that does not touch the interpreter: compute on C data, block in a system call, take its own locks.
-> It must not call any Python C API that needs a thread state, which is nearly all of them: creating or destroying objects, changing reference counts, raising exceptions, calling `PyErr_CheckSignals()`.
+> It may do anything that does not touch the interpreter: compute on C data, block in a system call, take its own locks, and allocate with `malloc` or `PyMem_RawMalloc()`, which the C API documents as safe without an attached thread state.
+> It must not call any API that needs a thread state, which is nearly all of them: creating or destroying objects, changing reference counts, raising exceptions, `PyMem_Malloc()`, `PyObject_Malloc()`, and `PyErr_CheckSignals()`.
 > It may read memory it obtained before releasing, such as a `Py_buffer`, provided the owner is kept alive and not mutated by another thread.
 >
 > The two legitimate ways to touch Python again are to end the region, or to reacquire for a moment with `Py_BLOCK_THREADS` and `Py_UNBLOCK_THREADS`.
@@ -582,7 +617,7 @@ Predict whether the heartbeat is starved for most of the call in three builds of
 
 > [!success]- Answer:
 > **Prediction:** starved, not starved, not starved.
-> This is Phase 5 of the lab on `darwin-arm64`:
+> This is Phase 5 of the lab on `darwin-arm64`, copied from `expected/darwin-arm64.txt`:
 >
 > ```text
 > == Phase 5: heartbeat thread during one long call ==
@@ -594,7 +629,7 @@ Predict whether the heartbeat is starved for most of the call in three builds of
 > **Mechanism:**
 > When `time.sleep()` returns, the heartbeat must take the GIL to run its next bytecode.
 > In the first build the caller holds the GIL in C for the whole call.
-> The heartbeat waits in `take_gil()`, times out after the 5 ms switch interval, and sets the drop-request bit on the holder, but that bit is examined by the bytecode evaluation loop, and the holder is not executing bytecode.
+> The heartbeat waits in `take_gil()`, times out after the 5 ms switch interval, and sets the drop-request bit in the holder's eval breaker, but that bit is examined by the bytecode evaluation loop, and the holder is not executing bytecode.
 > The request is honored only when the C function returns, so the largest gap is about the length of the call.
 >
 > In the second build the GIL is free for the whole loop, so the heartbeat takes it immediately each time.
@@ -615,9 +650,9 @@ What do you see, and which tool shows the 20000 allocations?
 > Phase 4 of the lab asserts this: over 20000 records of the regressed build the snapshot diff gains fewer than 1000 live blocks.
 >
 > Cumulative counters show the churn.
-> `memray run --trace-python-allocators` followed by `memray stats` or a `--temporary-allocations` report counts every request to the Python allocators, including the ones pymalloc serves from an arena it already owns.
+> `memray run --trace-python-allocators` followed by `memray stats` or a `--temporary-allocations` report counts every request to the Python allocators, including the ones served from an arena the allocator already owns.
 > Without `--trace-python-allocators`, memray records only requests that reach the system allocator, so a small string never appears.
-> The lab's `allocspy` module shows the same thing with thirty lines of C: it wraps the three allocator domains with `PyMem_SetAllocator()` and counts calls, and it reports one object-domain `malloc`, one `realloc`, and one `free` per record.
+> The lab's `allocspy` module shows the same thing with a few dozen lines of C: it wraps the three allocator domains with `PyMem_SetAllocator()` and counts calls, and it reports one object-domain `malloc`, one `realloc`, and one `free` per record.
 >
 > If the temporary were allocated with libc `malloc` instead, `tracemalloc` could not see it even while it was alive, because libc is outside CPython's allocator domains.
 
@@ -662,27 +697,27 @@ Walk through your diagnosis.
 > **Step 7: Close the gap that let it ship.**
 > Add a thread-scaling benchmark for the extension and a count-based assertion, and pin or review upgrades of wheels that sit on the hot path.
 
-### Question 5 (Level 6): Why Retaking the GIL per Item Is Worse Than Holding It
-Explain, in terms of `take_gil()` and `drop_gil()`, why a loop that retakes the GIL briefly on every item can deliver less total throughput on eight threads than a loop that never releases the GIL.
+### Question 5 (Level 6): Why Retaking the GIL per Item Destroys Scaling
+Explain, in terms of `take_gil()` and `drop_gil()`, why a loop that releases the GIL but retakes it briefly on every item fails to scale: eight threads deliver less than 1.5 times the throughput of one, and why that failure looks different from a loop that never releases the GIL at all.
 
 > [!success]- Answer:
 > A loop that never releases the GIL serializes the threads cleanly.
-> One thread runs in user mode at full speed; the others sleep in `take_gil()` and wake at most once per switch interval to set a drop request.
+> One thread runs in user mode at full speed; the others sleep in `take_gil()` and wake at most once per switch interval to set a drop request, which the holder cannot honor until it returns to bytecode.
 > Total throughput is about one thread's worth and almost no CPU is wasted.
 >
 > A loop that retakes the GIL per item makes every thread pass through the same lock once per item.
-> In CPython 3.15.2 the GIL is a `locked` flag guarded by `gil->mutex` with waiters on `gil->cond`.
-> `take_gil()` locks the mutex, waits on the condition variable while `locked` is set, then locks `gil->switch_mutex`, sets `locked`, updates `last_holder` and `switch_number`, and signals `gil->switch_cond`.
-> `drop_gil()` locks the mutex again, clears `locked`, signals `gil->cond`, and, when another thread has requested a drop, waits on `gil->switch_cond` until a different thread owns the GIL.
+> In CPython 3.15.2 the GIL is a `locked` flag guarded by `gil->mutex` with waiters on `gil->cond`, and the source comment says `gil_mutex` "is taken for short periods of time, and therefore mostly uncontended".
+> `take_gil()` locks the mutex, waits on the condition variable while `locked` is set, then locks `gil->switch_mutex`, sets `locked`, updates `last_holder` and `switch_number` when the holder changes, and signals `gil->switch_cond`.
+> `drop_gil()` locks the mutex again, clears `locked`, signals `gil->cond`, and, only when its drop-request bit is set, waits on `gil->switch_cond` until a different thread owns the GIL.
 >
 > Uncontended, all of that stays in user space.
 > With eight threads arriving once per record each, many arrivals find the mutex or the flag taken.
-> Each such arrival becomes a sleep in the kernel, and each release becomes a wake-up of another thread, which then has to be scheduled onto a core.
+> Each such arrival becomes a sleep in the kernel, and each release becomes a wake-up of another thread, which then has to be scheduled onto a core and win `gil->mutex` again.
 > The useful work per item is small compared with a sleep and wake cycle through the kernel.
 > So the threads spend most of their time in the handoff, the cores sit partly idle because the threads are blocked, and the kernel accounts for a large share of the CPU that is used.
 >
 > The lab shows each part: at least 20 context switches per 1000 records and at least 10% system time in Phase 2, at least half of worker samples under `PyGILState_Ensure` in Phase 6, and eight threads delivering less than 1.5 times one thread in Phase 1.
-> The historical name is the convoy effect, described for the then-new GIL in CPython issue 52194.
+> The historical name is the convoy effect, the title of CPython issue 52194 (bpo-7946), filed by David Beazley in 2010 against the then-new GIL.
 
 ### Question 6 (Level 6): Three Allocations, Three Visibilities
 In the regressed loop, each record performs a libc `malloc(64)`, a `PyUnicode_FromFormat("venue-%d", v)`, and a `PyLong_FromLong(n + 1)`.
@@ -702,14 +737,32 @@ For each, say which of these see it: memray's default mode, memray with `--trace
 > `tracemalloc` traces the block while it is alive and forgets it when it is freed, so a snapshot never contains it.
 >
 > **`PyLong_FromLong`:**
-> For a value outside the small-integer cache, CPython 3.15.2 takes the object from a freelist of up to 100 integers and calls `PyObject_Malloc()` only when the freelist is empty.
+> For a value from -5 to 1024, CPython 3.15.2 returns a cached small integer.
+> For a larger single-digit value it takes the object from a freelist of up to 100 integers and calls `PyObject_Malloc()` only when the freelist is empty.
 > The loop frees the previous count and immediately reuses it, so no allocator is called and none of the four instruments sees anything.
 > Lab evidence: Phase 4 shows exactly one object-domain `malloc` per record, the string, not two.
 >
 > **Lesson:** "no allocations reported" is a statement about one layer.
 > To claim a loop is allocation-free you need a hook on libc, a hook on the Python allocators, and a CPU profile for what the freelists hide.
 
-### Question 7 (Level 7): Design the Extension API So the Defect Cannot Be Written
+### Question 7 (Level 6): The Callback From a Native Thread Pool
+A C++ library runs its own worker threads and invokes a Python callback once per item, wrapping each call in `PyGILState_Ensure()` and `PyGILState_Release()`.
+Profiles show time in `PyThreadState_Clear` and thread-state allocation in addition to `take_gil`.
+Explain why, and fix it.
+
+> [!success]- Answer:
+> The worker threads were created by C++, so CPython has no thread state for them.
+> `PyGILState_Ensure()` finds no thread state for the thread, creates one with `new_threadstate()`, binds it, and attaches it; `PyGILState_Release()` decrements the thread state's `gilstate_counter`, and when it reaches zero it calls `PyThreadState_Clear()` and `_PyThreadState_DeleteCurrent()` (`Python/pystate.c`).
+> So every callback creates and destroys a thread state, and pays the GIL round trip on top.
+>
+> The C API documentation is explicit that `PyThreadState_Ensure()` and the older `PyGILState_Ensure()` "do not guarantee a persistent thread state", and that a matched pair "may create and destroy a thread state each time".
+> Its recommendation is `PyThreadState_New()` once per worker thread, kept for the life of the thread, and attached and detached around each call.
+> A cheap alternative is an outer `PyGILState_Ensure()` held at thread start so the counter never returns to zero, with the thread releasing the GIL through `PyEval_SaveThread()` between callbacks.
+>
+> That removes the creation cost, not the GIL cost.
+> The second fix is the same as this drill's: batch items on the native side and call Python once per batch.
+
+### Question 8 (Level 7): Design the Extension API So the Defect Cannot Be Written
 The product requirement behind release 1.5 was real: per-venue statistics, prompt response to Ctrl-C, and, next quarter, an optional Python callback for records that fail validation.
 Design the extension's internal structure so that all three are supported without per-record GIL traffic, and state how you would enforce it.
 
@@ -740,30 +793,36 @@ Design the extension's internal structure so that all three are supported withou
 > Buffering results makes memory proportional to the chunk, and it delays side effects until the end of the chunk.
 > That is the price of parallelism here, and chunk size is the single tuning knob.
 
-### Question 8 (Level 7+): Does Free Threading Make This Bug Disappear?
+### Question 9 (Level 7+): Does Free Threading Make This Bug Disappear?
 Your organization plans to move services to free-threaded CPython.
 What happens to this exact extension, unchanged, on a free-threaded build, and what changes after it is ported?
 
 > [!success]- Answer:
 > **Unchanged, it turns the GIL back on.**
-> `recscore` uses single-phase initialization and does not declare that it can run without the GIL.
-> Importing it on a free-threaded build emits a `RuntimeWarning` and enables the GIL for the whole process.
-> Checked on CPython 3.14.6 free-threading build, darwin-arm64 (as of 2026-11): `sys._is_gil_enabled()` returned `False` before the import and `True` after it, and the warning text named the module and the `PYTHON_GIL=0` override.
+> `recscore` uses single-phase initialization (`PyModule_Create`) and does not declare that it can run without the GIL.
+> Checked on the uv-managed CPython 3.14.6 free-threaded build, darwin-arm64 (as of 2026-11): `sys._is_gil_enabled()` returned `False` before `import recscore_regr` and `True` after it, with this warning (message text as in `Python/import.c`):
+>
+> ```text
+> RuntimeWarning: The global interpreter lock (GIL) has been enabled to load module 'recscore_regr', which has not declared that it can run safely without the GIL. To override this behavior and keep the GIL disabled (at your own risk), run with PYTHON_GIL=0 or -Xgil=0.
+> ```
+>
 > From that point the process behaves like a normal build, convoy included, and every other thread in the service has lost its parallelism because of one wheel.
 >
 > **Ported, the convoy on the GIL goes away, and two other things take its place.**
-> After adding `PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED)`, `take_gil()` returns immediately when the GIL is disabled, so the lock that the threads were fighting over is gone.
-> First, the per-record `PyGILState_Ensure` and `PyGILState_Release` still attach and detach a thread state each time, and the per-record string still goes through the allocator, so the per-record work remains and the fix from this drill is still the right code.
+> After adding `PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED)` under `#ifdef Py_GIL_DISABLED`, `take_gil()` returns at once when the GIL is disabled, so the lock that the threads were fighting over is gone.
+> First, the per-record `PyGILState_Ensure` and `PyGILState_Release` still attach and detach a thread state each time.
+> On the free-threaded build, attaching is a compare-and-swap of `tstate->state` from detached to attached (`tstate_try_attach()`), and when a stop-the-world pause such as a garbage collection is pending the thread parks in `tstate_wait_attach()` until it ends.
+> The free-threading HOWTO still asks extensions to release around blocking work "to allow other threads to run the cyclic garbage collector", so per-record attach points are now per-record chances to wait for a pause, and the per-record string still goes through the allocator; the fix from this drill is still the right code.
 > Second, correctness: `stats_add()` reads a count from a shared dictionary, adds one, and stores it back.
 > Under the GIL that sequence ran with the GIL held and was atomic with respect to other threads.
-> Without the GIL, two threads can read the same old value and one increment is lost; individual dictionary operations are safe, the read-modify-write is not.
-> The batch-publish design reduces the window but does not close it; the stats update needs a per-object lock or per-thread accumulation merged by the caller.
+> Without the GIL, two threads can read the same old value and one increment is lost; individual dictionary operations are internally synchronized, the read-modify-write sequence is not.
+> The batch-publish design narrows the window but does not close it; the stats update needs a per-object lock or per-thread accumulation merged by the caller.
 >
 > **What to tell the organization.**
 > Free threading removes one global lock; it does not remove per-item overhead and it converts some slow code into wrong code.
-> Audit extensions for the `Py_mod_gil` declaration before migration, because a single undeclared module silently re-enables the GIL, and treat "declares support" as a claim to test with a race detector, not as a fact.
+> Audit extensions for the `Py_mod_gil` declaration before migration, because a single undeclared module silently re-enables the GIL, and treat "declares support" as a claim to test under contention, not as a fact.
 
-### Question 9 (Level 7+): Catching This Class of Regression Across a Fleet
+### Question 10 (Level 7+): Catching This Class of Regression Across a Fleet
 You own performance for a fleet of threaded Python services that depend on about two hundred native wheels.
 Design the controls that would have caught this regression before or within minutes of deployment, without anyone having to look at a flame graph.
 
@@ -784,11 +843,12 @@ Design the controls that would have caught this regression before or within minu
 >
 > **Continuously: GIL wait share from the profiler.**
 > Run a sampling profiler that records per-thread GIL state on a small fraction of hosts and export "share of thread samples waiting for the GIL" by service and by release.
-> Tachyon exposes exactly these states, so the collector is a thin wrapper.
+> Tachyon exposes exactly these states in its flame graph thread statistics, so the collector is a thin wrapper.
 > A step change in that series at a deploy boundary points at the release, and the GIL-mode profile attached to the alert points at the function.
 >
 > **Dependency hygiene.**
 > Treat a native wheel upgrade on a hot path like a code change: it goes through the scaling harness, and its changelog is read for new callbacks, logging, or statistics, which are the features that bring Python calls into native loops.
+> Before a free-threading migration, scan every wheel's modules for the `Py_mod_gil` declaration, because one undeclared module re-enables the GIL for the process.
 >
 > **What this does not catch.**
 > Contention that appears only at a thread count or data shape the harness does not exercise.
@@ -799,15 +859,15 @@ Design the controls that would have caught this regression before or within minu
 - Python Software Foundation, *Python/ceval_gil.c*, CPython 3.15.2 source.
   The implementation notes at the top of the file are the authoritative description of the GIL's mutex, condition variable, switch interval, and forced switching.
 - Python Software Foundation, *Thread states and the global interpreter lock*, Python/C API Reference Manual 3.15.
-  Defines attached thread states, the allow-threads macros, and the `PyGILState_*` and `PyThreadState_Ensure` families with their soft-deprecation status.
+  Defines attached thread states, the allow-threads macros, the foreign-thread rules, and the `PyGILState_*` and `PyThreadState_Ensure` families with their soft-deprecation status.
 - Python Software Foundation, *profiling.sampling - Statistical profiler*, Python 3.15 documentation.
   The reference for Tachyon's modes, thread selection, privileges, and the thread statistics in the flame graph.
 - Python Software Foundation, *Memory Management*, Python/C API Reference Manual 3.15.
-  Explains the three allocator domains, the 512-byte pymalloc threshold, and the contract of `PyMem_SetAllocator()`.
+  Explains the three allocator domains, the 512-byte pymalloc threshold, arena sizes, mimalloc in the free-threaded build, and the contract of `PyMem_SetAllocator()`.
 - Bloomberg, *Memray documentation: The run subcommand, Temporary allocations, and Python allocators*.
   Explains why small objects are invisible by default and what `--temporary-allocations` and `--trace-python-allocators` each count.
 - David Beazley, *Understanding the Python GIL*, PyCon 2010, and CPython issue 52194.
-  The original measurements and discussion of GIL convoys that motivated and then critiqued the 3.2 rewrite.
+  The original measurements and discussion of GIL convoys that followed the 3.2 rewrite.
 - Sam Gross, *PEP 703 - Making the Global Interpreter Lock Optional in CPython*, with the *C API Extension Support for Free Threading* HOWTO.
   What an extension must declare and change to run without the GIL.
 - Cython developers, *Cython and the GIL*.

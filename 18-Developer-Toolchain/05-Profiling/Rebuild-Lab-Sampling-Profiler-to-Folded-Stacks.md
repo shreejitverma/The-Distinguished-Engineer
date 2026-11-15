@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished, low-latency]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Michael Kerrisk et al., perf_event_open(2): set up performance monitoring, Linux man-pages project, 2026, https://man7.org/linux/man-pages/man2/perf_event_open.2.html"
@@ -49,6 +49,7 @@ sources:
   - "Docker Inc., Seccomp security profiles for Docker (significant syscalls blocked by the default profile), docs.docker.com, 2026, https://docs.docker.com/engine/security/seccomp/"
   - "Canonical, Performance engineering on Ubuntu leaps forward with frame pointers by default in Ubuntu 24.04 LTS, ubuntu.com blog, 2023, https://ubuntu.com/blog/ubuntu-performance-engineering-with-frame-pointers-by-default"
   - "Fedora Project, Changes/fno-omit-frame-pointer (Fedora Linux 38), fedoraproject.org wiki, 2022, https://fedoraproject.org/wiki/Changes/fno-omit-frame-pointer"
+  - "Linux kernel developers, include/uapi/asm-generic/signal.h and arch/x86/include/uapi/asm/signal.h (SIGPROF 27), Linux kernel source tree, 2026, https://github.com/torvalds/linux/blob/master/include/uapi/asm-generic/signal.h"
 ---
 
 # Rebuild Lab: Sampling Profiler to Folded Stacks
@@ -166,7 +167,7 @@ In that container `perf_event_open` failed with `EPERM` under Docker's default s
 | CPU-timer granularity | Linux | CPU timers are checked from the timer interrupt, so the tick (`HZ` of 100, 250, 300, or 1000) bounds the rate | Asking for 10 kHz does not give 10 kHz. |
 | Frame record | Both | Two machine words at the frame pointer: caller's frame pointer, then return address | The whole unwinder is a loop over this pair. |
 | `-fomit-frame-pointer` | Linux | Enabled by default at `-O1` and higher (GCC manual) | An ordinary optimized GCC build has no frame chain. |
-| Frame pointers on Apple arm64 | macOS | The platform ABI requires x29 to address a valid frame record; only leaf functions and tail calls may skip one | Non-leaf frames are always walkable; the leaf case still needs the leaf flag. |
+| Frame pointers on Apple arm64 | macOS | The platform ABI requires x29 to address a valid frame record; some functions, such as leaf functions and tail calls, may skip one (Apple ARM64 guide) | Non-leaf frames are always walkable; the leaf case still needs the leaf flag. |
 | `-momit-leaf-frame-pointer` | Linux | Default on AArch64 (GCC manual; `gcc -Q --help=target` in the lab image shows `[enabled]`) | Leaf functions have no frame record, so their caller is skipped. |
 | Distro defaults | Linux | Ubuntu 24.04 builds 64-bit packages with frame pointers; Fedora 38 adds both flags to default C and C++ flags | System libraries may or may not carry a chain; check your base image. |
 | `kernel.perf_event_paranoid` | Linux | Default 2 since Linux 4.6: user-space measurements only | 2 still requires `exclude_callchain_kernel` when asking for callchains. |
@@ -175,6 +176,10 @@ In that container `perf_event_open` failed with `EPERM` under Docker's default s
 | `kernel.perf_event_mlock_kb` | Linux | 512 plus one page in KiB: 516 with 4 KiB pages | Bounds the ring buffer an unprivileged user can map. |
 | Ring buffer size | Linux | `1 + 2^n` pages: one metadata page, then the data area | A data area that is not a power-of-two number of pages fails with `EINVAL`. |
 | `PERF_CONTEXT_USER` | Linux | `(__u64)-512`; every value at or above `PERF_CONTEXT_MAX` (`(__u64)-4095`) is a marker | Markers are interleaved with addresses in the callchain and must be skipped. |
+| `kernel.perf_event_max_contexts_per_stack` | Linux | 8 (`PERF_MAX_CONTEXTS_PER_STACK`) | Bounds the markers in one callchain, separately from the frame limit. |
+| `PERF_CONTEXT_USER_DEFERRED` | Linux | `(__u64)-640`, with `PERF_RECORD_CALLCHAIN_DEFERRED` (22), in kernel master | New marker values appear; filter markers by range, never by a fixed list. |
+| `perf record --call-graph` | Linux | Default `fp` for user space (`dwarf` on s390); also `dwarf` and `lbr` | The production tool's default unwinder is the one this lab builds. |
+| arm64e return addresses | macOS | Signed with `pacibsp` in every frame record; system libraries and `dyld` are arm64e | A walker that does not strip reports addresses in no module. |
 | `Elf64_Sym` | Linux | 24 bytes; `st_size` is 0 when unknown | Sizes let a lookup reject an address that is past the end of a function. |
 | `nlist_64` | macOS | 16 bytes; no size field | The end of a function must come from the next symbol or from `LC_FUNCTION_STARTS`. |
 | Mach-O magic | macOS | `0xfeedfacf` thin 64-bit; `0xcafebabe` and `0xcafebabf` universal, stored big-endian | A universal file holds one image per architecture, each with its own UUID. |
@@ -283,7 +288,14 @@ The order and the flags each prevent a specific failure.
 
 The requested interval is a request, not a guarantee.
 On Linux, CPU timers are evaluated in `run_posix_cpu_timers`, which the kernel source describes as "called from the timer interrupt handler", so no CPU timer fires more often than the tick.
+time(7) gives the possible tick rates: since Linux 2.6.13 `HZ` is a configuration choice of 100, 250 (the default), or 1000, and 300 since Linux 2.6.20.
+Go issue 35057 shows the bound in the field: on a kernel built with `CONFIG_HZ=250`, the counts of generated and delivered `SIGPROF` agreed "as long as there were fewer than 250 SIGPROF deliveries per second", and diverged above it.
 The lab therefore never asserts a rate: the target runs until it holds the requested number of samples, and the achieved CPU time per sample goes to stderr, outside the compared output.
+
+On Linux the per-thread alternative uses the POSIX timer API instead.
+`timer_create` with the clock `CLOCK_THREAD_CPUTIME_ID` measures one thread's CPU time, and a `sigevent` with `sigev_notify = SIGEV_THREAD_ID` and `sigev_notify_thread_id` set to the thread's kernel ID (from `gettid`) directs the signal at that thread; timer_create(2) marks `SIGEV_THREAD_ID` as Linux-specific and "intended only for use by threading libraries", which is exactly what a profiler embedded in a runtime is.
+Each thread then gets its own expirations and its own pending `SIGPROF`, so the signal-coalescing loss described under At Scale cannot occur.
+The lab does not implement this path; its workload has one thread.
 
 Pick a rate that does not share a period with the workload.
 Brendan Gregg's CPU flame graph page uses 99 Hz and 199 Hz and gives the reason: odd rates "avoid sampling in lockstep with other activity and producing misleading results".
@@ -413,9 +425,35 @@ Pointer authentication changes what a record holds.
 AAPCS64 says that when return-address signing is in use, "the value in LR must be signed before storing it in the frame record", so a walker reads signed addresses and must strip them.
 The lab uses the `xpaclri` instruction on register x30.
 GCC's manual entry for `__builtin_return_address` describes the same problem at the source level: on AArch64 "the stored address may be mangled with return address signing", and it points to `__builtin_extract_return_addr` for post-processing.
-`xpaclri` is one of the pointer authentication instructions encoded in the HINT space, which the kernel's AArch64 pointer authentication document says behave as NOPs where the feature is absent.
-UNVERIFIED: the stripping of a signed address was not observed, because neither compiler signed return addresses in the lab build.
-The instruction ran on both recorded platforms: as a NOP in the Linux VM, whose `/proc/cpuinfo` lists no `paca` feature, and as a real strip on Apple silicon, where the lab's unsigned addresses passed through unchanged.
+The kernel's AArch64 pointer authentication document says a subset of these instructions "have been allocated from the HINT encoding space" and that "in the absence of the extension (or when disabled), these instructions behave as NOPs", so the same walker binary runs on cores with and without the feature.
+The kernel's own user-space walker does the same thing: `unwind_user_frame` in `arch/arm64/kernel/stacktrace.c` passes every saved link register through `ptrauth_strip_user_insn_pac` before reporting it.
+
+The nested lab `code/05-Profiling/mini_profiler/pac_probe/` (`# requires: macos`, Apple silicon) shows when stripping matters.
+A probe function reads the saved link register out of its own frame record, compares it with `__builtin_return_address(0)`, and strips it with the same `xpaclri` sequence the walker uses; the probe is built three ways.
+Recorded with `python3 -m _harness.verify --record` on darwin-arm64 (macOS 27.3, Apple M3 Pro, Apple clang 21.0.0) on 2026-11-15; the file is `code/05-Profiling/mini_profiler/pac_probe/expected/darwin-arm64.txt`.
+
+```text
+== Pointer authentication in AArch64 frame records ==
+arm64e: prologue signs x30 with pacibsp: yes
+arm64e: saved return address carries a PAC: yes
+arm64e: xpaclri recovers the unsigned return address: yes
+arm64, default flags: prologue signs x30: no
+arm64, default flags: saved return address carries a PAC: no
+arm64, default flags: xpaclri leaves the unsigned return address unchanged: yes
+arm64, -mbranch-protection=pac-ret: prologue signs x30 with paciasp: yes
+arm64, -mbranch-protection=pac-ret: saved return address carries a PAC: no
+arm64, -mbranch-protection=pac-ret: xpaclri leaves the unsigned return address unchanged: yes
+```
+
+Three facts follow, each as of 2026-11 on macOS 27.3.
+
+- **arm64e signs every frame record.** The prologue signs x30 with `pacibsp` (the B key) before storing it, the stored word has authentication bits above the address, and a walker that skips the strip reports an address that is in no module.
+  On the recording host the only shared cache is `dyld_shared_cache_arm64e` and `lipo -archs /usr/lib/dyld` prints `x86_64 arm64e arm64e.x1`, so the system frames under every stack, `dyld` and `libSystem` included, run as arm64e; that is why the macOS walker must strip even when the profiled program is plain arm64.
+- **Plain arm64 does not sign by default.** Apple clang emits no signing instruction for an `-arch arm64` build without flags.
+- **`-mbranch-protection=pac-ret` emitted `paciasp`, yet the stored address carried no authentication bits** in a plain arm64 process.
+  The probe shows the effect, not its cause, and no source fetched for this note documents the cause; the walker is correct either way, because `xpaclri` on an unsigned address returns it unchanged.
+
+On Linux the same flag signs for real when the CPU has the feature and the kernel enables the keys; the lab's Linux VM listed no `paca` in `/proc/cpuinfo`, so there `xpaclri` ran as the HINT-space NOP.
 The ABI side of this is owned by [[Hardware-Security-ABIs-PAC-BTI-CET-and-RELRO]].
 
 **Verification:** section 1 of the lab output requires at least 99% of stacks to contain `main`, which fails if the chain is not followed to the root, and sections 4 and 5 show the three artifacts.
@@ -703,6 +741,16 @@ Its layout is the fixed order in the man page, restricted to the bits set in `sa
 The entries are not all addresses: the callchain interleaves context markers such as `PERF_CONTEXT_USER`, and the decoder drops every value at or above `PERF_CONTEXT_MAX`.
 A reader that changes `sample_type` without changing the decoder reads garbage without any error.
 
+The marker set is not frozen, which is the reason to filter by range and not by a list of known values.
+The kernel master `perf_event.h` (as of 2026-11, Linux) defines `PERF_CONTEXT_HV` (-32), `PERF_CONTEXT_KERNEL` (-128), `PERF_CONTEXT_USER` (-512), `PERF_CONTEXT_USER_DEFERRED` (-640), and three guest markers from -2048 to -2560, all as `(__u64)` casts below `PERF_CONTEXT_MAX` (-4095).
+`PERF_CONTEXT_USER_DEFERRED` belongs to deferred user callchains, requested with the new `defer_callchain` attribute bit: the user part of the stack is captured "shortly before returning to user space" and delivered in a separate `PERF_RECORD_CALLCHAIN_DEFERRED` (type 22), which a reader must stitch onto the earlier kernel-only callchains.
+The lab never sets that bit, so it never receives such records; a reader that does must keep per-thread state across records, which the lab's stateless decoder does not.
+The kernel also caps how many markers one callchain may hold: `PERF_MAX_CONTEXTS_PER_STACK` is 8, exposed as the sysctl `kernel.perf_event_max_contexts_per_stack`.
+
+Two more checks in `perf_event_open` (kernel/events/core.c) shape the attribute.
+In frequency mode (`attr.freq = 1`) a `sample_freq` above `kernel.perf_event_max_sample_rate` fails with `EINVAL` instead of being clamped, and in period mode a `sample_period` with bit 63 set fails with `EINVAL`.
+The lab uses period mode with a fixed 1,000,000 ns period, so neither check applies; the kernel's sample throttling, governed by `perf_cpu_time_max_percent` (default 25), can still lower the delivered rate under load, which is one more reason the lab never asserts a rate.
+
 **Verification:** the nested lab's output, shown in the next section: samples read, an `MMAP2` record for the target, a `PERF_RECORD_EXIT`, the build ID from the kernel matching the file, and the same three stacks at 50%, 30%, and 20%.
 
 ## Complete Verification and Golden Output
@@ -733,7 +781,7 @@ The gprof manual's rule is that for n samples "the expected error is the square-
 ### Verified output, macOS
 
 Recorded with `python3 -m _harness.verify --record` on darwin-arm64 (macOS 27.2, Apple clang 21.0.0) on 2026-11-11.
-The recording predates the last review fixes to the sources; the final sources reproduce it, with three consecutive `PASS` runs.
+The current sources reproduce it: one `python3 -m _harness.verify 05-Profiling/mini_profiler/` run on 2026-11-15 (macOS 27.3, Apple M3 Pro, same compiler) printed `PASS`.
 The file is `code/05-Profiling/mini_profiler/expected/darwin-arm64.txt`.
 
 ```text
@@ -802,7 +850,8 @@ Read sections 3 to 6 as four separate lessons.
 
 ### Verified output, Linux
 
-Recorded on linux-aarch64 on 2026-11-11 by running the same harness command inside the pinned lab image (Ubuntu 24.04, g++ 13.2.0, binutils 2.42) as its unprivileged user, with all capabilities dropped and no network; the final sources reproduce it in three consecutive runs.
+Recorded on linux-aarch64 on 2026-11-11 by running the same harness command inside the pinned lab image (Ubuntu 24.04, g++ 13.2.0, binutils 2.42) as its unprivileged user, with all capabilities dropped and no network.
+It was not re-run for this revision, because lab checks are paused; the sources it was recorded from are the ones in the lab today.
 The file is `code/05-Profiling/mini_profiler/expected/linux-aarch64.txt`.
 It differs from the macOS file only in the format lines, the frames above `main`, the name the nearest-symbol lookup invents, and the symbol source of the fully stripped copy:
 
@@ -839,7 +888,8 @@ The nested lab `code/05-Profiling/mini_profiler/perf_ring/` declares `# requires
 It uses the software `cpu-clock` event and needs no hardware counter; the `pmu` tag is there because the harness container runs under Docker's default seccomp profile, which refuses `perf_event_open`, and `pmu` is the tag that keeps the lab from being dispatched there.
 The harness therefore reports it as skipped on macOS.
 
-It was recorded on linux-aarch64 on 2026-11-11 by running the harness inside the pinned image with `--security-opt seccomp=unconfined` and `TOOLCHAIN_LABS_PMU=1`, as the unprivileged user with all capabilities dropped; the final sources reproduce it in three consecutive runs.
+It was recorded on linux-aarch64 on 2026-11-11 by running the harness inside the pinned image with `--security-opt seccomp=unconfined` and `TOOLCHAIN_LABS_PMU=1`, as the unprivileged user with all capabilities dropped.
+Like the Linux file of the main lab, it was not re-run for this revision.
 The file is `code/05-Profiling/mini_profiler/perf_ring/expected/linux-aarch64.txt`.
 
 ```text
@@ -867,7 +917,7 @@ That agreement is the strongest evidence in the lab: a bug common to both would 
 What the lab does not prove:
 
 - Nothing about multi-threaded targets; the workload has one thread.
-- Nothing about pointer authentication stripping, as stated in Step 4.
+- Nothing about pointer authentication inside the profiled workload: the main lab's target is plain arm64 and unsigned; stripping a signed record is shown only by the separate `pac_probe` lab in Step 4, and only on macOS.
 - Nothing about the bounds check in the walker, because every build here keeps a valid chain; it is exercised only by a target without frame pointers.
 - Nothing about Linux x86-64, which was not run.
 - Nothing about the achieved sampling rate, which is printed to stderr and never compared.
@@ -907,6 +957,7 @@ An in-process profiler changes process-wide state, and an out-of-process one cha
 | `EINTR` from system calls | Errors that appear only under the profiler | `SA_RESTART` missing, or a call that is never restarted. Set the flag, and make the target retry the calls signal(7) lists. |
 | Stacks of depth one or two | Every stack is the leaf plus one frame | No frame-pointer chain in the target: an optimized build without `-fno-omit-frame-pointer`. Rebuild, or unwind with CFI. |
 | Leaf's caller missing | A hot leaf sits on its grandparent, as in lab section 5 | Leaf functions without frame records. Add `-mno-omit-leaf-frame-pointer`, or repair as `perf` does on arm64. |
+| Root or callback frames in no module | Addresses with high bits set, only on Apple silicon or PAC-enabled Linux | Return addresses saved by arm64e or `pac-ret` code are signed. Strip each one with `xpaclri` before lookup, as the `pac_probe` lab shows. |
 | A frame you expect is absent, everything else is right | As in lab section 4 | Tail call or inlining. Confirm in the disassembly; use debug information for inlined frames. |
 | Every frame is `[module]` | Module tags instead of names | The file has no usable symbol table (stripped), or cannot be opened (dyld shared cache). Fetch the unstripped file or debug file by identity. |
 | Plausible but wrong names | Functions that cannot be on that path | Nearest-symbol lookup on a stripped file, or symbolization against a different build. Use a bounded lookup and compare identities. |
@@ -1117,6 +1168,20 @@ flowchart LR
 > > Monitoring another user's process or all processes on a CPU also returns `EACCES`.
 > > Fix the event first; lower `perf_event_paranoid` or grant `CAP_PERFMON` only if kernel frames are actually needed.
 
+> [!question] L6
+> A frame-pointer walker that works on Linux aarch64 is ported to macOS on Apple silicon without the `xpaclri` strip.
+> The profiled program is built `-arch arm64` with default flags.
+> Predict which frames symbolize and which do not.
+>
+> > [!success]- Answer
+> > The question is who saved each return address, because a frame record holds the link register as the function that owns the record stored it.
+> > The program's own functions are plain arm64 and sign nothing, which the `pac_probe` lab shows: no signing instruction and no authentication bits in the saved link register.
+> > So the program counter and every return address stored by a program function symbolize, including `start` in `dyld`, whose return address is stored by `main`.
+> > `dyld` and the shared cache are arm64e, whose prologues sign x30 with `pacibsp` before storing it, so every return address stored by a system function carries authentication bits above the address and falls in no module.
+> > A system function's record points back into its caller: in `main -> qsort -> compare`, the record of `compare` (stored unsigned) yields the frame in `qsort`, and the record of `qsort` (stored signed) yields a garbage frame where `main` should be.
+> > The walk itself continues, because only the link register is signed and the saved frame pointer is not, so the symptom is one unresolved frame directly below every system frame, not a truncated stack.
+> > The fix is one instruction per frame, `xpaclri` or `__builtin_extract_return_addr`, which returns an unsigned address unchanged, so it is always safe to apply.
+
 > [!question] L7
 > A Go service uses 20 cores according to `top`, and its CPU profile accounts for about 2.4.
 > Explain the mechanism and design the fix.
@@ -1194,3 +1259,4 @@ flowchart LR
 - See also: [[Stack-Unwinding-CFI-and-Exception-ABI]], [[ELF-Mach-O-and-PE-Object-Formats]], [[Flame-Graphs-Differential-Flame-Graphs-and-Visualizations]], [[Sampling-vs-Instrumentation-Skid-and-Safepoint-Bias]], [[Signals-Process-Groups-Sessions-and-Job-Control]], [[Rust-CPU-Profiling-cargo-flamegraph-samply-and-Frame-Pointers]], [[Cpp-CPU-Profiling-perf-samply-Callgrind-and-llvm-mca]]
 - Lab: `code/05-Profiling/mini_profiler/`
 - Lab: `code/05-Profiling/mini_profiler/perf_ring/` (requires: linux, pmu)
+- Lab: `code/05-Profiling/mini_profiler/pac_probe/` (requires: macos)

@@ -78,8 +78,8 @@ def timed_run(mod, threads: int, data: bytes) -> Run:
     records = sum(done) * RECORDS_PER_BATCH
     user = usage1.ru_utime - usage0.ru_utime
     system = usage1.ru_stime - usage0.ru_stime
-    # Linux counts a blocked thread under ru_nvcsw; macOS reports ru_nvcsw as 0
-    # and counts every switch under ru_nivcsw.  The sum is comparable on both.
+    # Linux counts a blocked thread under ru_nvcsw; XNU derives ru_nivcsw as the
+    # task's total switch count minus ru_nvcsw.  Only the sum is comparable.
     switches = (usage1.ru_nvcsw - usage0.ru_nvcsw) + (
         usage1.ru_nivcsw - usage0.ru_nivcsw
     )

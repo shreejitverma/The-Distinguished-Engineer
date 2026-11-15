@@ -2,46 +2,53 @@
 type: concept
 track: [sde, distinguished]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Apple Inc., Xcode 12 Release Notes (instruments deprecated in favor of xctrace; export of Analysis Core tables), Apple Developer Documentation, 2020, https://developer.apple.com/documentation/xcode-release-notes/xcode-12-release-notes"
-  - "Apple Inc., Xcode 13 Release Notes (CPU Profiler template; instruments command removed; xctrace export --har), Apple Developer Documentation, 2021, https://developer.apple.com/documentation/xcode-release-notes/xcode-13-release-notes"
+  - "Apple Inc., Xcode 13 Release Notes (CPU Profiler template; instruments command removed; Allocations, Leaks, and VM Tracker table export; xctrace export --har), Apple Developer Documentation, 2021, https://developer.apple.com/documentation/xcode-release-notes/xcode-13-release-notes"
   - "Apple Inc., Xcode 14.3 Release Notes (xctrace export includes parsable backtraces), Apple Developer Documentation, 2023, https://developer.apple.com/documentation/xcode-release-notes/xcode-14_3-release-notes"
   - "Apple Inc., Xcode 16.3 Release Notes (Processor Trace instrument), Apple Developer Documentation, 2025, https://developer.apple.com/documentation/xcode-release-notes/xcode-16_3-release-notes"
   - "Apple Inc., Xcode 26 Release Notes (CPU Counters reworked for Bottleneck Analysis; xctrace record --run-name), Apple Developer Documentation, 2025, https://developer.apple.com/documentation/xcode-release-notes/xcode-26-release-notes"
-  - "Apple Inc., Xcode 27 Release Notes (xctrace record --show-recording-options and --recording-options; export time ranges; .atrc input), Apple Developer Documentation, 2026, https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes"
-  - "Apple Inc., xctrace built-in help (xctrace help record, export, show, toc, triage, symbolicate, list), xctrace 27.2 (27B52) in Xcode 27.2, 2026, https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes"
-  - "Apple Inc., xnu osfmk/kperf/kptimer.c (per-CPU sampling timers, KPTIMER_MAX, kptimer_min_period_abs), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/kptimer.c"
+  - "Apple Inc., Xcode 27 Release Notes (xctrace record recording options; export time range; Allocations backtraces; .atrc and .logarchive input), Apple Developer Documentation, 2026, https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes"
+  - "Apple Inc., xctrace built-in help (xctrace help, help record, help export, list templates), xctrace 27.2 (27B52) in Xcode 27.2, read locally on macOS 27.3, 2026, https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes"
+  - "Apple Inc., xnu osfmk/kperf/kptimer.c (per-CPU sampling timers, KPTIMER_MAX), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/kptimer.c"
   - "Apple Inc., xnu osfmk/kperf/pet.c (Profile Every Thread and lightweight PET), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/pet.c"
-  - "Apple Inc., xnu osfmk/kperf/action.c and action.h (kperf_sample, samplers, SAMPLE_FLAG_PEND_USER, kperf_ast_pend), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/action.c"
+  - "Apple Inc., xnu osfmk/kperf/action.c and action.h (kperf_sample, samplers, ACTION_MAX, SAMPLE_FLAG_PEND_USER), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/action.c"
   - "Apple Inc., xnu osfmk/kperf/callstack.c and callstack.h (callstack_fixup_user, MAX_UCALLSTACK_FRAMES), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/callstack.c"
-  - "Apple Inc., xnu osfmk/kern/backtrace.c (backtrace_user frame-pointer walk), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kern/backtrace.c"
+  - "Apple Inc., xnu osfmk/kern/backtrace.c (backtrace_user frame-pointer walk, SWIFT_ASYNC_FP_BIT), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kern/backtrace.c"
   - "Apple Inc., xnu osfmk/kperf/buffer.h (kperf samples logged as kdebug events), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kperf/buffer.h"
   - "Apple Inc., xnu osfmk/kern/kpc.h (KPC_CLASS_FIXED, CONFIGURABLE, POWER, RAWPMU), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kern/kpc.h"
   - "Apple Inc., xnu osfmk/arm64/kpc.c (KPC_ARM64_FIXED_COUNT, counter width, kpc_get_classes), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/arm64/kpc.c"
-  - "Apple Inc., xnu osfmk/kern/kpc_common.c (kpc_sample_kperf, kpc_set_period, kpc_set_actionid, kpc_get_configurable_pmc_mask), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kern/kpc_common.c"
+  - "Apple Inc., xnu osfmk/kern/kpc_common.c (kpc_register_pm_handler, kpc_reserve_pm_counters, kpc_get_configurable_pmc_mask, kpc_set_period, kpc_set_actionid), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kern/kpc_common.c"
   - "Apple Inc., xnu bsd/kern/kern_kpc.c (kpc sysctl nodes and their access checks), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/kern/kern_kpc.c"
-  - "Apple Inc., xnu bsd/kern/kern_ktrace.c (ktrace ownership, ktrace_read_check, ktrace_configure), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/kern/kern_ktrace.c"
+  - "Apple Inc., xnu bsd/kern/kern_ktrace.c (ktrace ownership, _current_task_can_own_ktrace, ktrace_read_check, ktrace_configure), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/kern/kern_ktrace.c"
   - "Apple Inc., xnu bsd/sys/csr.h (CSR_ALLOW_UNRESTRICTED_DTRACE), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/sys/csr.h"
   - "Apple Inc., xnu bsd/dev/dtrace/dtrace_subr.c (dtrace_is_restricted, dtrace_fbt_probes_restricted, dtrace_sdt_probes_restricted, dtrace_can_attach_to_proc), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/dev/dtrace/dtrace_subr.c"
-  - "Apple Inc., xnu bsd/dev/dtrace/dtrace.c (dtrace_cred2priv, dtrace_priv_kernel, dtrace_priv_proc, helper DOF registration, dtrace_init), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/dev/dtrace/dtrace.c"
-  - "Apple Inc., xnu bsd/dev/dtrace/fbt.c, sdt.c, sdt_subr.c, systrace.c, and fasttrap.c (provider registration and gates), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/tree/xnu-12377.121.6/bsd/dev/dtrace"
+  - "Apple Inc., xnu bsd/dev/dtrace/dtrace_subr.c before the CTRR check (dtrace_sdt_probes_restricted returns FALSE), apple-oss-distributions/xnu at xnu-11417.140.69, 2025, https://github.com/apple-oss-distributions/xnu/blob/xnu-11417.140.69/bsd/dev/dtrace/dtrace_subr.c"
+  - "Apple Inc., xnu bsd/dev/dtrace/dtrace_subr.c, first tag with the CTRR check, apple-oss-distributions/xnu at xnu-12377.1.9, 2025, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.1.9/bsd/dev/dtrace/dtrace_subr.c"
+  - "Apple Inc., xnu bsd/dev/dtrace/dtrace.c (dtrace_cred2priv, dtrace_priv_kernel, dtrace_priv_proc, dtrace_state_create credentials, helper DOF registration, dtrace_init), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/dev/dtrace/dtrace.c"
+  - "Apple Inc., xnu bsd/dev/dtrace/fbt.c, sdt.c, systrace.c, profile_prvd.c, lockstat.c, and fasttrap.c (provider registration and gates), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/tree/xnu-12377.121.6/bsd/dev/dtrace"
   - "Apple Inc., xnu osfmk/arm64/machine_routines.c (ml_unsafe_kernel_text, kernel-ctrr-to-be-enabled), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/arm64/machine_routines.c"
-  - "Apple Inc., xnu bsd/kern/kern_cs.c and osfmk/kern/cs_blobs.h (cs_restricted, CS_RESTRICT), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/kern/kern_cs.c"
+  - "Apple Inc., xnu osfmk/i386/machine_routines.c (ml_unsafe_kernel_text: no text lockdown on x86), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/i386/machine_routines.c"
+  - "Apple Inc., distribution-macOS release.json for macOS 26.0 (xnu-12377.1.9) and macOS 15.4 (xnu-11417.101.15), apple-oss-distributions/distribution-macOS, 2025, https://github.com/apple-oss-distributions/distribution-macOS/blob/macos-260/release.json"
   - "Apple Inc., dtrace cmd/dtrace/dtrace.c (System Integrity Protection notice, anonymous tracing refusal), apple-oss-distributions/dtrace at dtrace-413, 2026, https://github.com/apple-oss-distributions/dtrace/blob/dtrace-413/cmd/dtrace/dtrace.c"
   - "Apple Inc., dtrace(1) manual page source (options -c, -n, -p, -w; System Integrity Protection notes), apple-oss-distributions/dtrace at dtrace-413, 2026, https://github.com/apple-oss-distributions/dtrace/blob/dtrace-413/cmd/dtrace/dtrace.1"
   - "Apple Inc., System Integrity Protection Guide: Runtime Protections, Apple Developer Documentation Archive, 2015, https://developer.apple.com/library/archive/documentation/Security/Conceptual/System_Integrity_Protection_Guide/RuntimeProtections/RuntimeProtections.html"
   - "Apple Inc., Disabling and Enabling System Integrity Protection, Apple Developer Documentation, 2026, https://developer.apple.com/documentation/security/disabling-and-enabling-system-integrity-protection"
   - "Apple Inc., Writing ARM64 code for Apple platforms (frame pointer and frame record rules), Apple Developer Documentation, 2026, https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms"
   - "Apple Inc., Recording Performance Data (signposts and Instruments), Apple Developer Documentation, 2026, https://developer.apple.com/documentation/os/recording-performance-data"
-  - "Apple Inc., bputil(1), sample(1), and csrutil(8) manual pages, shipped with macOS 27.2 under /usr/share/man and read locally with man, 2026, https://developer.apple.com/documentation/security/disabling-and-enabling-system-integrity-protection"
+  - "Apple Inc., bputil(1), sample(1), leaks(1), malloc_history(1), and csrutil usage text, shipped with macOS 27.3 and read locally with man, 2026, x-man-page://bputil"
   - "Bryan M. Cantrill, Michael W. Shapiro, and Adam H. Leventhal, Dynamic Instrumentation of Production Systems, USENIX Annual Technical Conference, 2004, https://www.usenix.org/legacy/event/usenix04/tech/general/full_papers/cantrill/cantrill_html/"
   - "illumos Project, Dynamic Tracing Guide: Introduction, illumos documentation, 2026, https://illumos.org/books/dtrace/chp-intro.html"
   - "The Rust Project Developers, compiler/rustc_target/src/spec/base/apple/mod.rs (frame_pointer per Apple architecture), rust-lang/rust master branch, 2026, https://github.com/rust-lang/rust/blob/master/compiler/rustc_target/src/spec/base/apple/mod.rs"
   - "Python Software Foundation, profiling.sampling - Statistical profiler, Python 3.15 documentation, 2026, https://docs.python.org/3.15/library/profiling.sampling.html"
   - "Python Software Foundation, Python support for the perf map compatible profilers, Python 3.15 documentation, 2026, https://docs.python.org/3.15/howto/perf_profiling.html"
   - "Brendan Gregg, stackcollapse-instruments.pl, FlameGraph repository, 2026, https://github.com/brendangregg/FlameGraph/blob/master/stackcollapse-instruments.pl"
+  - "Apple Inc., distribution-macOS release.json for macOS 15.6 (xnu-11417.140.69), apple-oss-distributions/distribution-macOS, 2025, https://github.com/apple-oss-distributions/distribution-macOS/blob/macos-156/release.json"
+  - "Apple Inc., xnu bsd/kern/kern_cs.c (cs_restricted tests CS_RESTRICT), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/bsd/kern/kern_cs.c"
+  - "Apple Inc., xnu osfmk/kern/kpc.h (kpc_register_pm_handler deprecated in favor of kpc_reserve_pm_counters), apple-oss-distributions/xnu at xnu-12377.121.6, 2026, https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.121.6/osfmk/kern/kpc.h"
+  - "Apple Inc., leaks(1) manual page (-conservative option), shipped with macOS 27.3 and read locally with man, 2026, x-man-page://leaks"
 ---
 
 # macOS Instruments, xctrace, and DTrace
@@ -50,7 +57,7 @@ sources:
 > Instruments is a front end: the samples come from three xnu facilities, kperf (sampling actions fired by a timer or by a PMU interrupt), kpc (the PMU counters, grouped into classes), and kdebug (the trace buffer both write into), and `xctrace` drives the same recorder without a window.
 > Time Profiler fires a per-CPU timer every 1000 us and walks the user stack by frame pointers on the way back to user space; CPU Profiler replaces the timer with an interrupt every 1,000,000 `CORE_ACTIVE_CYCLE` counts.
 > `xctrace export` turns a `.trace` bundle into XML tables in which every repeated value is an `id` once and a `ref` afterwards, so a reader that does not resolve references keeps a few percent of the data.
-> DTrace still ships, but three independent gates decide what it can do: root, the System Integrity Protection bit `CSR_ALLOW_UNRESTRICTED_DTRACE`, and on Apple silicon the read-only kernel text region (CTRR), which removes the `fbt` and `sdt` kernel providers whatever SIP says.
+> DTrace still ships, but three independent gates decide what it can do: root, the System Integrity Protection bit `CSR_ALLOW_UNRESTRICTED_DTRACE`, and, since macOS 26 on Apple silicon, the read-only kernel text region (CTRR), which removes the `fbt`, `sdt`, and `syscall` providers whatever SIP says.
 
 ```mermaid
 flowchart TD
@@ -63,13 +70,13 @@ flowchart TD
         GATE["CI gate<br/>resolve id and ref, sum weights"]
     end
     subgraph KERNEL["xnu"]
-        KT["ktrace ownership<br/>root or the owning pid"]
+        KT["ktrace ownership<br/>superuser or the owning process"]
         TIMER["kptimer<br/>per-CPU timer, 1000 us in Time Profiler"]
         PMI["kpc<br/>counter overflow interrupt (PMI)"]
         ACT["kperf action<br/>samplers: thread info, user stack, counters"]
         AST["AST on return to user space<br/>frame-pointer walk, at most 256 frames, plus LR"]
         KD["kdebug trace buffer"]
-        DTK["DTrace framework<br/>providers: syscall, profile, pid, fbt, sdt"]
+        DTK["DTrace framework<br/>providers: dtrace, profile, pid, syscall, fbt, sdt"]
     end
     subgraph HW["Apple silicon"]
         PMU["PMU on the lab host<br/>2 fixed + 8 configurable counters"]
@@ -92,41 +99,67 @@ flowchart TD
     XML --> GATE
     DT --> DTK
     SIP -.->|"no kernel memory, no fbt,<br/>no destructive actions"| DTK
-    CTRR -.->|"no fbt, no sdt"| DTK
+    CTRR -.->|"macOS 26 and later:<br/>no fbt, no sdt, no syscall"| DTK
 ```
 
 ## The Mechanism
 
-Every statement about kernel behavior in this note is from the xnu source at tag `xnu-12377.121.6`, the newest public tag when this note was written.
-The lab host ran a newer kernel (`xnu-13432.41.4`, macOS 27.2), whose source is not public yet, so where the running system and the public source disagree the text says so.
-Every statement about tool output is from the lab in `code/05-Profiling/xctrace_automation/`, recorded on macOS 27.2 with Xcode 27.2 on an Apple M3 Pro.
+Every statement about kernel behavior in this note is from the xnu source at tag `xnu-12377.121.6`, the newest public tag on 2026-11-15, unless a different tag is named.
+The lab hosts ran newer kernels whose source is not public yet: the output was recorded on macOS 27.2 (`xnu-13432.41.4`) and re-verified unchanged on macOS 27.3 (`xnu-13432.60.57`), so where the running system and the public source disagree the text says so.
+Every statement about tool output is from the lab in `code/05-Profiling/xctrace_automation/`, run with Xcode 27.2 (`xctrace` 27.2, build 27B52) on an Apple M3 Pro.
 
 ### 1. Three layers: template, kernel sampler, trace bundle
 
-An Instruments template is a named set of instruments, and each instrument is a consumer of one or more kernel data sources.
+An Instruments template is a named set of instruments, and each instrument is a consumer of one or more kernel or user-space data sources.
 `xctrace list templates` and `xctrace list instruments` print what the installed Xcode offers.
 `xctrace record` starts the recording, and `xctrace export` reads the result back as XML.
+
+`xctrace help` on Xcode 27.2 lists ten subcommands: `record`, `import`, `export`, `remodel`, `symbolicate`, `triage`, `show`, `toc`, `list`, and `version`.
+`import` turns another supported format into a `.trace` bundle, `remodel` rebuilds a trace's tables with the currently installed modelers, and `symbolicate` resolves addresses with a dSYM after the fact.
 
 The command-line history explains what a CI script can rely on:
 
 | Xcode | Change | Source |
 | :--- | :--- | :--- |
-| 12 | The `instruments` command is deprecated in favor of `xctrace`; `xctrace export` can export Analysis Core tables | Xcode 12 release notes |
-| 13 | The `instruments` command is removed; a CPU Profiler template samples on cycle-based PMIs; `xctrace export --har` | Xcode 13 release notes |
+| 12 | The `instruments` command is deprecated in favor of `xctrace`; Analysis Core tables can be exported; `--attach` accepts a process name | Xcode 12 release notes |
+| 13 | The `instruments` command is removed; a CPU Profiler template samples on cycle-based PMIs; Allocations, Leaks, and VM Tracker tables can be exported; `xctrace export --har` | Xcode 13 release notes |
 | 14.3 | `xctrace export` includes a parsable backtrace per row, with an address and a symbol name per frame | Xcode 14.3 release notes |
-| 16.3 | Processor Trace instrument, on M4 Macs and iPads and iPhone 16 | Xcode 16.3 release notes |
+| 16.3 | Processor Trace instrument, on M4 Mac, M4 iPad, and iPhone 16 and 16 Pro | Xcode 16.3 release notes |
 | 26 | CPU Counters reworked around guided "Bottleneck Analysis" modes; `xctrace record --run-name` | Xcode 26 release notes |
-| 27 | `xctrace record --show-recording-options` and `--recording-options`; `xctrace export` accepts `.atrc` and `.logarchive` input and time ranges | Xcode 27 release notes |
+| 27 | `xctrace record --show-recording-options` and `--recording-options`; `xctrace export` accepts `.atrc` and `.logarchive` input, restricts the time range, and gives each Allocations List row a backtrace | Xcode 27 release notes |
 
-`xctrace` 27.2 also has `show`, `toc`, and `triage` subcommands, which print a call tree, a track listing, or a hang report as text.
-They are documented only in `xctrace help` on this host and appear in none of the release notes listed in this note's sources, so treat their output format as less stable than the XML export (as of 2026-11, macOS).
+Two details of that history are only visible on the command line.
+The Xcode 27 release notes say the export time range is set with "time-start, time-end, duration arguments", but `xctrace help export` in 27.2 does not list them.
+The parser accepts `--time-start`, `--time-end`, and `--duration`, rejects `--time-start` without a value with "--time-start flag supplied with no argument", and rejects an unknown flag with "unrecognized option", so the flags exist and are simply undocumented in the help (as of 2026-11, macOS).
+`show`, `toc`, and `triage` print a call tree, a track listing, or a hang report as text; they are documented only in `xctrace help` and appear in none of the release notes listed in this note's sources, so treat their output format as less stable than the XML export (as of 2026-11, macOS).
+
+#### The templates
+
+`xctrace list templates` on Xcode 27.2 prints 26 standard templates: Activity Monitor, Allocations, Animation Hitches, App Launch, Audio System Trace, CPU Counters, CPU Profiler, Core AI, Core ML, Data Persistence, File Activity, Foundation Models, Game Memory, Game Performance, Game Performance Overview, Leaks, Logging, Metal System Trace, Network, Power Profiler, Processor Trace, RealityKit Trace, Swift Concurrency, SwiftUI, System Trace, and Time Profiler (as of 2026-11, macOS).
+This note goes into depth on the four whose data come from kperf and kpc: Time Profiler, CPU Profiler, CPU Counters, and Processor Trace.
+The memory templates use a different mechanism, described in the next subsection.
+
+#### The memory instruments: malloc stack logging and the conservative scan
+
+Allocations and Leaks do not sample the CPU.
+Their command-line relatives document the two mechanisms underneath.
+`malloc_history(1)` says it "relies on information provided by the standard malloc library when malloc stack logging has been enabled for the target process", which is done by setting `MallocStackLogging` or `MallocStackLoggingNoCompact` to 1 in the environment of the program.
+The difference between the two is compaction: with `MallocStackLogging`, an allocation event immediately followed by a free of the same address removes both from the log, and `MallocStackLoggingNoCompact` keeps such pairs.
+`leaks(1)` is the mark phase of a garbage collector run once: it "examines a specified process's memory for values that may be pointers to malloc-allocated buffers", treats any buffer reachable from writable global memory, a register, or the stack as in use, and reports the rest as leaks.
+By default it uses type information where it has it; its `-conservative` option "Ignore[s] type information and scan[s] byte-by-byte for pointers, conservatively assuming that all references are owning references" (`leaks(1)`, macOS 27.3).
+Wherever memory is scanned as untyped words, an integer that happens to equal a buffer's address keeps that buffer alive, so a leak report can miss a leak.
+The man page adds that a stack trace for each leaked buffer is printed only if `MallocStackLogging` was set when the application was launched.
+
+`xctrace record --template 'Allocations' --env KEY=VALUE --launch -- MyApp.app` is one of the examples printed by `xctrace help record`, and `--env` applies only with `--launch`.
+Since Xcode 27, `xctrace export` of a trace with the Allocations instrument carries a backtrace for each row of the Allocations List, so the id and ref reader in section 4 applies unchanged.
+Allocator internals, heap profilers, and their overheads belong to [[Cpp-Memory-Profiling-heaptrack-Massif-DHAT-and-Allocators]].
 
 ### 2. kperf: triggers, actions, samplers
 
 kperf separates when to sample from what to record.
 A trigger is a timer, a PMU counter overflow, or a kdebug event; an action is a numbered bundle of samplers that a trigger runs.
 `osfmk/kperf/action.h` lists the samplers as bits, among them `SAMPLER_TH_INFO`, `SAMPLER_KSTACK`, `SAMPLER_USTACK`, `SAMPLER_PMC_THREAD`, `SAMPLER_PMC_CPU`, and `SAMPLER_TH_SCHEDULING`.
-`ACTION_MAX` in `action.c` allows 32 actions and `KPTIMER_MAX` in `kptimer.c` allows 8 timers.
+`ACTION_MAX` in `action.c` allows 32 actions, which the running kernel reports as `kperf.limits.max_action_count: 32`, and `KPTIMER_MAX` in `kptimer.c` allows 8 timers.
 
 The timer trigger is per CPU.
 The header comment of `kptimer.c` describes it: each configured timer schedules CPU-local timers, "As each timer fires, that CPU samples itself and schedules another timer to fire at the next deadline", and "The first timer to fire across all CPUs determines that deadline", which keeps all CPUs on one cadence.
@@ -135,7 +168,7 @@ An action can carry a pid filter (`pid_filter` in `action.c`), and a sample whos
 Time Profiler's settings are visible in the trace's table of contents.
 The lab reads `sample-rate-micro-seconds=1000`, `callstack=user`, and `all-thread-states=NO` from the `time-sample` table of a default recording, so the default is a 1 ms period, user stacks only, running threads only.
 With `highFrequencySampling` set, the same attribute reads 100, a 10 kHz sample rate.
-The kernel's floor is lower still: `kperf.limits.timer_min_period_ns` is 50000 on the lab host.
+The kernel's floor is lower still: `kperf.limits.timer_min_period_ns` is 50000 on the lab host, and `timer_min_pet_period_ns` is 1000000.
 
 #### Why the user stack is not walked in the interrupt
 
@@ -146,8 +179,8 @@ The stack is collected by the AST handler when the thread is about to return to 
 The walker is `backtrace_user()` in `osfmk/kern/backtrace.c`.
 It follows the frame-pointer chain, copying one frame record at a time from user memory: the caller's frame pointer, and one word above it the return address.
 On arm64e both are signed, and the walker strips the pointer authentication bits; its comment reads "Return addresses are signed by arm64e ABI, so strip off the auth".
-The same function follows Swift async frames, which it recognizes by bit 60 of the saved frame pointer.
-`MAX_UCALLSTACK_FRAMES` in `callstack.h` caps a user stack at 256 frames, and `MAX_KCALLSTACK_FRAMES` caps a kernel stack at 128.
+The same function follows Swift async frames, which it recognizes by `SWIFT_ASYNC_FP_BIT`, bit 60 of the saved frame pointer.
+`MAX_UCALLSTACK_FRAMES` in `callstack.h` caps a user stack at 256 frames, and `MAX_KCALLSTACK_FRAMES` caps a kernel stack at 128, so a deeper recursion is truncated and its root frames are lost.
 
 No DWARF is involved, which is why the walk is cheap enough to run a thousand times a second, and it works because the platform ABI makes the chain reliable.
 Apple's arm64 ABI document says "The frame pointer register (`x29`) must always address a valid frame record" and adds that "Some functions - such as leaf functions or tail calls - may opt not to create an entry in this list".
@@ -155,7 +188,7 @@ That second sentence has two visible consequences, and the lab shows both.
 
 A leaf function without a frame record leaves `x29` pointing at its caller's record, and that record holds the return address into the caller's caller.
 A pure frame-pointer walk from the leaf would therefore skip the caller.
-kperf compensates in `callstack_fixup_user()`, which appends the thread's saved link register to the frame list on arm64 (and the word at the stack pointer on x86_64), because at that moment the link register is the only place that still names the caller.
+kperf compensates in `callstack_fixup_user()`, which appends the thread's saved link register (`get_saved_state_lr()`) to the frame list on arm64, and the word at the stack pointer on x86_64, because at that moment the link register is the only place that still names the caller.
 In the lab, `hot_leaf` has no `stp x29, x30` in its prologue, and the profile still shows `start;main;middle;hot_leaf`.
 
 A tail call does the opposite: the caller pops its own frame record and branches, so it is not on the stack at all while the callee runs.
@@ -165,9 +198,9 @@ No profiler that reads the stack can recover that frame, because the information
 #### Waiting threads: PET
 
 Sampling "all thread states" cannot be done by a per-CPU timer, because a blocked thread is on no CPU.
-`osfmk/kperf/pet.c` implements Profile Every Thread, and its header comment ties it to the tool: PET "supports the 'record waiting threads' mode in Instruments".
+`osfmk/kperf/pet.c` implements Profile Every Thread, and its header comment ties it to the tool: PET "supports the 'record waiting threads' mode in Instruments", and it "used to be called All Thread States (ATS)".
 Traditional PET wakes a kernel thread that walks every task and thread, and the comment warns that this "can take on the order of milliseconds" and "perturbs the timer cadence by the duration of PET sampling".
-Lightweight PET avoids the walk: each thread checks a generation count when it is switched on-core and samples itself if a sampling period has passed.
+Lightweight PET avoids the walk: each thread compares its own generation count with a global one when it is switched on-core, and samples itself if a sampling period has passed.
 The cost shows up in the default rate: with `recordWaitingThreads` set, the lab reads `sample-rate-micro-seconds=5000` and `all-thread-states=YES`, five times slower than the default.
 
 #### Where the samples go
@@ -176,9 +209,14 @@ kperf does not have its own output channel.
 `BUF_DATA` in `osfmk/kperf/buffer.h` expands to `KDBG_RELEASE`, so each sample is a group of kdebug events in class `DBG_PERF`, written to the same trace buffer as scheduler and system call events.
 That is why the table of contents of a Time Profiler trace lists `kdebug` tables next to `time-sample`.
 
+#### Who may configure it: ktrace ownership
+
 kdebug and kperf share one owner at a time.
-`bsd/kern/kern_ktrace.c` says that when ktrace is unconfigured "any root process can take ownership", and that in foreground mode "if the owning process is still running, only it may configure ktrace".
-A different process that tries gets `EBUSY` from `ktrace_configure()`, so two independent ktrace clients cannot both configure it.
+The header comment of `bsd/kern/kern_ktrace.c` says that when ktrace is unconfigured "any root process can take ownership", and that in foreground mode "if the owning process is still running, only it may configure ktrace".
+`ktrace_configure()` returns `EBUSY` to a different process while the owner lives, and `EPERM` when `_current_task_can_own_ktrace()` fails.
+That function returns true for the superuser; the only other path, an entitlement check, is compiled only into `DEVELOPMENT || DEBUG` kernels.
+The lab records as a normal user and succeeds, so on a release kernel a privileged process configures ktrace on `xctrace`'s behalf; the public sources this note relies on do not name it.
+The practical consequence is the `EBUSY` rule: two recordings that need kperf cannot run at the same time on one machine, so CI jobs that profile must be serialized per host.
 
 ### 3. kpc: the PMU as counter classes
 
@@ -194,24 +232,28 @@ kpc exposes the CPU's performance monitoring unit as arrays of counters grouped 
 On arm64, `osfmk/arm64/kpc.c` fixes `KPC_ARM64_FIXED_COUNT` at 2 and derives the configurable count as `CPMU_PMC_COUNT - KPC_ARM64_FIXED_COUNT`.
 Counters are 47 bits wide, or 63 where the chip has `CPMU_64BIT_PMCS`.
 `kpc_get_classes()` in that file returns the fixed, configurable, and raw-PMU masks, which is the value 11.
-The power class is not a fixed set: `kpc_get_configurable_pmc_mask()` in `kpc_common.c` gives it counters only when power management has registered for them and no task has forced all counters.
+
+The power class is not a fixed set of counters; it is carved out of the configurable ones at run time.
+Power management reserves counters through `kpc_reserve_pm_counters()` with a mask over the configurable counters, which `kpc_common.c` stores as `pwr_mgmt_pmc_mask`, and an assertion there requires that the configurable count plus the power count equal the total configurable count.
+The older entry point `kpc_register_pm_handler()`, which `kpc.h` marks deprecated, calls it with the hard-coded mask `0x38` and `custom_config` set to true; the header comment says `0x83`, but the code at `xnu-12377.121.6` passes `0x38`.
+`kpc_get_configurable_pmc_mask()` then gives the configurable class every counter outside that mask, or all of them when a task has forced all counters, and gives the power class the masked counters only when, in its own comment's words, "No tasks acquired all PMCs" and "PM registered and uses kpc to interact with PMCs"; the code adds two more conditions, multiple kpc clients and no custom configuration, so a power manager that registered through the deprecated path never populates the power class.
+Forcing all counters is how a profiler takes the whole PMU, at the price of evicting power management from it.
 
 The event names live in user space, in `/usr/share/kpep/`, one property list per CPU family.
 The lab finds the file for the running CPU by formatting `hw.cputype`, `hw.cpusubtype`, and `hw.cpufamily` in hexadecimal, and reads these facts from it on an M3 Pro:
 
 - `fixed_counters` is `0x3`: counter 0 is `FIXED_CYCLES` and counter 1 is `FIXED_INSTRUCTIONS`, with the aliases `Cycles` and `Instructions`.
 - `config_counters` is `0x3fc`: counters 2 to 9, eight configurable counters.
-- `power_counters` is `0xe0`: counters 5, 6, and 7.
+- `power_counters` is `0xe0`: counters 5, 6, and 7, a subset of the configurable counters.
 - Many events carry a `counters_mask` that limits them to a subset of the configurable counters, while `CORE_ACTIVE_CYCLE` has no mask and can be placed on any of them.
 
-The relation between the `power_counters` field and `KPC_CLASS_POWER` is not documented anywhere this note could fetch.
-UNVERIFIED: the property list format has no public specification, so reading `0xe0` as "the counters power management may claim" is an inference from the field name and the class comment.
-
+The kpep format has no public specification, so this note reports the `power_counters` field as the lab reads it and does not equate it with the mask that power management registers in the kernel.
+One coincidence is worth recording: the deprecated path's `0x38` indexes configurable counters, so after the two fixed counters it names counters 5, 6, and 7, the same counters as the kpep `0xe0`; which mask the macOS 27 power manager actually passes is not in public source.
 The counter restrictions are why a list of eight events is not always schedulable: two events that both need counter 7 cannot be counted in one run.
 
 The running kernel on the lab host reports `kpc.classes` as 27, binary `11011`.
 Bits 0, 1, and 3 are the fixed, configurable, and raw-PMU classes, and bit 2, power, is clear.
-UNVERIFIED: bit 4 is set on macOS 27.2 and has no definition in `kpc.h` at `xnu-12377.121.6`, so its meaning cannot be stated from public source.
+Bit 4 is set, and `kpc.h` at `xnu-12377.121.6` defines no class with value 4, so its meaning cannot be read from public source until the macOS 27 kernel source is published.
 
 Access is asymmetric.
 `kpc_sysctl()` in `bsd/kern/kern_kpc.c` leaves the class and count queries open and requires `ktrace_read_check()` for everything else, with the comment "This is either root or the blessed pid".
@@ -223,7 +265,7 @@ A counter can be given a period and a kperf action (`kpc_set_period()` and `kpc_
 When the counter overflows, the PMU raises a performance monitoring interrupt, and `kpc_sample_kperf()` calls `kperf_sample()` with the same `SAMPLE_FLAG_PEND_USER` path the timer uses.
 
 This is the CPU Profiler template.
-The Xcode 13 release notes introduce it as "analyzing CPU workloads using Cycle-based Performance Monitoring Interrupts (PMIs)" and say it "provides a more stable measurement for code running on Performance or Efficiency CPUs".
+The Xcode 13 release notes introduce it as "analyzing CPU workloads using Cycle-based Performance Monitoring Interrupts (PMIs)" and say "It provides a more stable measurement for code running on Performance or Efficiency CPUs".
 The lab's table of contents shows the configuration: `pmi-event=CORE_ACTIVE_CYCLE`, `pmi-threshold=1000000`.
 The exported rows carry a `Cycles` weight instead of a time weight, the weights differ from row to row, and the largest one is the threshold plus a small overshoot, the interrupt's skid.
 
@@ -235,17 +277,19 @@ A cycle sample is taken after the same number of active cycles on either core ty
 #### CPU Counters and Processor Trace
 
 The CPU Counters template counts events instead of sampling stacks on them.
-Since Xcode 26 its default is a guided mode: the release notes say the CPU Bottlenecks configuration breaks "sustainable CPU bandwidth into four broad categories", Useful, Instruction Delivery, Instruction Processing, and Discarded.
+Since Xcode 26 its default is a guided mode: the release notes say the CPU Bottlenecks configuration breaks "sustainable CPU bandwidth into four broad categories", Useful, Instruction Delivery, Instruction Processing, and Discarded, and that each category other than Useful has further modes to narrow the cause.
 The same notes list a known issue, "No data is present when recording the CPU Counters on macOS devices in the 'Streaming SME Bottlenecks' or 'Instruction Processing Bottlenecks' modes", so check that a mode returns data on your hardware before building a gate on it (as of 2026-11, macOS).
+The Xcode 16.3 notes record the opposite failure mode for custom event lists: `xctrace` used to crash "when recording CPU Counters template containing unavailable PMU events", a reminder that the event list is per chip and a template written on one Mac can name events another Mac lacks.
 
-Processor Trace, added in Xcode 16.3, records control flow in hardware instead of sampling, and the release notes limit it to M4 Macs and iPads and iPhone 16.
+Processor Trace, added in Xcode 16.3, uses "hardware-supported, low-overhead CPU execution tracing to accurately reconstruct execution of the program", and the release notes limit it to M4 Mac, M4 iPad, and iPhone 16 and 16 Pro.
 [[Intel-VTune-AMD-uProf-and-Hardware-Tracing-PT-SPE]] owns hardware tracing; this note stops at the sampling instruments.
 
 ### 4. xctrace: record, table of contents, export
 
 `xctrace record` needs a template and a target.
 The target is `--launch -- command`, `--attach <pid|name>`, or `--all-processes`, and `--time-limit` or the target's exit ends the recording.
-The output is a `.trace` bundle, a directory, and `--append-run` adds another run to an existing bundle.
+`--window <duration>` keeps "only events from the specified end time window", so a long recording retains just its final stretch, which is how to catch the moments before a failure without storing the whole run.
+The output is a `.trace` bundle, a directory, and `--append-run` adds another run to an existing bundle, in which case the help says the template of the original recording is used and the given one is ignored.
 
 ```bash
 xcrun xctrace record --template 'Time Profiler' --output run.trace --no-prompt \
@@ -257,12 +301,12 @@ xcrun xctrace export --input run.trace \
 
 `export --toc` prints a `<trace-toc>` document: one `<run>` per recording, with the target process, the template name, and a `<data>` element holding one `<table>` per stored table.
 Each table has a `schema` attribute and, for many schemas, attributes that record how it was configured, such as `sample-rate-micro-seconds` on `time-sample`.
-`export --xpath` takes an XPath over that same document and writes every table it selects.
+`export --xpath` takes an XPath over that same document and writes every table it selects; `--toc` and `--xpath` cannot be combined.
 
 The export format has four rules that a reader must implement, and the lab's `trace_xml.py` is a reader of about 130 lines that does.
 
 1. A `<node>` holds a `<schema>` with one `<col>` per column, then `<row>` elements whose children are the cells in column order.
-2. An empty cell is `<sentinel/>`, and the stack column can hold one: while the lab was written, the last sample of an exiting process had no backtrace.
+2. An empty cell is `<sentinel/>`, and the stack column can hold one, so a reader must accept a row with no backtrace; the lab checks that fewer than 1% of rows have one.
 3. A cell's text is the raw value and its `fmt` attribute is the display string: a weight is `1000000` with `fmt="1.00 ms"`.
 4. A value is written in full once, with `id="N"`, and every later use is an empty element with `ref="N"`.
 
@@ -281,13 +325,13 @@ Each Time Profiler row has the fixed weight of one sampling period, so summing w
 
 ### 5. Recording options
 
-`--template` accepts a path to a template saved from Instruments as well as a built-in name.
+`--template` accepts a path to a template saved from Instruments as well as a built-in name, and `--instrument <name>` adds one more instrument to the template.
 Xcode 27 added two flags to `xctrace record` that set an instrument's options, such as high-frequency sampling, without a saved template.
-`--show-recording-options` prints the selected template's options as JSON without recording, and `--recording-options <file>` applies a JSON file.
+`--show-recording-options` prints the selected template's options as JSON without recording, needs no target, and omits instruments that have no configurable options; `--recording-options <file>` applies a JSON file.
 
 The file must be the whole document with values changed.
 The lab passes a file that holds only `{"Time Profiler": {"highFrequencySampling": true}}`, and `xctrace` refuses to start; the full document with that one value flipped is accepted.
-For Time Profiler the keys are `contextSwitchSampling`, `highFrequencySampling`, `recordKernelStacks`, and `recordWaitingThreads`, all false by default (as of 2026-11, macOS).
+For Time Profiler the keys are `contextSwitchSampling`, `highFrequencySampling`, `recordKernelStacks`, and `recordWaitingThreads`, all false by default, and the template's other configurable instruments are Hangs and Points of Interest (as of 2026-11, macOS).
 
 ### 6. Signposts: your own table in the same trace
 
@@ -307,18 +351,20 @@ Providers are kernel modules that publish probes, and "Each probe is thus unique
 A D program attaches a predicate and actions to probes, and the compiler lowers it to DIF, a small virtual instruction set run in probe context.
 Safety is structural: "To prevent DIF from inducing an infinite loop in probe context, only forward branches are permitted".
 The cost when unused is the selling point: "When not explicitly enabled, DTrace has zero probe effect".
+`dtrace -V` on macOS 27 prints `dtrace: Sun D 1.19`, the D language version the illumos guide describes.
 [[eBPF-bpftrace-ftrace-uprobes-and-USDT]] covers the Linux successor to this design, including USDT probes, which DTrace introduced.
 
-xnu registers these providers in `bsd/dev/dtrace/`:
+xnu registers these providers in `bsd/dev/dtrace/`, and each has its own registration privilege and its own early exit:
 
-| Provider | File | How it instruments | Privilege it is registered with |
-| :--- | :--- | :--- | :--- |
-| `syscall`, `mach_trap` | `systrace.c` | Swaps the handler pointer in the system call table for `dtrace_systrace_syscall` | `DTRACE_PRIV_USER` |
-| `profile`, `tick` | `profile_prvd.c` | Cyclic timers: one for `tick-N`, one per CPU for `profile-N` | `DTRACE_PRIV_KERNEL \| DTRACE_PRIV_USER` |
-| `pid`, USDT helpers | `fasttrap.c` | Rewrites instructions in the traced process | `DTRACE_PRIV_PROC \| DTRACE_PRIV_OWNER \| DTRACE_PRIV_ZONEOWNER` |
-| `fbt` | `fbt.c` | Rewrites kernel function entry and return instructions | `DTRACE_PRIV_KERNEL` |
-| `sdt` family: `proc`, `io`, `sched`, `vminfo`, `tcp`, `ip`, and others | `sdt.c`, `sdt_subr.c` | Rewrites static probe sites in kernel text | `DTRACE_PRIV_KERNEL` |
-| `lockstat` | `lockstat.c` | Kernel lock probes | `DTRACE_PRIV_KERNEL` |
+| Provider | File | How it instruments | Registered with | Early exit in its init or provide path |
+| :--- | :--- | :--- | :--- | :--- |
+| `dtrace` (`BEGIN`, `END`, `ERROR`) | `dtrace.c` | Built into the framework | `DTRACE_PRIV_NONE` | None |
+| `profile`, `tick` | `profile_prvd.c` | Cyclic timers: one for `tick-N`, one per CPU for `profile-N` | `DTRACE_PRIV_KERNEL \| DTRACE_PRIV_USER` | None |
+| `pid`, USDT helpers | `fasttrap.c` | Rewrites instructions in the traced process | `DTRACE_PRIV_PROC \| DTRACE_PRIV_OWNER \| DTRACE_PRIV_ZONEOWNER` | Per process: `CS_RESTRICT`, and `cs_allow_invalid()` for `CS_HARD` or `CS_KILL` |
+| `syscall`, `mach_trap` | `systrace.c` | Swaps the handler pointer in the system call table for `dtrace_systrace_syscall` | `DTRACE_PRIV_USER` | `systrace_init()` returns if `dtrace_sdt_probes_restricted()` |
+| `sdt` family: `proc`, `io`, `sched`, `vminfo`, `tcp`, `ip`, and others | `sdt.c` | Rewrites static probe sites in kernel text | `DTRACE_PRIV_KERNEL` | `sdt_init()` returns if `dtrace_sdt_probes_restricted()` |
+| `fbt` | `fbt.c` | Rewrites kernel function entry and return instructions | `DTRACE_PRIV_KERNEL` | `fbt_provide_module()` returns if `dtrace_fbt_probes_restricted()` |
+| `lockstat` | `lockstat.c` | Kernel lock probes | `DTRACE_PRIV_KERNEL` | None |
 
 Three gates sit in front of them.
 
@@ -329,48 +375,56 @@ The lab runs `dtrace -l` as a normal user and gets exit status 1, no probes, and
 
 #### Gate 2: System Integrity Protection
 
-`bsd/sys/csr.h` defines `CSR_ALLOW_UNRESTRICTED_DTRACE` as bit 5 of the SIP configuration.
+`bsd/sys/csr.h` defines `CSR_ALLOW_UNRESTRICTED_DTRACE` as bit 5 of the SIP configuration, with `CSR_ALLOW_DESTRUCTIVE_DTRACE` kept as a deprecated name for the same bit.
 `dtrace_is_restricted()` in `dtrace_subr.c` is true when `csr_check(CSR_ALLOW_UNRESTRICTED_DTRACE)` fails, which is the default.
-The `dtrace` command makes the same check and prints the line the lab records: "system integrity protection is on, some features will not be available".
+Most checks also consult `dtrace_are_restrictions_relaxed()`, which is true only with `CSR_ALLOW_APPLE_INTERNAL`, so the list below is for every machine outside Apple.
+The `dtrace` command makes the same SIP check and prints the line the lab records: "system integrity protection is on, some features will not be available".
 
-With SIP on, and outside Apple-internal configurations, the kernel does the following to root's DTrace session:
+With SIP on, the kernel does the following to root's DTrace session:
 
-- `dtrace_cred2priv()` grants `DTRACE_PRIV_USER | DTRACE_PRIV_PROC | DTRACE_PRIV_OWNER` instead of `DTRACE_PRIV_ALL`, so root holds none of the privilege that `fbt`, `lockstat`, and the `sdt` family are registered with, and `fbt_provide_module()` also returns without creating probes.
+- `dtrace_cred2priv()` grants `DTRACE_PRIV_USER | DTRACE_PRIV_PROC | DTRACE_PRIV_OWNER` instead of `DTRACE_PRIV_ALL`, so root holds none of the privilege that `fbt`, `lockstat`, and the `sdt` family are registered with, and their probes are invisible.
+- `dtrace_state_create()` gives the session only `DTRACE_CRA_PROC | DTRACE_CRA_PROC_CONTROL | DTRACE_CRA_PROC_DESTRUCTIVE_ALLUSER`, with the comment "Allow only proc credentials when DTrace is restricted by the current security policy".
 - `dtrace_priv_kernel()` fails, which is the man page's "D programs are not permitted to access kernel address values or kernel memory contents".
 - `dtrace_init()` sets `dtrace_destructive_disallow`, and the man page confirms that "Even with -w, destructive actions are not allowed if System Integrity Protection is enabled".
-- `dtrace_priv_proc()` fails for a traced process that `dtrace_can_attach_to_proc()` rejects, and that function rejects any process with the `CS_RESTRICT` code-signing flag.
+- `dtrace_priv_proc()` fails when a probe fires in a process that `dtrace_can_attach_to_proc()` rejects, and that function rejects any process for which `cs_restricted()` is true, which is exactly the processes with the `CS_RESTRICT` code-signing flag.
 - The same check stops a restricted process from registering USDT helper probes, with `EACCES`.
-- `dtrace -A`, anonymous boot-time tracing, exits with "system integrity protection restricts the use of anonymous tracing".
+- `dtrace_dof_property()` returns nothing, so no anonymous enabling can be read from NVRAM, and `dtrace -A`, anonymous boot-time tracing, exits with "system integrity protection restricts the use of anonymous tracing".
 
 Apple's SIP guide states the user-visible result: "DTrace cannot be used to inspect system processes, whether from the Instruments application or the dtrace(1) command-line tool", and it adds that SIP "does not prevent you from inspecting your own apps when you're developing them".
 
-#### Gate 3: read-only kernel text on Apple silicon
+#### Gate 3: read-only kernel text on Apple silicon, since macOS 26
 
-`fbt` and `sdt` work by rewriting kernel instructions, and on Apple silicon the kernel text is locked by a hardware register after boot.
-`dtrace_fbt_probes_restricted()` and `dtrace_sdt_probes_restricted()` both begin with `if (!ml_unsafe_kernel_text()) return TRUE;`.
-`ml_unsafe_kernel_text()` in `osfmk/arm64/machine_routines.c` is true only when the boot loader's `kernel-ctrr-to-be-enabled` property is 0.
-When it is false, `fbt_provide_module()` returns without creating probes and `sdt_init()` returns before attaching, so there are no `fbt` probes and no kernel `sdt` providers, with SIP on or off.
+`fbt`, `sdt`, and `syscall` all depend on writing to kernel memory that Apple silicon locks after boot with the Configurable Text Read-only Region (CTRR) hardware register.
+At `xnu-12377.121.6`, `dtrace_fbt_probes_restricted()` and `dtrace_sdt_probes_restricted()` both begin with `if (!ml_unsafe_kernel_text()) return TRUE;`.
+`ml_unsafe_kernel_text()` in `osfmk/arm64/machine_routines.c` reads the `kernel-ctrr-to-be-enabled` property that iBoot writes under `/chosen` in the device tree, and is true only when that property is 0.
+`osfmk/i386/machine_routines.c` defines the same function to return true, with the comment "No text lockdown on x86", so Intel Macs never hit this gate.
+When it is false, `fbt_provide_module()` returns without creating probes, `sdt_init()` returns before attaching, and `systrace_init()` returns before registering `syscall` and `mach_trap`, so all three are absent with SIP on or off.
 
-The only documented way to change that property is `bputil --disable-kernel-ctrr`, whose manual page says the option "automatically downgrades to Permissive Security mode" and is "sometimes required for performing actions such as using dynamic DTrace code hooks to profile kernel behavior".
+The gate is new.
+At `xnu-11417.140.69`, the kernel that Apple's `distribution-macOS` release manifest lists for macOS 15.6, `dtrace_sdt_probes_restricted()` is `return FALSE;` and `dtrace_fbt_probes_restricted()` checks only SIP; the CTRR check first appears at `xnu-12377.1.9`, which Apple's `distribution-macOS` release manifest lists as the kernel of macOS 26.0.
+So a DTrace script that used `syscall:::entry` as root on an Apple silicon Mac running macOS 15 finds no `syscall` probes there on macOS 26 or later.
+
+The only documented way to change that property is `bputil --disable-kernel-ctrr`, which must be run from One True Recovery ("Boot environment requirements: 1TR"), and whose manual page says the option "automatically downgrades to Permissive Security mode" and is "sometimes required for performing actions such as using dynamic DTrace code hooks to profile kernel behavior".
 
 #### What is left on a stock Apple silicon Mac
 
-Reading the gates together, root on a default configuration keeps the providers whose registration includes a non-kernel privilege: `syscall`, `mach_trap`, and `profile`, plus the `pid` provider and USDT probes on processes that are not `CS_RESTRICT`.
-For a signed process with `CS_HARD` or `CS_KILL` set, `fasttrap.c` must also get `cs_allow_invalid()` to succeed before it rewrites the process's text, and returns `EACCES` when it does not.
-UNVERIFIED: this note's author had no root on the lab host, so none of the DTrace statements past Gate 1 were executed; they are read from the source at the pinned tag.
+Reading the gates together for macOS 26 and later with the default boot policy and SIP on, root keeps the `dtrace` provider, `profile` and `tick`, and the `pid` provider and USDT probes in processes that are not restricted.
+For a signed process with `CS_HARD` or `CS_KILL` set, `fasttrap_setdebug()` must also get `cs_allow_invalid()` to succeed before it rewrites the process's text, and returns `EACCES` when it does not.
+Disabling SIP adds kernel memory access, destructive actions, restricted processes, and `lockstat`, and still yields no `fbt`, `sdt`, or `syscall` probes while CTRR is enforced.
+These DTrace statements past Gate 1 are read from the source at the tags named and were not executed: the lab runs without root, and the host has no passwordless `sudo`.
 
 The intended invocations are standard D, shown here unexecuted:
 
 ```bash
-# Count system calls made by one command (syscall provider, -c sets $target).
-sudo dtrace -n 'syscall:::entry /pid == $target/ { @[probefunc] = count(); }' -c ./workload
-
 # Sample user stacks of one process at 997 Hz (profile provider).
 sudo dtrace -n 'profile-997 /pid == $target/ { @[ustack()] = count(); }' -p 12345
+
+# Count calls into one library function (pid provider, -c sets $target).
+sudo dtrace -n 'pid$target::malloc:entry { @[ustack(5)] = count(); }' -c ./workload
 ```
 
 Lifting Gate 2 means booting into Recovery and running `csrutil disable`, which Apple documents with the warning to "Disable SIP only temporarily".
-UNVERIFIED: the `csrutil` binary on macOS 27.2 contains the strings `--without` and `dtrace`, which matches the widely used `csrutil enable --without dtrace`, but neither the usage text nor the manual page documents it and it cannot be run outside Recovery.
+The `csrutil` usage text on macOS 27.3 lists `clear`, `disable`, `enable`, and `status`, plus `allow-research-guests` and `authenticated-root` subcommands, and documents no option that relaxes DTrace alone (as of 2026-11, macOS).
 
 ### 8. Tools next to Instruments
 
@@ -394,18 +448,22 @@ Brendan Gregg's `stackcollapse-instruments.pl` converts a call tree copied out o
 | CPU Profiler trigger | `CORE_ACTIVE_CYCLE`, every 1,000,000 counts | macOS (as of 2026-11) | Lab: `pmi-event`, `pmi-threshold` |
 | User stack depth cap | 256 frames | macOS (as of 2026-11) | `MAX_UCALLSTACK_FRAMES`, `callstack.h` |
 | Kernel stack depth cap | 128 frames | macOS (as of 2026-11) | `MAX_KCALLSTACK_FRAMES`, `callstack.h` |
-| kperf timers and actions | 8 timers, 32 actions | macOS (as of 2026-11) | `KPTIMER_MAX`, `ACTION_MAX` |
+| kperf timers and actions | 8 timers, 32 actions | macOS (as of 2026-11) | `KPTIMER_MAX`, `ACTION_MAX`; sysctl `kperf.limits.max_action_count` |
 | kpc classes | fixed 0, configurable 1, power 2, raw PMU 3 | macOS (as of 2026-11) | `kpc.h` |
 | Fixed counters on arm64 | 2: cycles, instructions | macOS (as of 2026-11) | `KPC_ARM64_FIXED_COUNT`; lab: mask `0x3` |
 | Configurable counters, M3 Pro | 8, mask `0x3fc` | macOS (as of 2026-11) | Lab: kpep database |
 | Counter width on arm64 | 47 bits, or 63 with `CPMU_64BIT_PMCS` | macOS (as of 2026-11) | `osfmk/arm64/kpc.c` |
-| `kpc.classes` | 27 on macOS 27.2; 11 in public source | macOS (as of 2026-11) | Lab; `kpc_get_classes()` |
+| `kpc.classes` | 27 on macOS 27.2 and 27.3; 11 in public source | macOS (as of 2026-11) | Lab; `kpc_get_classes()` |
 | SIP bit for DTrace | `CSR_ALLOW_UNRESTRICTED_DTRACE`, `1 << 5` | macOS (as of 2026-11) | `bsd/sys/csr.h` |
+| CTRR gate on `fbt`, `sdt`, `syscall` | From `xnu-12377.1.9` (macOS 26.0), Apple silicon only | macOS (as of 2026-11) | `dtrace_subr.c` at `xnu-11417.140.69` and `xnu-12377.1.9` |
+| Standard templates in Xcode 27.2 | 26 | macOS (as of 2026-11) | `xctrace list templates` |
 | `sample` defaults | 1 ms interval, 10 s duration | macOS (as of 2026-11) | `sample(1)` |
+| Malloc stack logging | `MallocStackLogging=1` or `MallocStackLoggingNoCompact=1` | macOS (as of 2026-11) | `malloc_history(1)` |
 | `xctrace record` targets | `--launch -- cmd`, `--attach <pid\|name>`, `--all-processes` | macOS (as of 2026-11) | `xctrace help record` |
 | `xctrace record` limits | `--time-limit <time[ms\|s\|m\|h]>`, `--window <duration[ms\|s\|m]>` | macOS (as of 2026-11) | `xctrace help record` |
-| `xctrace record` options | `--show-recording-options`, `--recording-options <file>` | macOS (as of 2026-11) | Xcode 27 release notes |
+| `xctrace record` options | `--show-recording-options`, `--recording-options <file>` | macOS (as of 2026-11) | Xcode 27 release notes; `xctrace help record` |
 | `xctrace export` modes | `--toc`, `--xpath <expression>`, `--har` | macOS (as of 2026-11) | `xctrace help export` |
+| `xctrace export` time range | `--time-start`, `--time-end`, `--duration`, not in the help | macOS (as of 2026-11) | Xcode 27 release notes; parser probe |
 | `xctrace symbolicate` | `--input <trace> --dsym <path>` | macOS (as of 2026-11) | `xctrace help symbolicate` |
 
 ## Multi-Language Comparison
@@ -451,7 +509,7 @@ bash run.sh
 
 ### Verified output
 
-Recorded by `python3 -m _harness.verify --record` on darwin-arm64 (macOS 27.2, Xcode 27.2, Apple M3 Pro) on 2026-11-10 and re-checked by `python3 -m _harness.verify`; the file is `code/05-Profiling/xctrace_automation/expected/darwin-arm64.txt`.
+Recorded by `python3 -m _harness.verify --record` on darwin-arm64 (macOS 27.2, Xcode 27.2, Apple M3 Pro) on 2026-11-10, and re-checked by `python3 -m _harness.verify` with a PASS on macOS 27.3 (`xnu-13432.60.57`) on 2026-11-15; the file is `code/05-Profiling/xctrace_automation/expected/darwin-arm64.txt`.
 
 ```text
 == 1. The binary under test (otool -tV)
@@ -584,8 +642,16 @@ dtrace -l: exit 1, 0 probes listed
 > The file must contain every instrument and key that `--show-recording-options` printed.
 > A file with only the changed key is rejected before recording starts.
 
-> [!warning] Pitfall: assuming the DTrace one-liner from a Solaris or Intel Mac guide will work
-> On Apple silicon with the default boot policy there are no `fbt` probes and no kernel `sdt` providers, so scripts built on `io:::start`, `proc:::exec-success`, `sched:::on-cpu`, or `fbt::` find no probes.
+> [!warning] Pitfall: trusting `xctrace help` as the complete flag list
+> The Xcode 27 export time-range flags work but are not in `xctrace help export`, and the examples in `xctrace help record` use `--device-name` while its option list names `--device <name|UDID>`.
+> Probe a flag against the installed `xctrace` and pin the Xcode version on the runner before a script depends on it.
+
+> [!warning] Pitfall: running two profiling jobs on one Mac at once
+> ktrace has one owner, and a second process that tries to configure it while the owner lives gets `EBUSY`.
+> Serialize profiling jobs per host, or give each its own machine.
+
+> [!warning] Pitfall: assuming a DTrace one-liner from a Solaris, Intel Mac, or macOS 15 guide will work
+> On Apple silicon from macOS 26 with the default boot policy there are no `fbt`, kernel `sdt`, or `syscall` probes, so scripts built on `syscall:::entry`, `io:::start`, `proc:::exec-success`, `sched:::on-cpu`, or `fbt::` find no probes.
 > With SIP on, kernel memory is unreadable and system processes cannot be traced.
 > Decide what you need to observe first, then check which gate it is behind.
 
@@ -605,14 +671,16 @@ The command line adds nothing until the measurement has to be repeated without a
 For a team, the unit of work becomes a scripted recording in CI: `xctrace record` on a Mac runner, `xctrace export`, a parser, and a threshold.
 What breaks at that size is trust in the number.
 A gate needs a known-answer workload beside the real one, as the lab has, so that a parser bug, a schema change, or a noisy runner shows up as a failed self-check instead of a false regression.
+Because ktrace has one owner, a runner can host one profiling job at a time, and the scheduler has to know that.
 
 For 1,000 to 50,000 engineers, the macOS fleet is developer laptops and CI hosts, not production servers, and that changes which tools carry weight:
 
 - Continuous production profiling is a Linux problem; [[Continuous-Profiling-GWP-Parca-Pyroscope-and-OTel-Profiles]] owns it, and nothing in this note is a substitute.
 - macOS profiling at that scale is about build tools, tests, and client applications, and the paved road is a shared wrapper around `xctrace` with pinned templates and a common parser.
 - The Xcode version is part of the measurement: the release notes show the CLI gaining and changing features in almost every major version, and the lab's `expected` file exists so that an upgrade that changes a schema fails a check.
+- The macOS version is part of the measurement too: the macOS 26 kernel removed `syscall`, `sdt`, and `fbt` from DTrace on Apple silicon, so tooling written against macOS 15 broke on upgrade without any change of its own.
 - Trace bundles are sensitive artifacts: the table of contents records the machine's name and hardware UUID and the full paths of every binary, so scrub or restrict them before attaching one to a ticket.
-- SIP stays on for the fleet, which means DTrace is a lab-machine tool; a workflow that needs kernel probes is routed to a Linux host or to a small pool of dedicated test Macs with an owner.
+- SIP stays on for the fleet, which means DTrace is limited to user-space probes there; a workflow that needs kernel probes is routed to a Linux host or to a small pool of dedicated test Macs with an owner.
 
 Decision rules:
 
@@ -620,7 +688,7 @@ Decision rules:
 2. Gate on shares and ratios from a known-answer workload plus the real workload; never gate on wall-clock seconds from a shared machine.
 3. Read `time-profile` or `cpu-profile` through a reader that resolves references and is tested with broken inputs; do not parse the `fmt` strings or the text of `xctrace show`.
 4. Mark phases with signposts in the product code and join by time, so that the gate measures "the import phase" and not "whatever ran during the recording".
-5. Pin the Xcode version on the runner and re-record expected outputs as a reviewed change when it moves.
+5. Pin the Xcode and macOS versions on the runner and re-record expected outputs as a reviewed change when either moves.
 6. Record waiting threads, kernel stacks, or system-wide scope only when the question needs them; each one lowers the sample rate or widens what the trace contains.
 7. Write the tool choice down per platform; [[Profiling-Decision-Records]] holds the format.
 
@@ -632,7 +700,8 @@ Decision rules:
 > Second, compile the original with `-O0` and predict whether `hot_leaf` gets a frame record and whether the shares stay inside their bands.
 > Third, break the reader on purpose: make `Export.deref()` in a copy of `trace_xml.py` return the element unchanged, run `report.py`, and list which checks turn to "no" and which still pass.
 > Fourth, write the gate you would ship: a script that exits non-zero when `hot_leaf` exceeds 60% of cycles, and run it against the lab's CPU Profiler export.
-> If you have root on a test machine, finish with the two `dtrace` commands from the DTrace section and record which providers `sudo dtrace -l | awk '{print $2}' | sort -u` lists with SIP on.
+> Fifth, run the workload under `MallocStackLogging=1 leaks -atExit -- ./workload 5`, predict before the run how many leaked buffers it reports, and explain the result from the conservative scan rule.
+> If you have root on a test machine, finish with the two `dtrace` commands from the DTrace section, then list the providers with `sudo dtrace -l | awk 'NR > 1 {print $2}' | sort -u` and check the list against the gates for your macOS version.
 
 ## Interview Questions
 
@@ -655,7 +724,7 @@ Decision rules:
 > What is wrong?
 >
 > > [!success]- Answer
-> > The export deduplicates values: a backtrace is written in full once with an `id`, and every later row that has the same stack holds an empty `<tagged-backtrace ref="N"/>`.
+> > The export deduplicates values: a backtrace is written in full once with an `id`, and every later row that has the same stack holds an empty element with `ref="N"`.
 > > A CPU-bound loop repeats a handful of stacks thousands of times, so almost every row is a reference and the script counts only the first occurrence of each.
 > > The fix is to index every element that has an `id` across the whole document, resolve each `ref` at every depth, and sum the weight column of all rows.
 > > The lab measures the damage: more than 90% of rows are references, and a reader that skips them keeps under 10% of the weight.
@@ -694,14 +763,23 @@ Decision rules:
 > > The AST runs in the thread's own context just before it returns to user space, where `backtrace_user()` can copy from user memory safely.
 > > The registers have not changed in between, because the thread has not run user code since the interrupt.
 
+> [!question] L7 (predict the output): On an Apple silicon Mac with SIP disabled, root runs `dtrace -n 'syscall:::entry { @[probefunc] = count(); }'` on macOS 15 and again after upgrading to macOS 26.
+> What happens each time?
+>
+> > [!success]- Answer
+> > On macOS 15 it counts system calls: with SIP off nothing restricts the `syscall` provider, and at `xnu-11417.140.69` `dtrace_sdt_probes_restricted()` simply returns false.
+> > On macOS 26 the command fails to match any probe, because from `xnu-12377.1.9` that function returns true whenever `ml_unsafe_kernel_text()` is false, and `systrace_init()` then returns before it registers `syscall` and `mach_trap`.
+> > SIP is irrelevant to this gate: `ml_unsafe_kernel_text()` reads iBoot's `kernel-ctrr-to-be-enabled` property, which only `bputil --disable-kernel-ctrr` from One True Recovery changes, at the price of Permissive Security.
+> > On an Intel Mac the same command keeps working, because the x86 `ml_unsafe_kernel_text()` returns true.
+
 > [!question] L7: A colleague's DTrace script that uses `fbt` and `io:::start` works on an Intel Mac with SIP disabled and finds no probes on an Apple silicon Mac with SIP disabled.
 > Explain.
 >
 > > [!success]- Answer
 > > Disabling SIP lifts only one gate, the `CSR_ALLOW_UNRESTRICTED_DTRACE` check behind `dtrace_is_restricted()`.
 > > `fbt` and the kernel `sdt` providers, which include `io`, work by rewriting kernel instructions, and on Apple silicon the kernel text is made read-only by CTRR after boot.
-> > `dtrace_fbt_probes_restricted()` and `dtrace_sdt_probes_restricted()` both return true when `ml_unsafe_kernel_text()` is false, so `fbt` creates no probes and `sdt_init()` returns before attaching.
-> > The documented switch is `bputil --disable-kernel-ctrr`, which also drops the machine to Permissive Security, so the right answer for most questions is a different tool: System Trace in Instruments, the `syscall` and `profile` providers that need no text patching, or a Linux host.
+> > From macOS 26, `dtrace_fbt_probes_restricted()` and `dtrace_sdt_probes_restricted()` both return true when `ml_unsafe_kernel_text()` is false, so `fbt` creates no probes and `sdt_init()` returns before attaching.
+> > The documented switch is `bputil --disable-kernel-ctrr`, which also drops the machine to Permissive Security, so the right answer for most questions is a different tool: System Trace in Instruments, the `profile` and `pid` providers, which need no kernel text patching, or a Linux host.
 
 > [!question] L7: Design a performance regression gate for a macOS command-line tool that runs on shared CI Macs.
 >
@@ -710,7 +788,7 @@ Decision rules:
 > > Mark the phases that matter with signposts in the tool and select samples by joining on the interval timestamps, so the gate measures a named phase.
 > > Export `cpu-profile` with a specific XPath, parse it with a reader that resolves references and is tested against malformed input, and compute shares and cycle totals per phase.
 > > Gate on ratios against a baseline from the same runner image, and run a known-answer workload in the same job so that a broken parser or a changed schema fails a self-check before it produces a false regression.
-> > Pin the Xcode version, store the trace bundle as a restricted artifact, and treat wall-clock seconds from a shared runner as untrusted.
+> > Run one profiling job per host, because ktrace has one owner, pin the Xcode and macOS versions, store the trace bundle as a restricted artifact, and treat wall-clock seconds from a shared runner as untrusted.
 
 > [!question] L7: The PMU on an M3 Pro has ten counters.
 > Why can a request to count eight events at once still fail?
@@ -718,7 +796,7 @@ Decision rules:
 > > [!success]- Answer
 > > Two of the ten are fixed to cycles and instructions, which leaves eight configurable counters.
 > > The event database marks many events with a `counters_mask` that limits them to a subset, so several requested events may compete for the same few counters.
-> > Some configurable counters can also be claimed by power management, which is what the kpc power class models, and they join the configurable set only when a task forces all counters.
+> > Power management can also reserve a mask of configurable counters with `kpc_reserve_pm_counters()`, and those counters leave the configurable class unless a task forces all counters, which evicts power management.
 > > A tool has to solve an assignment problem, and when it cannot, the alternatives are fewer events per run or multiplexing across runs.
 
 > [!question] L8+: Your organization wants one profiling story for Linux servers and macOS developer machines.
@@ -728,15 +806,15 @@ Decision rules:
 > > Standardize the output and the method, not the collector: folded stacks or pprof as the interchange format, phase markers in product code, known-answer workloads in every gate, and shares instead of seconds.
 > > Keep the collectors separate, because the kernels are: `perf` and eBPF on Linux, kperf through `xctrace` on macOS, with one parser per collector feeding the common format.
 > > Keep fleet-wide continuous profiling on Linux, where it can run unattended, and treat macOS profiling as a CI and developer workflow.
-> > Do not standardize on DTrace for macOS: with SIP on and CTRR enforced it cannot see the kernel, and asking engineers to lower machine security for a trace is a policy cost that outlasts the investigation.
-> > Write the per-platform choice and its reasons in a decision record, and revisit it when an Xcode release changes the command line.
+> > Do not standardize on DTrace for macOS: with SIP on it cannot see the kernel, from macOS 26 on Apple silicon it has no `syscall`, `sdt`, or `fbt` probes at all without lowering boot security, and asking engineers to lower machine security for a trace is a policy cost that outlasts the investigation.
+> > Write the per-platform choice and its reasons in a decision record, and revisit it when an Xcode or macOS release changes the tools.
 
 > [!question] L8+: An engineer proposes disabling SIP on all CI Macs so DTrace can be used for flaky-test triage.
 > How do you respond?
 >
 > > [!success]- Answer
-> > Start from what the triage needs to observe, because SIP is only one of three gates and lifting it does not deliver kernel function or I/O probes on Apple silicon.
-> > With SIP off and CTRR on, DTrace gains kernel memory access, destructive actions, and tracing of restricted processes, and still has no `fbt` or kernel `sdt` probes.
+> > Start from what the triage needs to observe, because SIP is only one of three gates and lifting it delivers no `syscall`, kernel function, or I/O probes on Apple silicon running macOS 26 or later.
+> > With SIP off and CTRR on, DTrace gains kernel memory access, destructive actions, `lockstat`, and tracing of restricted processes, and still has no `fbt`, `sdt`, or `syscall` probes.
 > > The cost is fleet-wide: CI hosts hold signing identities and source, and SIP is one of the controls protecting them.
 > > Offer the alternatives in order: Time Profiler or System Trace through `xctrace` with signposts around the flaky region, `sample` on a hung process, and a small pool of dedicated, isolated triage machines with relaxed policy if a kernel-level question remains.
 > > If the pool is approved, give it an owner, keep credentials off it, and record the decision.
@@ -744,20 +822,22 @@ Decision rules:
 ## Further Reading
 
 - Xcode release notes for 12, 13, 14.3, 16.3, 26, and 27: the only dated record of when each `xctrace` capability and instrument arrived.
-- `xctrace help record`, `export`, `show`, and `toc` on your own Xcode: the authoritative flag list for the version you run.
+- `xctrace help record`, `export`, `show`, and `toc` on your own Xcode: the flag list for the version you run, which can lag the release notes.
 - xnu `osfmk/kperf/kptimer.c` and `pet.c`: the header comments explain per-CPU timers, PET, and lightweight PET in a page each.
 - xnu `osfmk/kperf/action.c` and `callstack.c`: how a sample is assembled, why the user stack is pended, and the link-register fixup.
-- xnu `osfmk/kern/kpc.h`, `osfmk/arm64/kpc.c`, and `bsd/kern/kern_kpc.c`: counter classes, Apple silicon counter counts, and who may read them.
-- xnu `bsd/dev/dtrace/dtrace_subr.c` and `osfmk/arm64/machine_routines.c`: the complete logic of the SIP and CTRR gates in under a hundred lines.
+- xnu `bsd/kern/kern_ktrace.c`: the ownership rules that decide who may record and why two recordings collide.
+- xnu `osfmk/kern/kpc.h`, `osfmk/kern/kpc_common.c`, `osfmk/arm64/kpc.c`, and `bsd/kern/kern_kpc.c`: counter classes, the power-management carve-out, Apple silicon counter counts, and who may read them.
+- xnu `bsd/dev/dtrace/dtrace_subr.c` at `xnu-11417.140.69` and `xnu-12377.1.9`, with `osfmk/arm64/machine_routines.c`: the complete logic of the SIP and CTRR gates, and the diff that added the second one.
 - Cantrill, Shapiro, and Leventhal, "Dynamic Instrumentation of Production Systems" (USENIX 2004): the DTrace design, including the safety argument for DIF.
 - illumos Dynamic Tracing Guide: the D language reference that the macOS manual page assumes.
 - Apple, "Writing ARM64 code for Apple platforms": the frame record rule that makes frame-pointer sampling reliable.
 - Apple, System Integrity Protection Guide, Runtime Protections: the user-visible contract for what SIP blocks.
 - Apple, "Recording Performance Data": the signpost API that turns a profile into per-phase numbers.
+- `leaks(1)` and `malloc_history(1)`: the mechanisms under the Leaks and Allocations templates, stated by their owners.
 
 ## Related
 
 - Prerequisites: none
 - Next: [[Intel-VTune-AMD-uProf-and-Hardware-Tracing-PT-SPE]]
-- See also: [[Linux-perf-in-Depth-and-perf-c2c]], [[eBPF-bpftrace-ftrace-uprobes-and-USDT]], [[Cpp-CPU-Profiling-perf-samply-Callgrind-and-llvm-mca]], [[Rust-CPU-Profiling-cargo-flamegraph-samply-and-Frame-Pointers]], [[Python-cProfile-Tachyon-and-Sampling-Profilers]], [[Rebuild-Lab-Sampling-Profiler-to-Folded-Stacks]], [[Continuous-Profiling-GWP-Parca-Pyroscope-and-OTel-Profiles]], [[Profiling-Decision-Records]]
+- See also: [[Linux-perf-in-Depth-and-perf-c2c]], [[eBPF-bpftrace-ftrace-uprobes-and-USDT]], [[Cpp-CPU-Profiling-perf-samply-Callgrind-and-llvm-mca]], [[Cpp-Memory-Profiling-heaptrack-Massif-DHAT-and-Allocators]], [[Rust-CPU-Profiling-cargo-flamegraph-samply-and-Frame-Pointers]], [[Python-cProfile-Tachyon-and-Sampling-Profilers]], [[Rebuild-Lab-Sampling-Profiler-to-Folded-Stacks]], [[Continuous-Profiling-GWP-Parca-Pyroscope-and-OTel-Profiles]], [[Profiling-Decision-Records]]
 - Lab: `code/05-Profiling/xctrace_automation/` (requires: macos)

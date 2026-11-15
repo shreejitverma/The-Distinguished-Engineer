@@ -2,7 +2,7 @@
 type: problem
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Linux kernel perf developers, perf-c2c(1): Shared Data C2C/HITM Analyzer, tools/perf/Documentation/perf-c2c.txt, Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/tools/perf/Documentation/perf-c2c.txt"
@@ -16,6 +16,7 @@ sources:
   - "Linux kernel developers, kernel/events/core.c (perf_event_open, perf_allow_kernel), Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/kernel/events/core.c"
   - "Linux kernel developers, Documentation for /proc/sys/kernel/ (perf_event_paranoid), Documentation/admin-guide/sysctl/kernel.rst, Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/Documentation/admin-guide/sysctl/kernel.rst"
   - "Linux kernel developers, False Sharing, Documentation/kernel-hacking/false-sharing.rst, Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/Documentation/kernel-hacking/false-sharing.rst"
+  - "Linux kernel perf developers, tools/perf/util/evsel.c (evsel__open_strerror), Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/tools/perf/util/evsel.c"
   - "Linux kernel developers, include/linux/cache.h, Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/include/linux/cache.h"
   - "Linux kernel developers, arch/x86/include/asm/cache.h, Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/arch/x86/include/asm/cache.h"
   - "Linux kernel developers, arch/arm64/include/asm/cache.h, Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/arch/arm64/include/asm/cache.h"
@@ -45,6 +46,15 @@ sources:
   - "GNU C Library developers, malloc/malloc.c and sysdeps/generic/malloc-alignment.h, glibc 2.39, 2024, https://raw.githubusercontent.com/bminor/glibc/release/2.39/master/malloc/malloc.c"
   - "Arnaldo Carvalho de Melo, pahole(1), dwarves man-pages/pahole.1, 2026, https://raw.githubusercontent.com/acmel/dwarves/master/man-pages/pahole.1"
   - "Sam Gross, PEP 703 - Making the Global Interpreter Lock Optional in CPython, Python Software Foundation, 2023, https://raw.githubusercontent.com/python/peps/main/peps/pep-0703.rst"
+  - "Paul E. McKenney, Is Parallel Programming Hard, And, If So, What Can You Do About It?, sections 3.1.3 and 3.2.3, release v2026.06.21a, kernel.org, 2026, https://kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook-1c.2026.06.21a.pdf"
+  - "Intel Corporation, LOCK - Assert LOCK# Signal Prefix, Intel 64 and IA-32 Architectures Software Developer's Manual instruction reference, HTML extract by Felix Cloutier, December 2023, https://www.felixcloutier.com/x86/lock"
+  - "Linux kernel perf developers, tools/perf/arch/x86/util/pmu.c (AMD ibs_op ldlat default of 0), Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/tools/perf/arch/x86/util/pmu.c"
+  - "Linux kernel developers, include/linux/perf_event.h (perf_allow_kernel stub), Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/include/linux/perf_event.h"
+  - "Linux kernel perf developers, tools/perf/builtin-c2c.c at v4.9 (absent) and v4.10, v5.19 and v6.0 (peer display), v6.2 and v6.3 (--double-cl), https://raw.githubusercontent.com/torvalds/linux/v4.10/tools/perf/builtin-c2c.c"
+  - "Linux kernel perf developers, tools/perf/pmu-events/arch/x86/skylakex/memory.json (MEM_LOAD_L3_MISS_RETIRED.REMOTE_HITM, MACHINE_CLEARS.MEMORY_ORDERING), Linux v7.3, 2026, https://raw.githubusercontent.com/torvalds/linux/v7.3/tools/perf/pmu-events/arch/x86/skylakex/memory.json"
+  - "GNU C Library developers, sysdeps/generic/malloc-alignment.h, glibc 2.39, 2024, https://raw.githubusercontent.com/bminor/glibc/release/2.39/master/sysdeps/generic/malloc-alignment.h"
+  - "The Go Authors, src/internal/cpu/cpu_x86.go, Go 1.25.0, 2025, https://raw.githubusercontent.com/golang/go/go1.25.0/src/internal/cpu/cpu_x86.go"
+  - "GCC developers, -moutline-atomics (on by default), gcc/doc/invoke.texi, GCC 15 release branch, 2025, https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15/gcc/doc/invoke.texi"
 ---
 
 # Drill: Profiling False Sharing and Cache Contention
@@ -146,13 +156,13 @@ cd code && TOOLCHAIN_LABS_PMU=1 make verify LAB=05-Profiling/drill_false_sharing
 ```
 
 > [!warning] Recording status
-> The lab needs hardware memory sampling, so it was not recorded for this note: there is no `expected/<platform>.txt` yet, and no number in this note is a measurement from the lab.
-> The revision pass of 2026-11-13 paused lab checks by instruction, so nothing was re-run beyond compiling the predict-the-output program in Question 2.
-> The drafting host is an Apple silicon Mac whose Linux container has no PMU, where the harness reports the lab as `SKIP`.
-> The stages that need no PMU (`FS_DRILL_STAGES=selftest,layout,throughput`) were run in that container and pass.
+> The lab needs hardware memory sampling, so it has not been recorded: there is no `expected/<platform>.txt` yet, and no number in this note is a measurement from the lab.
+> The drafting host is an Apple silicon Mac whose Linux container exposes no PMU, where the harness reports the lab as `SKIP`; lab checks were paused by instruction on 2026-11-11, so the lab was not run for this revision.
+> In an earlier pass the stages that need no PMU (`FS_DRILL_STAGES=selftest,layout,throughput`) were run in that container and passed.
 > The `c2c` stage has only been exercised through its parser, against reports that perf 6.8.12 produced from synthetic samples.
-> UNVERIFIED: what a real recording of each variant contains, as described in Observed Symptom, Progressive Hint Ladder, and Model Solution, is a prediction from the mechanism and from those synthetic reports, because no PMU host was available.
-> Record the lab on a bare-metal Linux host with `make record LAB=05-Profiling/drill_false_sharing/` before promoting this note.
+> This note therefore never describes a real recording as observed.
+> Where Observed Symptom, Progressive Hint Ladder, and Model Solution say what a report of a variant contains, they state the condition the lab's `c2c` stage requires before it prints a pass line, and the report blocks they quote are labelled as synthetic fixtures.
+> Record the lab on a bare-metal Linux host with `make record LAB=05-Profiling/drill_false_sharing/` to replace those conditions with real rows.
 
 What `run.sh` asserts, and what would make each fact fail:
 
@@ -186,8 +196,8 @@ A prediction that was wrong is the part of the drill worth reviewing.
 ## Observed Symptom
 
 The service scales to one core and then stops.
-Adding workers adds CPU time but not throughput, and the per-worker rate of the slowest worker falls well below the single-thread rate.
-The `throughput` stage of the lab asserts this as a ratio of at least 1.3 between each fixed variant and its bug, where a machine with no contention cost would read 1.0.
+Adding workers adds CPU time but not throughput.
+The `throughput` stage of the lab turns that symptom into a check: the slowest worker of each fixed variant must handle at least 1.3 times the messages of the slowest worker of its bug, best of five runs each, where a machine with no contention cost would read 1.0.
 
 Everything a first-line tool can show points away from the real cause:
 
@@ -201,6 +211,7 @@ What differs is why the instructions are slow, and that information is in the da
 
 This is what `perf c2c` adds.
 The following rows are from `fixtures/array.c2c.txt` in the lab: the layout is real output of `perf c2c report --stdio -c tid,iaddr` from perf 6.8.12 on linux-aarch64, but the input samples are synthetic, so the counts illustrate the shape and are not measurements.
+The code addresses are synthetic too, so the `Source:Line` column is only approximate: in the current `ingest.c` the `quota` load is line 95 and the atomic add is line 96.
 
 ```text
 =================================================
@@ -247,7 +258,9 @@ That is true sharing, and no amount of padding changes it.
 
 > [!tip]- Hint 1: Prove it is not a lock, a syscall, or the scheduler
 > Run the workload under `perf stat` and compare a buggy variant with a single worker.
-> Expect user time near 100% per thread, context switches near zero, and instructions per cycle well below the single-worker value (UNVERIFIED: reasoning about the workload, not captured output).
+> Read the code before the numbers: the loop makes no system call, takes no lock, and its thread is pinned, so the only thing that can make a worker slower than the single-worker case is the cost of its two memory accesses.
+> The quantities that test that reading are `task-clock` (CPU time actually consumed), `context-switches` and `cpu-migrations` (which a pinned, syscall-free loop has no reason to incur), and instructions per cycle.
+> The run is fixed in wall-clock time and every message executes the same instructions, so a variant that handles fewer messages retires fewer instructions in the same cycles, and its instructions per cycle fall in proportion.
 > A thread that burns cycles without retiring instructions and without leaving user space is waiting on memory.
 > The question is no longer where the time goes but which memory, and that needs data addresses.
 
@@ -300,8 +313,9 @@ That is true sharing, and no amount of padding changes it.
 > ### Round 1: `array`
 >
 > **Step 1: classify the stall.**
-> `perf stat ./ingest array 0,1,2,3 2` against `./ingest array-fixed 0,1,2,3 2` should show about the same task-clock and fewer instructions for `array` (UNVERIFIED: predicted from the mechanism, not captured here).
-> Context switches and kernel time near zero would rule out locks and I/O.
+> Run `perf stat ./ingest array 0,1,2,3 2` and `perf stat ./ingest array-fixed 0,1,2,3 2` and compare them field by field.
+> Both runs spin for the same wall-clock time on the same pinned CPUs, so task-clock is the same by construction; what can differ is how many instructions each retires in that time, and the lab's `throughput` stage already requires the fix to handle at least 1.3 times as many messages in its slowest worker.
+> Context switches and kernel time near zero rule out locks and I/O; if they are not near zero, the machine is oversubscribed and the measurement is not about memory.
 > The loop touches two words per message, so the working set is tiny and misses to main memory are impossible: the remaining explanation is a line that keeps moving between cores.
 >
 > **Step 2: record memory samples.**
@@ -312,11 +326,11 @@ That is true sharing, and no amount of padding changes it.
 > `perf c2c record` adds `-W -d --phys-data --sample-cpu` and the memory events for the architecture, so each sample carries a data address, a data source, a weight, and a CPU.
 >
 > **Step 3: read the report.**
-> Expect `Trace Event Information` to report a large `Load Local HITM` on a single-socket machine, or `Load Remote HITM` when the workers span sockets.
-> Expect `Shared Data Cache Line Table` to have one dominant row.
-> The Pareto block for that row shows hot offsets between `0x0` and `0x38`: per thread, the load of `quota` at `+0` and, where the hardware samples it as a load, the atomic add at `+8`.
-> Each offset has exactly one thread.
-> The `Symbol` column says `ingest` on every row.
+> The analyzer pins all workers inside one package, so the contended loads belong in `Load Local HITM` (or `Load HIT Local Peer` on Arm64); `Load Remote HITM` would mean the workers span NUMA nodes.
+> The lab's `c2c` stage passes only when that total is at least 100 load samples and the first row of `Shared Data Cache Line Table` is the line that holds the shards.
+> In the Pareto block for that row, the layout fixes the candidate offsets: worker `wN` owns `16 * N` (`quota`) and `16 * N + 8` (`msgs`), so the four workers span `0x0` to `0x38`; the `msgs` offsets appear only where the hardware samples the atomic add as a load.
+> The stage also requires each hot offset to belong to one thread, at least 90% of its samples, which is the false-sharing signature.
+> The `Symbol` column must say `ingest` on the hot rows; the synthetic `fixtures/array.c2c.txt` block in Observed Symptom shows the expected shape.
 >
 > **Step 4: name the object.**
 > The line address minus the executable's load base is the address of `shards` in `nm -n ./ingest`.
@@ -336,9 +350,8 @@ That is true sharing, and no amount of padding changes it.
 > `quota` and `msgs` of one worker stay together on purpose: they are used together by one thread, so sharing a line helps.
 >
 > **Step 6: verify with the same tool.**
-> Record `array-fixed` the same way.
-> Expect the HITM totals to fall to noise and the `Shared Data Cache Line Table` to be empty or to list unrelated lines (UNVERIFIED: no real recording exists).
-> The lab asserts fewer than 10% of the contended samples of `array`, and a slowest-worker rate at least 1.3 times higher.
+> Record `array-fixed` the same way and compare the `Load Local HITM` and `Load Remote HITM` totals (or the two peer totals on Arm64) with those of `array`.
+> The lab's pass condition is that `array-fixed` has fewer than 10% of the contended load samples of `array`, and a slowest-worker rate at least 1.3 times higher; the synthetic fixture `fixtures/array-fixed.c2c.txt` shows the shape of a clean report, in which `Total Shared Cache Lines` reads 0 and no line is listed at all.
 > A fix that is verified only by a benchmark number is not verified: the number can move for other reasons.
 >
 > ### Round 2: `heap`
@@ -346,7 +359,7 @@ That is true sharing, and no amount of padding changes it.
 > The report has the same code address and the same pattern, disjoint offsets per thread, but the line address lies inside `[heap]`.
 > There is no symbol to look up and `pahole` cannot help, because the struct is correct in isolation.
 > The offsets of neighbouring workers are 32 bytes apart.
-> glibc's `malloc` aligns to `2 * sizeof(size_t)`, 16 bytes on 64-bit targets, and its smallest chunk for 8-byte pointers is 32 bytes, so four consecutive 16-byte requests from one thread come back 32 bytes apart and at least two of them share a 64-byte line.
+> glibc's `malloc` aligns to `MALLOC_ALIGNMENT`, the larger of `2 * SIZE_SZ` and `__alignof__ (long double)`, which is 16 bytes on x86-64 and AArch64, and its smallest chunk (`MINSIZE`) for 8-byte pointers is 32 bytes, so four consecutive 16-byte requests from one thread come back 32 bytes apart and at least two of them share a 64-byte line.
 > How many share depends on where the first chunk falls, which is why the lab asserts "at least two" and compares the slowest worker.
 >
 > The allocation site is found by reading code, not by the profiler: the code address leads to `l->msgs`, the pointer leads to `heap_shards[i]`, and that leads to a loop in `main` that calls `malloc(sizeof(struct shard))` once per worker.
@@ -431,6 +444,7 @@ The lab's loop performs a plain load of `quota` on every message, so the content
 
 - Intel uses `cpu/mem-loads,ldlat=30/P` and `cpu/mem-stores/P`, precise events backed by PEBS, and on CPUs that have the auxiliary event the load event becomes the group `{cpu/mem-loads-aux/,cpu/mem-loads,ldlat=30/}:P`; the load event records only loads whose latency is at least the `ldlat` threshold, 30 cycles by default.
 - AMD uses the `ibs_op` PMU, with `ldlat` only where `/sys/bus/event_source/devices/ibs_op/caps/ldlat` reads 1; the manual states that `perf c2c` is not supported on Zen 3.
+  The manual's event table shows `ibs_op/ldlat=30/` for that case, but `tools/perf/arch/x86/util/pmu.c` sets the default latency to 0 there, and the IBS driver rejects any threshold outside 128 to 2048, so latency filtering on AMD is off unless `--ldlat` asks for it, as the manual's option text says.
 - Arm64 uses SPE with `load_filter=1,store_filter=1,min_latency=30`, and the manual warns that SPE is statistical, so not every operation is sampled.
 
 The kernel translates each vendor's data source into the common encoding.
@@ -450,7 +464,7 @@ The line size comes from `sysconf(_SC_LEVEL1_DCACHE_LINESIZE)` on the reporting 
 `--double-cl`, added in Linux 6.3, doubles the grouping unit for machines where an adjacent-line prefetcher makes sharing behave as if the line were twice as large.
 
 Per offset the rows are coalesced by the `-c` fields.
-The manual says the default is `pid,iaddr`; the source in both v6.8 and v7.3 sets `coalesce_default = "iaddr"`, and perf 6.8.12 reports the cacheline data grouping as `offset,iaddr`.
+The manual says the default is `pid,iaddr`; the source in both v6.8 and v7.3 sets `coalesce_default = "iaddr"`, and `setup_coalesce` prepends `offset,` to it, so the report header prints the grouping as `offset,iaddr` (the fixtures print `offset,tid,iaddr` because they were recorded with `-c tid,iaddr`).
 With the default, the row for an offset names the code address and a `cpu cnt`, the number of CPUs that touched it.
 With `-c tid,iaddr` each thread gets its own row, which is what makes the false-or-true question a matter of reading one column.
 
@@ -458,6 +472,30 @@ Lines are filtered before display.
 A line is shown only if it holds at least a fraction `DISPLAY_LINE_LIMIT`, 0.001, of the HITM total for the chosen display; `--show-all` removes the filter.
 The manual's `--show-all` text mentions a "HITM % 0.0005 limit"; the source is the authority.
 The three `cycles` columns are means of the sampled load latency, computed by `MEAN_ENTRY` with `avg_stats`; the manual's field list calls them sums.
+When no `-d` is given, the report sorts and filters by `tot`, total HITM, except for a recording whose `perf.data` names an AArch64 machine, where `perf_c2c__report` picks `peer`.
+
+### Reading Trace Event Information
+
+The first table of the report is a direct print of the counters that `c2c_decode_stats` fills, by `print_c2c__display_stats` in `tools/perf/builtin-c2c.c` (as of 2026-11, Linux v7.3).
+Knowing which counter feeds which label prevents three misreadings.
+
+| Label | Counter and rule in `c2c_decode_stats` | What it tells the drill |
+| :--- | :--- | :--- |
+| `Total records` | `nr_entries`, every sample | Denominator; a few hundred means the window or the rate is too small |
+| `Locked Load/Store Operations` | `locks`, data source has `PERF_MEM_LOCK_LOCKED` | Sampled locked accesses, such as an x86 `lock`-prefixed add |
+| `Load Local HITM` | `lcl_hitm`, a load at L2 or L3 with `PERF_MEM_SNOOP_HITM` | The main evidence on one socket |
+| `Load Remote HITM` | `rmt_hitm`, a load from a remote cache with HITM | The same across NUMA nodes, and costlier |
+| `Load LLC hit` | `ld_llchit + lcl_hitm` | Includes the local HITM count, so it is not an independent number |
+| `Load HIT Local Peer`, `Load HIT Remote Peer` | `lcl_peer`, `rmt_peer`, a load with `PERF_MEM_SNOOPX_PEER` | The evidence on Arm SPE, where HITM is not reported |
+| `Loads - no mapping`, `Store - no mapping` | `ld_noadrs`, `st_noadrs`, a sample whose data address is 0 | Despite the label, these are samples with no data address |
+| `Store L1D Hit`, `Store L1D Miss` | `st_l1hit`, `st_l1miss` | The only cache information a store sample carries |
+| `No Page Map Rejects` | `nomap`, data or code address outside any known mapping | Samples dropped from every per-line table |
+| `Unable to parse data source` | `noparse`, neither a load nor a store | A data source encoding perf does not understand |
+
+`Load Local HITM` and `Load Remote HITM` feed the `HITM` columns.
+The `Global Shared Cache Line Event Information` table that follows sums only lines with at least one HITM or peer-snoop load (`HAS_HITMS` or `HAS_PEER` in `resort_shared_cl_cb`), and those sums are the denominator of the 0.001 display filter.
+A line that is written heavily but never loaded across cores is therefore not a "shared cache line" to `perf c2c`, whatever its store misses.
+In the lab's clean fixture, `fixtures/array-fixed.c2c.txt`, `Total Shared Cache Lines` is 0 and every load and store is an L1 hit; the counts in that file are synthetic, but the zeros are what the parser treats as a quiet run.
 
 ### The unit of padding is not always 64 bytes
 
@@ -478,13 +516,19 @@ The practical rule is to pad to the largest plausible granule for the fleet, 128
 
 The penalty is not a constant.
 Drepper, section 6.4.1, measured threads that each increment their own word in one shared line, on a machine with four Pentium 4 processors, and reports overheads of 390%, 734%, and 1,147% for two, three, and four threads.
-The same test on a single-socket quad-core Core 2 QX 6700 showed no scalability problem at all.
+The increment is a plain `*p += 1` followed by an empty `asm volatile` that forces the store, 500 million times per thread (his appendix A.3).
+The same test on a single-socket quad-core Core 2 QX 6700 showed "a slight overhead when using the same cache line more than once" that did not grow with the number of cores; Drepper adds that with more than one such processor the results would look like the Pentium 4 ones, and he gives no microarchitectural explanation.
 The access matters as much as the machine.
 Intel's description of `MACHINE_CLEARS.MEMORY_ORDERING` lists an external snoop as one cause of a memory-ordering machine clear, so on x86 a contended line can cost pipeline flushes on top of the transfer itself.
-An atomic read-modify-write needs exclusive ownership of the line for the whole operation (UNVERIFIED: standard architecture behavior, stated without a vendor manual citation).
+
+The kind of access decides whether the core must wait for ownership at all.
+McKenney's "Is Parallel Programming Hard, And, If So, What Can You Do About It?" (section 3.1.3, Atomic Operations, release v2026.06.21a) describes the common hardware trick for atomics: identify the lines the operation touches, make sure they are owned by the executing CPU, and only then perform the operation while keeping them owned, which "can require that the pipeline must be delayed or even flushed".
+The same section contrasts a non-atomic operation, for which the CPU can "place the results in the store buffer, without the need to wait for cacheline ownership", and section 3.2.3 describes the store buffer as letting stores execute quickly "even when none of the needed cachelines are present in the CPU's cache".
+On x86 the instruction reference for the `LOCK` prefix says the same in vendor terms: since the P6 family, when the locked memory is cached in the processor, the `LOCK#` signal is generally not asserted, "only the processor's cache is locked", and the cache coherency mechanism makes the operation atomic.
+A locked add on a contended line therefore serializes on line ownership, while a plain store to the same line can retire into the store buffer and pay later, or partly hide the cost.
 
 The lab uses an atomic add so that the cost does not depend on how a particular core treats plain stores.
-With GCC 13.3 on AArch64 the add compiles to a call to `__aarch64_ldadd8_relax`, and Clang targeting x86-64 emits `lock incq`.
+With GCC 13.3 on AArch64 the add compiles to a call to `__aarch64_ldadd8_relax`, because `-moutline-atomics` is on by default for the base ARMv8.0 target (GCC manual), and Clang targeting x86-64 emits `lock incq` (checked with Apple clang 21.0.0, `-target x86_64-linux-gnu -O2`, 2026-11-15).
 A demonstration built on plain increments can show nothing on some cores, which reads as "no false sharing here" and is wrong.
 
 ## Commands and Numbers to Know
@@ -496,8 +540,8 @@ A demonstration built on plain increments can show nothing on some cores, which 
 | Intel default events | `cpu/mem-loads,ldlat=30/P`, `cpu/mem-stores/P` | Linux, Intel | (as of 2026-11) |
 | Intel default events, CPUs with the auxiliary load event | `{cpu/mem-loads-aux/,cpu/mem-loads,ldlat=30/}:P`, `cpu/mem-stores/P` | Linux, Intel | (as of 2026-11) |
 | Arm default event | `arm_spe_0/ts_enable=1,pa_enable=1,load_filter=1,store_filter=1,min_latency=30/` | Linux, Arm64 with SPE | (as of 2026-11) |
-| AMD default event | `ibs_op//`, or `ibs_op/ldlat=30/` with latency support; not Zen 3 | Linux, AMD | (as of 2026-11) |
-| Load latency threshold | `-l`, `--ldlat`, default 30 cycles; AMD accepts 128 to 2048 | Linux | (as of 2026-11) |
+| AMD default event | `ibs_op//`, or `ibs_op/ldlat=0/` (filter off) with latency support; the manual's table still says `ldlat=30`; not Zen 3 | Linux, AMD | (as of 2026-11) |
+| Load latency threshold | `-l`, `--ldlat`, default 30 cycles on Intel and Arm; off by default on AMD, which accepts 128 to 2048 | Linux | (as of 2026-11) |
 | Report to a file | `perf c2c report -i out.data --stdio -c tid,iaddr` | Linux | (as of 2026-11) |
 | Totals only | `perf c2c report --stats` | Linux | (as of 2026-11) |
 | Sort by local or remote HITM | `-d lcl`, `-d rmt`; `-d peer` on Arm64 (default there) | Linux | (as of 2026-11) |
@@ -514,7 +558,7 @@ A demonstration built on plain increments can show nothing on some cores, which 
 | Line size, coherency | `/sys/devices/system/cpu/cpu0/cache/index*/coherency_line_size` | Linux | (as of 2026-11) |
 | Struct layout by line | `pahole -C <struct> <binary>`; `-c <bytes>` sets the line size | Linux | (as of 2026-11) |
 | Suggested reorder | `pahole -R -S -C <struct> <binary>` | Linux | (as of 2026-11) |
-| glibc 2.39 `malloc` alignment | `2 * SIZE_SZ`, 16 bytes on 64-bit; minimum chunk 32 bytes | Linux, glibc | (as of 2026-11) |
+| glibc 2.39 `malloc` alignment | larger of `2 * SIZE_SZ` and `alignof(long double)`, 16 bytes on x86-64 and AArch64; minimum chunk 32 bytes | Linux, glibc | (as of 2026-11) |
 | GCC interference sizes | x86: 64 and 64; generic AArch64: destructive 256, constructive 64 | Both | (as of 2026-11) |
 | Kernel alignment macros | `____cacheline_aligned_in_smp`, `__cacheline_group_begin` and `_end`, `CACHELINE_PADDING`, `__read_mostly` | Linux | (as of 2026-11) |
 
@@ -524,7 +568,7 @@ A demonstration built on plain increments can show nothing on some cores, which 
 | :--- | :--- | :--- | :--- |
 | C | `alignas(N)` on the first member, `aligned_alloc(N, size)` for heap objects | chosen by the programmer | `malloc` ignores the type's alignment |
 | C++ | `alignas(std::hardware_destructive_interference_size)` | 64 on x86 with GCC; 256 on generic AArch64 with GCC | GCC warns with `-Winterference-size` because the value is not ABI stable |
-| Rust | `crossbeam_utils::CachePadded<T>` | 128 on x86-64 and aarch64, 64 on most others | the size of `CachePadded<T>` is a multiple of N, so memory grows per element |
+| Rust | `crossbeam_utils::CachePadded<T>` | 128 on x86-64, aarch64, and powerpc64; 32 on arm, mips, sparc, and hexagon; 256 on s390x; 64 on the rest | the size of `CachePadded<T>` is a multiple of N, so memory grows per element |
 | Go | `cpu.CacheLinePad` in `internal/cpu`, `[N]byte` fields elsewhere | 64 on x86, 128 on arm64 | "no runtime detection of the real cache line size" |
 | Java | `@Contended` | `-XX:ContendedPaddingWidth`, default 128 | `RestrictContended` is true, so untrusted classes are ignored by default |
 | Python | none in the language | not applicable | the free-threaded build makes reference counts a contended word; PEP 703 answers with immortal objects and deferred reference counting |
@@ -555,13 +599,13 @@ The compilers' answer for a public header is the same: define a project constant
 > Padding there only spends memory.
 
 > [!warning] Padding to 64 bytes everywhere
-> A granule of 128 bytes is real on Apple silicon according to the Go runtime, and several libraries use 128 on x86-64 because of the adjacent-line prefetcher.
+> A granule of 128 bytes is real on Apple silicon according to the Go runtime, and crossbeam (always) and folly (when the standard library lacks the C++17 constant) use 128 on x86-64 because of the adjacent-line prefetcher.
 > A fix validated on one machine can leave the bug on another.
 > When `perf c2c` shows two neighbouring lines each hot for one thread, rerun the report with `--double-cl`.
 
 > [!warning] A demonstration that shows nothing
 > A compiler can keep a non-atomic, non-volatile counter in a register for the whole loop, and then there is no memory traffic to contend.
-> Some cores also absorb plain stores to a contended line with little penalty; Drepper measured no scaling loss on a Core 2 QX 6700 with the test that cost over 1,000% on four Pentium 4 processors.
+> The penalty also depends on the machine: Drepper's plain-increment test cost over 1,000% on four Pentium 4 processors and only a slight overhead, flat in the number of cores, on one Core 2 QX 6700; he does not explain the difference, and store buffering (see "The cost depends on the access and on the core") is one plausible part of it.
 > Check the disassembly for a load and a store inside the loop before concluding that a layout is safe.
 
 > [!warning] Pinning workers to hyperthreads of one core
@@ -571,12 +615,13 @@ The compilers' answer for a public header is the same: define a project constant
 > [!warning] `perf c2c record` fails with an access error
 > `perf c2c record` always adds `--phys-data`, and the kernel comments that "Only privileged users can get physical addresses": `perf_event_open` calls `perf_allow_kernel`, which returns `-EACCES` when `perf_event_paranoid` is above 1 and the caller lacks `CAP_PERFMON`.
 > The sysctl defaults to 2.
-> With perf 6.8.12 an unprivileged `perf record --phys-data` at level 2 exits 255 with the "Access to performance monitoring and observability operations is limited" message.
+> `evsel__open_strerror` handles both `EPERM` and `EACCES` by printing "Access to performance monitoring and observability operations is limited." followed by the `perf_event_paranoid` advice (`tools/perf/util/evsel.c`, Linux v7.3); that is the message to expect from an unprivileged recording at level 2.
+> A Linux security module can still refuse the open after the paranoid check passes, because `perf_allow_kernel` ends in `security_perf_event_open`.
 
 > [!warning] `perf c2c report` fails with `Failed setup nodes`
 > The report reads the NUMA topology from the `perf.data` header before it processes any sample, and returns an error when the header has none.
 > A recording made on a kernel with no NUMA sysfs, as in some containers and small VMs, cannot be reported; perf 6.8.12 prints only `Failed setup nodes`.
-> For the same reason the report cannot read a `perf.data` stream from a pipe.
+> Separately, the report refuses a `perf.data` stream from a pipe outright: `perf_c2c__report` checks `perf_data__is_pipe` and stops with "No pipe support at the moment" (`tools/perf/builtin-c2c.c`, Linux v7.3).
 
 > [!warning] Zero HITM does not mean zero contention
 > HITM is counted on loads only, the Intel load event drops loads faster than `ldlat`, SPE is statistical, and Arm reports peer snoops instead of HITM.
@@ -677,7 +722,7 @@ int main(void)
 > In `struct b` the first member's alignment of 64 becomes the struct's alignment, and `sizeof` is rounded up to a multiple of it, so the size is 64 and array elements are 64 bytes apart.
 > In `struct c` the aligned member cannot start before offset 64, so `quota` sits at 0, `msgs` at 64, and the size rounds up to 128: the two words of one worker have been split onto two lines, which doubles the memory and separates fields that are used together.
 > The stride of an array is `sizeof` of the element, which is why the alignment has to be on the element type and not on the array.
-> The answer was checked by compiling and running the program with Apple clang on darwin-arm64 (2026-11-13) and with GCC 13.3 on linux-aarch64 while drafting.
+> The answer was checked by compiling the program with `-std=c11 -O2` and running it with Apple clang 21.0.0 on darwin-arm64 (2026-11-15), and with GCC 13.3 on linux-aarch64 in an earlier pass.
 
 ### Question 3 (Level 5): From a Line Address to a Field
 
@@ -702,7 +747,7 @@ What is going on, and what do you run next?
 > [!success]- Answer:
 > A line that is hot for one thread cannot be contended by itself, so the contention unit must be larger than the unit the report groups by.
 > `perf c2c report` groups by the line size from `sysconf(_SC_LEVEL1_DCACHE_LINESIZE)` on the reporting machine, which can be 64 while the granule that actually moves between cores is 128.
-> Go pads by 128 on arm64 for exactly this reason, and several libraries pad by 128 on x86-64 because of the adjacent-line prefetcher.
+> Go pads by 128 on arm64 for exactly this reason, and crossbeam pads by 128 on x86-64 because of the adjacent-line prefetcher.
 > Run `perf c2c report --double-cl`, which groups by pairs of lines: the two lines merge into one entry with two threads at different offsets, which is false sharing at a 128-byte granule.
 > Check `coherency_line_size` in sysfs on the production machine.
 > The fix is to pad to 128 through a project-wide constant, and the process fix is to stop validating layout changes on a different microarchitecture from the one that runs them.
@@ -745,9 +790,10 @@ Is the layout safe?
 > [!success]- Answer:
 > No conclusion follows.
 > The penalty depends on the access type and the core.
-> Drepper measured the same increment test at more than 1,000% overhead on four Pentium 4 processors and at no scaling loss on a Core 2 QX 6700.
+> Drepper measured the same plain-increment test at more than 1,000% overhead on four Pentium 4 processors and at a slight overhead that did not grow with cores on a Core 2 QX 6700.
 > On x86 part of the cost comes from memory-ordering machine clears when an external snoop hits a load that has not retired; an atomic read-modify-write is stricter still because it needs exclusive ownership for the whole operation.
-> A plain store can sit in the store buffer while the line is elsewhere, so a core can make progress without owning the line (UNVERIFIED: standard architecture behavior, stated without a vendor manual citation).
+> A plain store can sit in the store buffer while the line is elsewhere, so a core can keep executing without owning the line; McKenney's perfbook (section 3.1.3) states that a non-atomic operation can place its result in the store buffer "without the need to wait for cacheline ownership", while an atomic must own the line first.
+> `volatile` forces the compiler to emit the load and the store, but it does not make them a read-modify-write, so the colleague measured the cheaper access.
 > The test therefore has to use the access the production code uses, on the production microarchitecture, and the result has to be confirmed with HITM or peer-snoop counts and not with wall time alone.
 > The drill's workload uses an atomic add for this reason.
 
@@ -761,7 +807,7 @@ What is the risk and what policy do you set?
 > The constant affects layout, so it is part of the ABI of any type that uses it.
 > GCC documents that the default "is not expected to be stable" and on some targets varies with `-mtune`, which is why `-Winterference-size` exists; Clang's release notes say the same about its macros.
 > Two translation units compiled with different tuning flags, or a library and its client built by different compilers, can then disagree on `sizeof` and member offsets, which is an ODR violation that manifests as memory corruption.
-> The values also differ in substance: GCC gives 64 on x86 and 256 for generic AArch64, while folly and crossbeam choose 128 on x86-64.
+> The values also differ in substance: GCC gives 64 on x86 and 256 for generic AArch64, while crossbeam chooses 128 on x86-64, and folly chooses 128 only when the standard library does not provide the constant (otherwise it forwards the standard value and silences the warning).
 > The policy is one project-owned constant, set from measurement, 128 for a mixed x86-64 and arm64 fleet, used through one padding wrapper type.
 > Ban the standard constants in installed headers, allow them inside a single binary, and pin them with `--param destructive-interference-size` where third-party code uses them.
 > Add `static_assert`s on the size and alignment of padded types so a layout change fails the build.
@@ -802,6 +848,7 @@ Decide, and defend the decision.
 - [False Sharing, Linux kernel documentation](https://raw.githubusercontent.com/torvalds/linux/v7.3/Documentation/kernel-hacking/false-sharing.rst): recurring patterns, the `perf c2c` plus `pahole` workflow, and mitigations with the commits that applied them.
 - [mm: page_counter: re-layout structure to reduce false sharing](https://github.com/torvalds/linux/commit/802f1d522d5f): a production fix found with `perf c2c`, with before and after numbers on large machines.
 - [What Every Programmer Should Know About Memory](https://www.akkadia.org/drepper/cpumemory.pdf): section 3.3.4 for MESI and Request For Ownership, section 6.4.1 for measured false-sharing cost and its dependence on the machine.
+- [Is Parallel Programming Hard, And, If So, What Can You Do About It?](https://kernel.org/pub/linux/kernel/people/paulmck/perfbook/perfbook-1c.2026.06.21a.pdf): section 3.1.3 for why an atomic must own its line while a plain store can wait in the store buffer, and chapter 3 for the cost of cacheline bouncing.
 - [GCC -Winterference-size](https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-15/gcc/doc/invoke.texi): why the C++17 interference constants are an ABI hazard and how to pin them.
 - [crossbeam CachePadded source](https://raw.githubusercontent.com/crossbeam-rs/crossbeam/crossbeam-utils-0.8.21/crossbeam-utils/src/cache_padded.rs): a per-architecture padding table with the reasoning and sources for each value.
 - [pahole(1)](https://raw.githubusercontent.com/acmel/dwarves/master/man-pages/pahole.1): the tool that turns an offset into a member and shows cache line boundaries in a struct.
