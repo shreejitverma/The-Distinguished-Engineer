@@ -1,0 +1,16 @@
+Wheel Package Name: fast_crc32
+Wheel Version: 0.1.0
+Python Tag: cp39
+ABI Tag: abi3
+Platform Family: macosx
+Platform Architecture: arm64
+WHEEL Wheel-Version: 1.0
+WHEEL Root-Is-Purelib: false
+Extension Module Path: fast_crc32/_core.abi3.so
+Extension ABI Suffix: True
+Exported PyInit entrypoint present: True
+Test Vector Checksum Match: True
+Checksum Decimal Value: 3421780262
+Checksum Hex String: cbf43926
+Hex String Match: True
+Wheel verification result: PASS

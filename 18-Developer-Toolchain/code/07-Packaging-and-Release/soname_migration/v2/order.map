@@ -1,0 +1,8 @@
+ORDER_2.0 {
+    global:
+        extern "C++" {
+            order::v2::*;
+        };
+    local:
+        *;
+};

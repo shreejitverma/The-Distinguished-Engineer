@@ -1,0 +1,12 @@
+[package]
+name = "fast_crc32"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.30", features = ["extension-module", "abi3-py39"] }
+crc32fast = "1.4"

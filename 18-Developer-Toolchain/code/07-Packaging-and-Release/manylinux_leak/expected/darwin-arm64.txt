@@ -1,0 +1,42 @@
+=== Stage 1: Build Extension Module on Modern Linux Host (glibc 2.39) ===
+Build complete: fast_hasher.so and test loader compiled.
+
+=== Stage 2: Inspect ELF Version Sections via readelf ===
+Version Needs section (.gnu.version_r):
+000000: Version: 1  File: ld-linux-aarch64.so.1  Cnt: 1
+0x0010:   Name: GLIBC_2.17  Flags: none  Version: 3
+0x0020: Version: 1  File: libc.so.6  Cnt: 2
+0x0030:   Name: GLIBC_2.38  Flags: none  Version: 4
+0x0040:   Name: GLIBC_2.17  Flags: none  Version: 2
+
+Symbol bindings in .dynsym:
+FUNC GLOBAL strlcpy@GLIBC_2.38
+FUNC GLOBAL compute_hash
+
+=== Stage 3: Audit Wheel Against manylinux_2_28 Policy ===
+auditwheel show: fast_hasher.so
+  Found external shared library dependency: libc.so.6
+  Required symbol versions: GLIBC_2.17, GLIBC_2.38
+  This constrains the platform tag to "manylinux_2_38_aarch64".
+  In order to achieve a more compatible tag, you would need to recompile a new wheel from source on a system with earlier versions of these libraries, such as a recent manylinux image.
+
+Attempting auditwheel repair with target policy manylinux_2_28_aarch64...
+auditwheel: error: cannot repair "fast_hasher.so" to "manylinux_2_28_aarch64" ABI because of the presence of too-recent versioned symbols: libc.so.6 with version GLIBC_2.38
+
+=== Stage 4: Reproduce Deployment Crash on Older Host (glibc 2.35) ===
+[Execution] Attempting dlopen() of unpatched module on glibc 2.35 container...
+dlopen error: /lib/aarch64-linux-gnu/libc.so.6: version `GLIBC_2.38' not found (required by /work/fast_hasher.so)
+Exit status: 1
+
+=== Stage 5: Remediate GLIBC Leak via Portable Source Fallback ===
+[Build] Recompiling fast_hasher.so with portable fallback (-DPORTABLE=1)...
+Version Needs section (.gnu.version_r) for fixed module:
+000000: Version: 1  File: ld-linux-aarch64.so.1  Cnt: 1
+0x0010:   Name: GLIBC_2.17  Flags: none  Version: 3
+0x0020: Version: 1  File: libc.so.6  Cnt: 1
+0x0030:   Name: GLIBC_2.17  Flags: none  Version: 2
+
+=== Stage 6: Verify Auditwheel Repair and Deployment Execution ===
+Fixed-up wheel written to dist/fast_hasher-1.0.0-cp312-cp312-manylinux_2_28_aarch64.whl
+[Execution] Loading repaired module on deployment target (glibc 2.35)...
+Result: SUCCESS! fast_hasher loaded and computed hash: 0xADDR

@@ -1,0 +1,18 @@
+=== Phase 1: Binary Dependency Check ===
+consumer_v1 NEEDED: liborder.so.1
+consumer_v2 NEEDED: liborder.so.2
+=== Phase 2: SONAME Tag Check ===
+liborder.so.1 SONAME: liborder.so.1
+liborder.so.2 SONAME: liborder.so.2
+=== Phase 3: Side-by-Side Coexistence Execution ===
+consumer_v1: engine_version=1 order_hash=10100500
+consumer_v2: engine_version=2 order_hash=42945388093204
+=== Phase 4: Symbol Mangling and Version Node Check ===
+_ZN5order2v114OrderProcessor7processERKNS0_11OrderRecordE
+_ZN5order2v214OrderProcessor7processERKNS0_11OrderRecordE
+=== Phase 5: Filesystem Co-installation Layout ===
+liborder.so
+liborder.so.1
+liborder.so.1.0.0
+liborder.so.2
+liborder.so.2.0.0
