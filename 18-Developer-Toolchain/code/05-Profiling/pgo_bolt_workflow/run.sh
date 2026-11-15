@@ -21,6 +21,12 @@ TRAIN_N=2000000          # instrumented training run (exact counts)
 PERF_N=100000000         # sampled runs: about a second of work on a current core
 EVAL_N=50000000          # measured runs
 PERF_EVENT="${PERF_EVENT:-cycles:u}"
+# AMD Zen 3 BRS accepts only its retired-taken-branch event in sampling mode with a
+# fixed period larger than 16 (arch/x86/events/amd/brs.c), so on such a host set
+# PERF_EVENT to that event and PERF_PERIOD to a prime such as 500009.
+PERF_PERIOD="${PERF_PERIOD:-}"
+PERF_PERIOD_ARGS=()
+if [ -n "${PERF_PERIOD}" ]; then PERF_PERIOD_ARGS=(-c "${PERF_PERIOD}"); fi
 
 die() { echo "error: $*" >&2; exit 1; }
 
@@ -146,7 +152,7 @@ echo
 echo "== 2. AutoFDO: sample a debug-info build with branch stacks, llvm-profgen, -fprofile-sample-use"
 AFDO_FLAGS=(-gline-tables-only -fdebug-info-for-profiling -funique-internal-linkage-names)
 "${CXX}" "${BASE_FLAGS[@]}" "${AFDO_FLAGS[@]}" "${SRC[@]}" -o afdo_train
-perf record -q -e "${PERF_EVENT}" -j any,u -o afdo.data -- ./afdo_train train "${PERF_N}" >/dev/null 2>perf-afdo.err \
+perf record -q -e "${PERF_EVENT}" ${PERF_PERIOD_ARGS[@]+"${PERF_PERIOD_ARGS[@]}"} -j any,u -o afdo.data -- ./afdo_train train "${PERF_N}" >/dev/null 2>perf-afdo.err \
     || { cat perf-afdo.err >&2; die "perf record -j any,u failed: no branch-stack sampling here"; }
 "${PROFGEN}" --binary=afdo_train --perfdata=afdo.data --output=afdo.prof 2>profgen.err \
     || { cat profgen.err >&2; die "llvm-profgen failed"; }
@@ -166,7 +172,7 @@ done
 echo
 echo "== 3. BOLT on top of the PGO binary: perf -j any,u, perf2bolt, llvm-bolt"
 echo "pgo binary keeps .rela.text: $("${READELF}" -S -W pgo | grep -q ' \.rela\.text ' && echo yes || echo no)"
-perf record -q -e "${PERF_EVENT}" -j any,u -o bolt.data -- ./pgo train "${PERF_N}" >/dev/null 2>perf-bolt.err \
+perf record -q -e "${PERF_EVENT}" ${PERF_PERIOD_ARGS[@]+"${PERF_PERIOD_ARGS[@]}"} -j any,u -o bolt.data -- ./pgo train "${PERF_N}" >/dev/null 2>perf-bolt.err \
     || { cat perf-bolt.err >&2; die "perf record -j any,u failed"; }
 "${PERF2BOLT}" -p bolt.data -o bolt.fdata pgo >perf2bolt.log 2>&1 || { cat perf2bolt.log >&2; die "perf2bolt failed"; }
 "${BOLT}" pgo -o pgo.bolt -data=bolt.fdata \
@@ -174,7 +180,7 @@ perf record -q -e "${PERF_EVENT}" -j any,u -o bolt.data -- ./pgo train "${PERF_N
     -split-functions -split-all-cold -split-eh -dyno-stats >bolt.log 2>&1 \
     || { cat bolt.log >&2; die "llvm-bolt failed"; }
 grep -E 'taken (conditional )?branches|executed instructions' bolt.log >&2 || true
-echo "llvm-bolt ran in relocation mode: $(grep -q 'BOLT-INFO: enabling relocation mode' bolt.log && echo yes || echo no)"
+echo "llvm-bolt ran in relocation mode: $(grep -q -E 'BOLT-INFO: enabling (strict )?relocation mode' bolt.log && echo yes || echo no)"
 echo ".note.bolt_info present: $("${READELF}" -n pgo.bolt | grep -q 'BOLT revision' && echo yes || echo no)"
 echo ".text.cold section present: $("${READELF}" -S -W pgo.bolt | grep -q ' \.text\.cold ' && echo yes || echo no)"
 echo "cold fragments (<fn>.cold.0 symbols) present: $("${NM}" pgo.bolt | grep -q -E '\.cold\.0$' && echo yes || echo no)"

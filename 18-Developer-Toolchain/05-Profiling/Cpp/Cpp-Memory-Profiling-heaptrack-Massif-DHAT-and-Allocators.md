@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Milian Wolff and contributors, heaptrack README, KDE heaptrack repository, 2026, https://github.com/KDE/heaptrack"
@@ -18,7 +18,7 @@ sources:
   - "GNU C Library contributors, glibc NEWS (2.26 tcache, 2.33 mallinfo2, 2.34 libc_malloc_debug, 2.35 glibc.malloc.hugetlb, 2.42 large tcache), glibc 2.42, 2025, https://github.com/bminor/glibc/blob/glibc-2.42/NEWS"
   - "Jason Evans and jemalloc contributors, JEMALLOC(3) manual, jemalloc 5.4.0, 2026, https://jemalloc.net/jemalloc.3.html"
   - "jemalloc contributors, jemalloc ChangeLog (5.3.1 and 5.4.0), jemalloc repository, 2026, https://github.com/jemalloc/jemalloc/blob/dev/ChangeLog"
-  - "Google LLC, TCMalloc design, stats, and sampling documentation, google/tcmalloc repository, 2026, https://github.com/google/tcmalloc/tree/master/docs"
+  - "Google LLC, TCMalloc overview, design, tuning, stats, and sampling documentation, google/tcmalloc repository, 2026, https://github.com/google/tcmalloc/tree/master/docs"
   - "Google LLC, tcmalloc/malloc_extension.h (ProfileType, GetStats, GetNumericProperty), google/tcmalloc repository, 2026, https://github.com/google/tcmalloc/blob/master/tcmalloc/malloc_extension.h"
   - "gperftools contributors, Gperftools Heap Profiler documentation, gperftools 2.19, 2026, https://gperftools.github.io/gperftools/heapprofile.html"
   - "Daan Leijen and mimalloc contributors, mimalloc README and include/mimalloc.h, microsoft/mimalloc repository (v3.6.1), 2026, https://github.com/microsoft/mimalloc"
@@ -26,6 +26,19 @@ sources:
   - "ISO/IEC JTC1/SC22/WG21, Working Draft, Programming Languages - C++: [mem.res.global] and [mem.res.monotonic.buffer.mem], 2026, https://eel.is/c++draft/mem.res.monotonic.buffer.mem"
   - "cppreference.com contributors, std::pmr::monotonic_buffer_resource, cppreference.com, 2026, https://en.cppreference.com/w/cpp/memory/monotonic_buffer_resource"
   - "Canonical Ltd., Ubuntu 24.04 (noble) package archive: heaptrack 1.5.0+dfsg1-2ubuntu3, valgrind 1:3.22.0-0ubuntu3, jemalloc 5.3.0-2build1, mimalloc 2.1.2+ds-2, google-perftools 2.15-3build1, glibc 2.39, 2026, https://launchpad.net/ubuntu/noble"
+  - "jemalloc contributors, src/pac.c (try_muzzy and the dirty-extent purge path), jemalloc 5.4.0, 2026, https://github.com/jemalloc/jemalloc/blob/5.4.0/src/pac.c"
+  - "Valgrind Developers, Valgrind User Manual, Chapter 2: Using and understanding the Valgrind core (malloc interception and --soname-synonyms), Valgrind 3.28.0, 2026, https://valgrind.org/docs/manual/manual-core.html"
+  - "GitHub REST API release listings for jemalloc/jemalloc, gperftools/gperftools, and microsoft/mimalloc, and tags for KDE/heaptrack, retrieved 2026-11-15, https://api.github.com/repos/jemalloc/jemalloc/releases"
+  - "GCC contributors, libstdc++-v3/libsupc++/new_opa.cc (aligned operator new, PR libstdc++/113258), GCC master and releases/gcc-13 branch, 2026, https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/new_opa.cc"
+  - "GCC contributors, libstdc++-v3/libsupc++/new_opa.cc on the releases/gcc-12 branch (PR 113258 backport) and the releases/gcc-11 branch (aligned_alloc preferred), retrieved 2026-11-15, https://github.com/gcc-mirror/gcc/blob/releases/gcc-12/libstdc%2B%2B-v3/libsupc%2B%2B/new_opa.cc"
+  - "Milian Wolff and contributors, heaptrack v1.5.0 CMakeLists.txt (recorder built only for Linux and FreeBSD) and README (macOS builds of heaptrack_print and heaptrack_gui), 2023, https://github.com/KDE/heaptrack/blob/v1.5.0/CMakeLists.txt"
+  - "Valgrind Developers, massif/ms_main.c and dhat/dh_main.c at tag VALGRIND_3_27_1, sourceware valgrind.git, retrieved 2026-11-15, https://sourceware.org/git/?p=valgrind.git;a=blob_plain;f=massif/ms_main.c;hb=VALGRIND_3_27_1"
+  - "Canonical Ltd., Launchpad API getPublishedSources for heaptrack, valgrind, jemalloc, mimalloc, and google-perftools in noble, retrieved 2026-11-15, https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=heaptrack&distro_series=https://api.launchpad.net/1.0/ubuntu/noble"
+  - "ISO/IEC JTC1/SC22/WG21, Working Draft, Programming Languages - C++: [expr.new] paragraph 14 and [allocator.members] paragraph 5, 2026, https://eel.is/c++draft/expr.new"
+  - "GNU C Library contributors, The GNU C Library Reference Manual: Allocation Debugging, mtrace and Interpreting the traces (manual/memory.texi), glibc 2.42, 2025, https://github.com/bminor/glibc/blob/glibc-2.42/manual/memory.texi"
+  - "IO Visor Project, bcc tools/memleak.py, iovisor/bcc repository, 2026, https://github.com/iovisor/bcc/blob/master/tools/memleak.py"
+  - "FreeBSD current-users mailing list, Future of jemalloc on FreeBSD after archive, 2025-06-09, https://lists.freebsd.org/archives/cu/2025-June/007837.html"
+  - "Wenlei He, Paul Saab, and Stan Angelov, Investing in Infrastructure: Meta's Renewed Commitment to jemalloc, Engineering at Meta, 2026-03-02, https://engineering.fb.com/2026/03/02/data-infrastructure/investing-in-infrastructure-metas-renewed-commitment-to-jemalloc/"
 ---
 
 # C++ Memory Profiling: heaptrack, Massif, DHAT, and Allocators
@@ -51,6 +64,7 @@ flowchart TD
         DH["DHAT<br/>per allocation point: blocks, lifetime,<br/>reads, writes, t-gmax, t-end, access histogram"]
         VG --> MS
         VG --> DH
+        ML["bcc memleak<br/>uprobes on malloc family<br/>outstanding blocks older than -o ms"]
     end
 
     subgraph Allocator["Allocator (holds memory after free)"]
@@ -68,6 +82,7 @@ flowchart TD
 
     MAL -.->|"intercepted"| HT
     MAL -.->|"replaced"| VG
+    MAL -.->|"probed"| ML
     MAL --> GL
     MAL --> JE
     MAL --> TC
@@ -100,7 +115,21 @@ Churn raises none of them much but burns CPU in the allocator and pollutes cache
 Fragmentation and retention raise the last two while the first stays flat, so a profiler of requested bytes cannot see them at all.
 [[Virtual-Memory-Mmap-and-Process-Address-Space]] owns how the kernel counts resident pages; this note owns the allocator and the profilers.
 
-### 2. What the default allocator does with a request: glibc ptmalloc2
+### 2. From `operator new` to `malloc`: what the C++ layer adds and hides
+
+Every heap tool in this note hooks the C allocation functions, so it matters exactly how C++ reaches them.
+
+- libstdc++'s plain `operator new(size_t)` calls `malloc` in a loop: on failure it calls the installed `std::new_handler` and retries, and throws `std::bad_alloc` only when no handler is set.
+  A profiler therefore sees one `malloc` per successful `new`, and the `operator new` frame sits on top of the stack, which heaptrack's analyzer strips.
+- The C++17 aligned form `operator new(size_t, std::align_val_t)` in `libsupc++/new_opa.cc` checks that the alignment is a power of two, turns a size of 0 into 1, and allocates through an internal `__gnu_cxx::aligned_alloc` helper.
+  On glibc that helper calls `posix_memalign` (raising the alignment to at least `sizeof(void*)`), because the source prefers `posix_memalign` as "older than aligned_alloc and so more likely to be provided by replacement malloc libraries" (PR libstdc++/113258, present on GCC master and on the releases/gcc-12 and releases/gcc-13 branches); the releases/gcc-11 branch still prefers C11 `aligned_alloc`, as did builds before the fix.
+  heaptrack hooks both, so `alignas(64)` objects are visible either way; it would miss them only on a C library that offers neither, where libstdc++ falls back to `memalign`, which heaptrack does not hook.
+- A program may replace the global `operator new` and `operator delete`; a replacement that carves blocks from its own `mmap`ed pool never calls `malloc` and is invisible to every interposing tool until it reports its blocks (heaptrack's `heaptrack_api.h`, Valgrind's `VALGRIND_MALLOCLIKE_BLOCK`).
+- The compiler may remove allocations: [expr.new] paragraph 14 says "An implementation is allowed to omit a call to a replaceable global allocation function", providing the storage itself or by extending another new-expression's allocation, and [allocator.members] paragraph 5 says `std::allocator::allocate` calls `::operator new` but "it is unspecified when or how often this function is called".
+  So the allocation count an optimized build shows can legally be lower than the count in the source, and an `-O0` profile can show allocations that production never makes.
+- `std::pmr::memory_resource` is a second, explicit allocation layer: a container's allocations go to `do_allocate` of its resource, and only resources whose upstream is `new_delete_resource()` ever reach `malloc`.
+
+### 3. What the default allocator does with a request: glibc ptmalloc2
 
 Every fact here is from `malloc/malloc.c` and `malloc/arena.c` at glibc 2.42 unless another source is named; the lab's container runs Ubuntu 24.04's glibc 2.39, which has the same chunk layout and thresholds.
 
@@ -124,11 +153,11 @@ A freed chunk goes to the first structure that accepts it:
 
 1. The per-thread cache (tcache, added in glibc 2.26): 64 small bins, at most `TCACHE_FILL_COUNT` = 7 chunks each, for requests up to `glibc.malloc.tcache_max` (default 1032 bytes on 64-bit, per `tunables.texi`); no lock is taken.
    glibc 2.42 adds 12 large tcache bins ("Up to 4M chunks"), and its NEWS says they are used once `glibc.malloc.tcache_max` is raised, to at most 4194304.
-2. Fastbins: singly linked LIFO lists for chunks up to `DEFAULT_MXFAST` = `64 * SIZE_SZ / 4` = 128 bytes of request on 64-bit; a chunk in a fastbin keeps its "in use" bit set, so it is never coalesced with its neighbors on `free`.
+2. Fastbins: singly linked LIFO lists for chunk sizes up to 128 bytes on 64-bit, which is requests up to 120 bytes: `DEFAULT_MXFAST` = `64 * SIZE_SZ / 4` = 128, and `set_max_fast()` turns it into the chunk-size limit `(128 + SIZE_SZ) & ~MALLOC_ALIGN_MASK` = 128, so `malloc(128)` (a 144-byte chunk) already misses the fastbins; a chunk in a fastbin keeps its "in use" bit set, so it is never coalesced with its neighbors on `free`.
 3. The unsorted bin, sorted later into small bins and large bins (`NBINS` = 128, `NSMALLBINS` = 64), where neighbors coalesce.
 4. The top chunk, the free space at the high end of the heap, which shrinks with `sbrk` when it exceeds `M_TRIM_THRESHOLD` (default 128 KiB).
 
-Fastbin chunks are merged only by `malloc_consolidate()`, which runs when a large-bin request is made, when a free produces a coalesced chunk of at least `FASTBIN_CONSOLIDATION_THRESHOLD` (64 KiB), and inside `malloc_trim`.
+Fastbin chunks are merged only by `malloc_consolidate()`, which runs when a large-bin request is made, when a request reaches the top chunk while fastbins are non-empty, when a free produces a coalesced chunk of at least `FASTBIN_CONSOLIDATION_THRESHOLD` (64 KiB), in `mallopt`, and inside `malloc_trim`.
 That is why a program can free every small block it allocated and keep the whole heap resident: the free chunks sit in fastbins below a top chunk that never grows past the trim threshold.
 The lab shows exactly this with 300,000 blocks of 64 bytes.
 
@@ -170,10 +199,16 @@ A thread pool with uneven work on a 64-core host can therefore grow up to 512 ar
 
 `MADV_DONTNEED` drops resident pages immediately for private anonymous memory, while `MADV_FREE` (Linux 4.5) only marks them reclaimable under memory pressure, so RSS stays high until the kernel needs the pages (`madvise(2)`); an allocator that purges with `MADV_FREE` looks like it is leaking in `top`.
 
-### 3. heaptrack: interposition at native speed
+#### Huge pages and the debugging DSO
+
+- `glibc.malloc.hugetlb` (glibc 2.35) defaults to `0`; `1` makes malloc call `madvise(MADV_HUGEPAGE)` on the memory it gets from `mmap` and `sbrk`, which helps when the system's Transparent Huge Page mode is `madvise`, and `2` maps huge pages directly with `MAP_HUGETLB` from the system's reserved pool (`tunables.texi`, 2.42).
+  Either setting changes the fourth size: one touched byte can now make a whole huge page resident, and returning part of a huge page with `madvise(MADV_DONTNEED)` forces the kernel to split it, the same cost that the comment on TCMalloc's `ReleaseMemoryToSystem` warns about ("returning them to the OS requires breaking up the huge page").
+- glibc 2.34 moved `MALLOC_CHECK_`, `mtrace()`, and `mcheck()` out of the main library into `libc_malloc_debug.so`, which must be preloaded to make them work, and removed `__malloc_hook` and the other hooks from the API (NEWS, 2.34); older tutorials that install `__malloc_hook` to trace allocations no longer do anything on a current glibc.
+
+### 4. heaptrack: interposition at native speed
 
 heaptrack 1.5.0 is the latest release tag (commit dated 2023-09-29), and master carries 1.6 development code (as of 2026-11, Linux); Ubuntu 24.04 ships `1.5.0+dfsg1-2ubuntu3`.
-It runs on Linux and FreeBSD; there is no macOS port.
+The recorder builds only on Linux and FreeBSD (`CMakeLists.txt` gates it on those two system names); there is no macOS recorder, although the README says `heaptrack_print` and `heaptrack_gui` can be built on macOS to analyze a file recorded elsewhere.
 
 #### Recording
 
@@ -200,7 +235,7 @@ On each event `libheaptrack.cpp` (v1.5.0):
 - Guards against recursion with a `thread_local bool RecursionGuard::isActive`, so allocations made by heaptrack itself are not traced.
 - Unwinds into a fixed array of `MAX_SIZE` = 64 frames (`trace.h`): with libunwind's `unw_backtrace()` and its per-thread cache when built with `HEAPTRACK_USE_LIBUNWIND` (the README lists libunwind as a collector dependency), otherwise with the unwind-table backend in `trace_unwind_tables.cpp`.
 - Interns the backtrace in a trace tree, so each record carries a small index rather than a stack.
-- Takes one process-wide `std::mutex` (master switched to a `std::timed_mutex` with 1 ms tries) and writes a text line to the pipe: `+ size trace_index pointer` for an allocation and `- pointer` for a free.
+- Takes one process-wide `std::mutex`, acquired by a `try_lock` loop that sleeps 1 microsecond between tries (master switched to a `std::timed_mutex` with 1 ms `try_lock_for` tries), and writes a text line to the pipe: `+ size trace_index pointer` for an allocation and `- pointer` for a free.
 - Runs a timer thread that, every 10 ms, writes a `c` timestamp line and an `R` line with the resident page count read from `/proc/self/statm`.
 - Registers `pthread_atfork` handlers so a forked child stops writing to the parent's stream.
 - Registers an `atexit` handler that calls `__gnu_cxx::__freeres()`, which frees libstdc++'s internal start-up allocations (the source comment points to Valgrind's `--run-cxx-freeres` as the same idea), so they do not show up as leaks.
@@ -210,11 +245,11 @@ The single lock means every allocation in every thread is serialized through hea
 
 #### Analysis: what "peak", "leaked", and "temporary" mean
 
-`AccumulatedTraceData` (`src/analyze/accumulatedtracedata.cpp`) replays the stream once:
+`AccumulatedTraceData` (`src/analyze/accumulatedtracedata.cpp`) replays the stream twice (`FirstPass`, then `SecondPass`):
 
 - **Leaked** is live bytes: each `+` adds the size to the allocation site's and the total `leaked` counter, each `-` subtracts it, and whatever remains at the end is reported as leaked.
   heaptrack does not scan memory for references, so a block reachable from a global at exit counts as leaked, unlike Memcheck's "still reachable" or LeakSanitizer.
-- **Peak** is the maximum of total live bytes, updated on every allocation (`if (totalCost.leaked > totalCost.peak) totalCost.peak = totalCost.leaked;`); a first pass with a `PeakTracker` records the time of the peak and each site's contribution to it.
+- **Peak** is the maximum of total live bytes, updated on every allocation (`if (totalCost.leaked > totalCost.peak) totalCost.peak = totalCost.leaked;`); the first pass finds the peak and its timestamp, and the second pass, on reaching that same peak and time again, copies each site's live bytes into its `peak` cost, which is how each site's contribution to the peak is known.
 - **Peak RSS** is the largest `R` sample, which includes heaptrack's own memory.
 - **Temporary** is a syntactic rule: in the `-` handler, `temporary = lastAllocationPtr == allocationInfoIndex.index`, where `lastAllocationPtr` is set by the most recent `+` and cleared after every `-`.
   `heaptrack_interpret` has already replaced each pointer with an index into a table of (size, backtrace) pairs written as `a` records, so the interpreted file holds no addresses, and the test asks whether the freed block has the same size and allocation stack as the most recent allocation, with no other free in between.
@@ -245,9 +280,30 @@ The single lock means every allocation in every thread is serialized through hea
 The closing summary prints `calls to allocation functions`, `temporary memory allocations`, `peak heap memory consumption`, `peak RSS (including heaptrack overhead)`, and `total memory leaked`.
 Byte figures go through `formatBytes`, which divides by 1000, not 1024, and prints one unit letter: 64 MiB of live data prints as `67.11M`, and 12,000 leaked bytes as `12.00K`.
 
-Custom pools that never call `malloc` can report their own blocks with the macros in `heaptrack_api.h` (`heaptrack_report_alloc`, `heaptrack_report_realloc`, `heaptrack_report_free`); they resolve weak symbols at run time and do nothing outside heaptrack, and the header also maps Valgrind's `VALGRIND_MEMPOOL_ALLOC` and `VALGRIND_MEMPOOL_FREE` onto them.
+Custom pools that never call `malloc` can report their own blocks with the macros in `heaptrack_api.h` (`heaptrack_report_alloc`, `heaptrack_report_realloc`, `heaptrack_report_free`); they resolve weak symbols at run time and do nothing outside heaptrack, and, when the includer defines `HEAPTRACK_DEFINE_VALGRIND_MACROS`, the header also maps Valgrind's `VALGRIND_MEMPOOL_ALLOC` and `VALGRIND_MEMPOOL_FREE` onto them.
 
-### 4. Massif: snapshots of a replaced heap
+### 5. Lighter tracers: glibc `mtrace` and bcc `memleak`
+
+Two tracers sit at the extremes of heaptrack's design, and knowing them explains what heaptrack's choices buy.
+
+#### glibc `mtrace`: one caller address per event
+
+`mtrace()` (declared in `mcheck.h`, a GNU extension) reads `MALLOC_TRACE`; if it names a writable file, it installs handlers for `malloc`, `realloc`, and `free`, and every later call appends one line (`memory.texi`, 2.42, "Allocation Debugging").
+Since glibc 2.34 the call does nothing unless `libc_malloc_debug.so` is preloaded with `LD_PRELOAD`.
+Each line records only the immediate caller's address: `@ [0x80481eb] + 0x8064c48 0x14` is an allocation of 0x14 bytes at 0x8064c48 called from 0x80481eb, and `-` lines are frees.
+The `mtrace` Perl script that ships with glibc pairs them and prints "Memory not freed:" with address, size, and caller, or "No memory leaks.".
+The manual's advice is to call `mtrace()` as the very first function in the program and never call `muntrace()`, because libraries, the C library included, free memory after `main` returns, and stopping or restarting the trace leaves unpaired events; even then, allocations made by constructors before `main` are missed.
+Compared with heaptrack it has no backtraces, no peak, and no temporaries, and its documented handlers cover only `malloc`, `realloc`, and `free`, but it needs nothing beyond glibc itself.
+
+#### bcc `memleak`: uprobes, sampling, and age filtering
+
+`tools/memleak.py` in bcc attaches uprobes and uretprobes to `malloc`, `calloc`, `realloc`, `mmap`, `posix_memalign`, `valloc`, `memalign`, `pvalloc`, and `aligned_alloc`, and uprobes to `free` and `munmap`, in the object named by `-O` (default `c`, meaning libc), and keeps outstanding allocations in a BPF hash map keyed by address (`BPF_HASH(allocs, ..., 1000000)`, so at most one million live blocks are tracked) with a stack id from a `BPF_STACK_TRACE` table of 10,240 entries.
+Every `interval` seconds (default 5) it prints the `-T` (default 10) stacks holding the most outstanding bytes, skipping allocations younger than `-o`/`--older` milliseconds (default 500), which is how it separates steady-state leaks from blocks that are merely in flight.
+`-s N` traces only every N-th allocation to cut overhead, `-z` and `-Z` filter by size, `-p PID` attaches to a running process without restarting it, and `--symbols-prefix` handles allocators built with prefixed symbols such as `je_malloc`.
+Unlike heaptrack it needs no restart and no `gdb`, and with `-O` it can probe a statically linked allocator inside the executable; unlike heaptrack it pays a kernel trap per probed call, sees nothing before it attaches, and reports outstanding bytes rather than a replayable event history.
+[[eBPF-bpftrace-ftrace-uprobes-and-USDT]] owns how uprobes work and what each probe costs.
+
+### 6. Massif: snapshots of a replaced heap
 
 Massif runs inside Valgrind, whose core translates the program's machine code and replaces the `malloc` family with its own allocator; [[Cpp-Valgrind-Memcheck-Helgrind-and-DRD]] and [[Paper-Valgrind-Dynamic-Binary-Instrumentation]] own that core.
 Because the allocator is replaced, Massif measures the program's requests, not glibc's behavior: fragmentation, arenas, and trimming in the real allocator do not exist under Massif.
@@ -283,7 +339,7 @@ The 8-byte figure is a stated average, not glibc's real cost: glibc spends 31 by
 Valgrind 3.28.0 (2026-10-23) added `--peak-only`, which prints only the peak byte count without thousands separators, for CI scripts; its NEWS calls it a new `ms_print` option while the 3.28.0 manual lists it under Massif's command-line options, so try it on `ms_print` first and check `--help` on your version.
 Massif also honors the `VALGRIND_MALLOCLIKE_BLOCK`, `VALGRIND_RESIZEINPLACE_BLOCK`, and `VALGRIND_FREELIKE_BLOCK` client requests, so a custom pool can describe its blocks, and Valgrind 3.13 added `--xtree-memory`, which writes the same data in callgrind or Massif format.
 
-### 5. DHAT: what happens to each block after it is allocated
+### 7. DHAT: what happens to each block after it is allocated
 
 DHAT was rewritten in Valgrind 3.15.0 (2019-04-12): it was promoted from `exp-dhat` to `--tool=dhat`, gained the `dh_view.html` viewer, and began writing its data to a file (JSON, `dhatFileVersion` 2 in 3.27.1) instead of printing it; 3.16.0 counts `realloc`'s implicit copy in reads and writes; 3.17.0 (2021-03-19) added `--mode=copy` (profiles `memcpy`, `strcpy`, and similar) and `--mode=ad-hoc` (counts `DHAT_AD_HOC_EVENT` client requests); 3.21.0 added `DHAT_HISTOGRAM_MEMORY`.
 
@@ -301,20 +357,24 @@ DHAT counts `malloc(100)` followed by `realloc(200)` as 2 blocks and 300 bytes a
 
 Massif instruments allocation calls, plus stack-pointer changes with `--stacks=yes`, while DHAT also instruments every load and store to attribute it to a block; both run under Valgrind's translation and serialize threads, so both are tools for a reproducible test case, not for production.
 
-### 6. Allocator telemetry
+### 8. Allocator telemetry
 
 #### jemalloc
 
-jemalloc 5.4.0 was released on 2026-09-17 and 5.3.1 on 2026-04-13, after the upstream repository was archived in June 2025 and later reopened; it is active again on `jemalloc/jemalloc` (as of 2026-11, Both).
+The project's history matters when choosing it: a FreeBSD current-users post of 2025-06-09 reports that "As of June 2, 2025, jemalloc repository on Github has been archived", and Meta's engineering post of 2026-03-02 says the original repository "has been unarchived" and lists planned work on the hugepage allocator, on "packing, caching, and purging mechanisms", and on AArch64 performance.
+5.3.1 followed on 2026-04-13 and 5.4.0 on 2026-09-17, the first releases since 5.3.0 in May 2022 (GitHub releases API, as of 2026-11, Both).
 Ubuntu 24.04 ships 5.3.0 (`libjemalloc2 5.3.0-2build1`).
-Facts below are from the 5.4.0 manual.
+These facts come from the 5.4.0 manual.
 
 - Configuration is read from the `--with-malloc-conf` build string, the program's global `malloc_conf`, the `/etc/malloc.conf` symlink target, and `MALLOC_CONF`, in that order, later settings overriding earlier ones.
-- `opt.narenas` defaults to four arenas per CPU (one on a single-CPU system), the maximum number used to multiplex threads, which bounds contention without one arena per thread.
+- `opt.narenas` defaults to four times the number of CPUs (one on a single-CPU system), the maximum number of arenas used to multiplex threads, which bounds contention without one arena per thread.
+  `opt.percpu_arena` (default `disabled`) instead binds a thread to the arena of the CPU it currently runs on (`percpu`) or one arena per physical core (`phycpu`).
+- Requests above `opt.oversize_threshold` (default 8 MiB) come from a dedicated arena outside `narenas`, so huge buffers do not fragment the arenas that hold small objects.
 - Small objects live in slabs of one size class, so a 64-byte request costs 64 bytes and an 8-byte request 8 bytes, with no per-object header.
-- `opt.tcache_max` is 32 KiB: smaller size classes are cached per thread.
-- Freed pages become *dirty*; after `opt.dirty_decay_ms` (default 10 s) they are purged, to *muzzy* with a lazy purge such as `MADV_FREE` when `opt.muzzy_decay_ms` is nonzero, and the manual says muzzy decay "is disabled by default (with decay time 0)"; `0` purges immediately and `-1` never.
-- `opt.retain` is on by default on 64-bit Linux, so virtual mappings are kept for reuse even after their pages are purged.
+- `opt.tcache_max` defaults to 32 KiB (2^15) and can be raised to 8 MiB: size classes up to it are cached per thread.
+- `opt.thp` (`default`, `always`, `never`) applies `MADV_HUGEPAGE` or `MADV_NOHUGEPAGE` to user mappings; `default` changes nothing.
+- Freed pages become *dirty*; after `opt.dirty_decay_ms` (default 10 s) they are purged, to *muzzy* with a lazy purge such as `MADV_FREE` only when `opt.muzzy_decay_ms` is nonzero and the purge is not a full one (`try_muzzy` in `src/pac.c`, 5.4.0; otherwise, as for `arena.<i>.purge`, the purge is forced), and the manual says muzzy decay "is disabled by default (with decay time 0)"; `0` purges immediately and `-1` never.
+- `opt.retain` is on by default on 64-bit Linux, because, in the manual's words, Linux "has a quirk in its virtual memory allocation algorithm that causes semi-permanent VM map holes under normal jemalloc operation"; virtual mappings are kept for reuse even after their pages are purged, so `VSZ` stays high by design and `stats.retained` counts it.
 - `opt.background_thread` (off by default) moves purging to internal threads; the manual recommends turning it on through the `background_thread` mallctl rather than the option.
 
 Statistics come from `mallctl()`, and are refreshed only when the program writes the `epoch` mallctl:
@@ -331,15 +391,40 @@ Statistics come from `mallctl()`, and are refreshed only when the program writes
 `stats.active / stats.allocated` is the fragmentation ratio inside slabs, and `stats.resident - stats.active` is mostly dirty pages waiting for decay.
 `arena.<i>.purge` with `<i>` = `MALLCTL_ARENAS_ALL` (4096) purges every unused dirty page now, and `arena.<i>.decay` applies the decay schedule now.
 `opt.stats_print:true` prints `malloc_stats_print()` at exit, which the manual warns can deadlock in multithreaded programs.
-Heap profiling needs a build with `--enable-prof`: `opt.prof` turns it on, `opt.lg_prof_sample` (default 19) samples on average once every 2^19 = 512 KiB allocated, `opt.prof_final` dumps `<prefix>.<pid>.<seq>.f.heap` at exit, `prof.dump` dumps on demand, and `jeprof` (in Ubuntu's `libjemalloc-dev`) reads the dumps.
+`approximate_stats.active` reads active bytes without an `epoch` refresh, for cheap monitoring, and the manual warns it "should NOT be compared with other stats".
+
+Heap profiling needs a build with `--enable-prof` and is configured through the same `MALLOC_CONF` string:
+
+| Option | Default | Effect |
+| :--- | :--- | :--- |
+| `opt.prof` | false | Turn sampling heap profiling on |
+| `opt.lg_prof_sample` | 19 | Sample on average once every 2^19 = 512 KiB allocated |
+| `opt.prof_bt_max` | 128 | Frames per sampled backtrace |
+| `opt.prof_accum` | false | Keep cumulative counts, which stores every unique backtrace for the life of the process |
+| `opt.lg_prof_interval` | -1 (off) | Dump `<prefix>.<pid>.<seq>.i<iseq>.heap` every 2^N bytes allocated |
+| `opt.prof_gdump` | false | Dump every time total virtual memory exceeds its previous maximum |
+| `opt.prof_final` | false | Dump `<prefix>.<pid>.<seq>.f.heap` from an `atexit` handler |
+| `opt.prof_leak` / `opt.prof_leak_error` | false | Report sampled leaks at exit, or also exit with code 1; both work only with `prof_final` |
+| `opt.prof_prefix` | `jeprof` | Dump file prefix; empty disables automatic dumps |
+
+`prof.dump` dumps on demand, `prof.reset` clears the statistics and can change the sample rate, and `jeprof` (in Ubuntu's `libjemalloc-dev`), derived from gperftools' `pprof`, reads the dumps.
+The manual warns that `prof_final` uses `atexit`, which "may allocate memory during application initialization and then deadlock internally when jemalloc in turn calls atexit()", so a program can register its own `atexit` that writes `prof.dump` instead.
+`prof_gdump` is the jemalloc counterpart of heaptrack's peak: it captures the sampled stacks at each new high-water mark.
 
 #### TCMalloc and gperftools
 
 Two different projects share the name.
-Google's TCMalloc (`google/tcmalloc`, no tagged releases, as of 2026-11, Linux) runs its front end in per-CPU mode by default, using restartable sequences (`rseq(2)`) so a thread can pop from its CPU's cache without a lock or atomic; it has 60 to 80 size classes and TCMalloc "page sizes" of 4 KiB, 8 KiB, 32 KiB, or 256 KiB, unrelated to the hardware page size.
+Google's TCMalloc (`google/tcmalloc`, no tagged releases, as of 2026-11, Linux) runs its front end in per-CPU mode by default (`docs/overview.md` marks per-CPU caching "(default)" and says it is enabled on any Linux kernel with restartable sequences, falling back to per-thread caches when they are unavailable; `docs/tuning.md` says the default is per-CPU mode because it is faster; `docs/design.md` describes both modes), using restartable sequences (`rseq(2)`) so a thread can pop from its CPU's cache without a lock or atomic; it has 60 to 80 size classes and TCMalloc "page sizes" of 4 KiB, 8 KiB, 32 KiB, or 256 KiB, unrelated to the hardware page size.
 `tcmalloc::MallocExtension::GetStats()` returns a text report whose `MALLOC:` lines split memory into "Bytes in use by application", "Bytes in page heap freelist", "Bytes in central cache freelist", "Bytes in per-CPU cache freelist", "Bytes in transfer cache freelist", "Bytes in thread cache freelists", "Bytes in malloc metadata", "Actual memory used (physical + swap)", "Bytes released to OS (aka unmapped)", and "Virtual address space used", plus a "Realized fragmentation (%)" figure at peak demand.
 `GetNumericProperty("generic.current_allocated_bytes")`, `"generic.heap_size"`, `"tcmalloc.pageheap_free_bytes"`, `"tcmalloc.pageheap_unmapped_bytes"`, and `"tcmalloc.per_cpu_caches_active"` give the same numbers to code.
 Sampling is always on: on average one allocation per 2 MiB (`SetProfileSamplingInterval`) is recorded with its stack and weighted to estimate totals, and `SnapshotCurrent()` returns `ProfileType::kHeap` or `kPeakHeap` profiles, while `StartAllocationProfiling()` and `StartLifetimeProfiling()` cover a time window.
+
+TCMalloc's retention controls are API calls rather than environment variables (`malloc_extension.h`):
+
+- `ReleaseMemoryToSystem(num_bytes)` returns free page-heap memory now; its header comment names the two costs, breaking up huge pages ("increased TLB pressure for the working set") and faulting pages back in if they are needed again.
+- `SetBackgroundReleaseRate(BytesPerSecond)` sets a steady release rate, but it is "operative" only while some thread runs `ProcessBackgroundActions()`, which never returns when linked against TCMalloc; a program that never starts that thread never releases memory in the background.
+- `SetMemoryLimit(limit, LimitKind::kSoft)` releases memory as needed to stay under a limit on a best-effort basis, and `kHard` crashes the process if releasing cannot get below it.
+- `SetMaxPerCpuCacheSize` and `SetMaxTotalThreadCacheBytes` bound the front-end caches, which are retained memory that no `free` statistic in the application can see.
 
 gperftools (2.19.3, released 2026-11-10; Ubuntu 24.04 ships 2.15) is the older, separately maintained TCMalloc with a heap profiler: link `-ltcmalloc`, set `HEAPPROFILE=<prefix>`, and it writes `<prefix>.0000.heap` and onward, dumping after every `HEAP_PROFILE_ALLOCATION_INTERVAL` (default 1 GB allocated) or `HEAP_PROFILE_INUSE_INTERVAL` (default 100 MB of high-water growth); `pprof --inuse_space`, `--alloc_space`, `--inuse_objects`, `--alloc_objects`, and `--base=<profile>` read them.
 
@@ -349,7 +434,7 @@ mimalloc keeps a free list per 64 KiB page instead of per size class ("free list
 v3 (3.6.1, 2026-10-30) is the recommended line, v2 (2.5.2) is stable legacy, and Ubuntu 24.04 ships 2.1.2 (as of 2026-11, Both).
 `MIMALLOC_SHOW_STATS=1` prints statistics at exit, `MIMALLOC_VERBOSE=1` prints more, `mi_stats_print_out()` prints them on demand, and `MIMALLOC_PURGE_DELAY` (1000 ms in v3, `0` immediate, `-1` never) is its equivalent of jemalloc's decay.
 
-### 7. Diagnosing the three failure classes
+### 9. Diagnosing the three failure classes
 
 ```mermaid
 flowchart TD
@@ -399,8 +484,15 @@ flowchart TD
 | `GLIBC_TUNABLES=glibc.malloc.tcache_count=0` | disables tcache | Linux (as of 2026-11) | Isolates tcache effects |
 | `mallinfo2()` | glibc 2.33 and later | Linux (as of 2026-11) | In-use, free, mmapped, top bytes |
 | `malloc_trim(0)` | consolidates, `MADV_DONTNEED` on free pages, shrinks top | Linux (as of 2026-11) | Returns retained memory |
+| `GLIBC_TUNABLES=glibc.malloc.hugetlb=1` / `=2` | default 0; 1 is `MADV_HUGEPAGE`, 2 is `MAP_HUGETLB` | Linux, glibc 2.35 and later (as of 2026-11) | Huge pages for the heap, and coarser RSS |
+| `LD_PRELOAD=libc_malloc_debug.so MALLOC_TRACE=FILE` then `mtrace PROG FILE` | needs `mtrace()` called in the program | Linux, glibc 2.34 and later (as of 2026-11) | Leak list with one caller address per block |
+| `memleak -p PID -o 60000 30` | `-o` default 500 ms, interval 5 s, `-T` 10 stacks, `-s` sampling | Linux, bcc (as of 2026-11) | Outstanding allocations older than a minute, live |
+| libstdc++ aligned `operator new` | calls `posix_memalign` (PR 113258), earlier `aligned_alloc` | Linux, GCC 12 branch and later; GCC 11 branch still `aligned_alloc` (as of 2026-11) | Which hook sees `alignas` objects |
 | jemalloc `MALLOC_CONF` | `stats_print:true`, `dirty_decay_ms:0`, `narenas:N` | Both, 5.4.0 (as of 2026-11) | Runtime configuration |
 | jemalloc defaults | 4 arenas per CPU, tcache 32 KiB, dirty decay 10 s, muzzy 0, sample 512 KiB | Both, 5.4.0 (as of 2026-11) | Footprint and speed |
+| jemalloc `oversize_threshold` / `prof_bt_max` | 8 MiB / 128 frames | Both, 5.4.0 (as of 2026-11) | Dedicated huge arena / profile depth |
+| jemalloc `MALLOC_CONF=prof:true,prof_gdump:true` | needs `--enable-prof` | Both, 5.4.0 (as of 2026-11) | Sampled profile at each new high-water mark |
+| TCMalloc `SetMemoryLimit(n, kSoft)` / `kHard` | best-effort release / crash above limit | Linux (as of 2026-11) | Bounds footprint from inside the process |
 | TCMalloc sampling interval | 2 MiB average | Linux (as of 2026-11) | Always-on heap profile resolution |
 | gperftools `HEAPPROFILE` | dumps every 1 GB allocated or 100 MB high-water growth | Both, 2.19 (as of 2026-11) | Heap profile files |
 | `MIMALLOC_SHOW_STATS=1` / `MIMALLOC_PURGE_DELAY` | stats at exit / 1000 ms in v3 | Both (as of 2026-11) | Telemetry and purge |
@@ -449,11 +541,12 @@ bash run.sh
 
 ### Output
 
-This draft has no recorded output yet.
-The lab needs Linux and three packages that the harness image does not contain, so it was written on darwin-arm64 and not run; the integrator records `expected/linux-aarch64.txt` from the container after adding the packages, and this section will then quote that file verbatim.
+No recorded output exists yet, so this section quotes none.
+The lab needs Linux plus heaptrack, Valgrind, and jemalloc; it was written on darwin-arm64 (macOS 27.3), which has none of the three, and lab runs and containers were paused for this pass, so it has not run on any machine.
+The integrator records `expected/linux-aarch64.txt` in the harness container after adding the three packages, and this section will then quote that file verbatim.
 `digest.py`'s parsers were exercised on hand-made samples of each tool's documented format, which caught one bug; that is not a run of the tools.
 
-What each check is built to show, derived from the sources above and to be confirmed by the recording:
+What each check is built to show, derived from reading the lab code and the sources this note cites; none of these lines is a recorded result:
 
 - heaptrack: `churn` should add exactly 100,000 allocation calls and 100,000 temporary allocations over the empty run, `reuse` should add 1 and 1, because its single long-lived vector satisfies the adjacency rule, and `pmr` should add 0 and 0.
 - heaptrack: the `peakleak` peak should fall between 64 and 65 MiB, and the leak entry for `leak_on_purpose` should read `12.00K leaked over 3 calls`, in heaptrack's base-1000 units.
@@ -489,6 +582,16 @@ If a line in the recording differs from these predictions, the recording is righ
 > The Valgrind core manual says allocation functions are intercepted by default "in any shared library or in the executable if they are exported as global symbols", so a preloaded or statically linked jemalloc or TCMalloc is replaced too, and `--soname-synonyms=somalloc=...` only narrows or redirects that choice.
 > What Valgrind cannot see is an allocator whose entry points are not exported under the standard names: a prefixed build (`je_malloc`), hidden symbols, or an in-house pool carving blocks out of one big buffer.
 > Describe such blocks with `VALGRIND_MALLOCLIKE_BLOCK` and `VALGRIND_FREELIKE_BLOCK`, or name the wrapper with Massif's `--alloc-fn`; for heaptrack, call the `heaptrack_api.h` macros.
+> bcc `memleak` reaches a statically linked or prefixed allocator with `-O <object>` and `--symbols-prefix je_`, which neither heaptrack path can do.
+
+> [!warning] Pitfall: TCMalloc that never gives memory back
+> `SetBackgroundReleaseRate` does nothing unless a thread is running `ProcessBackgroundActions()`, and that call never returns, so it needs a dedicated thread.
+> A service that links TCMalloc and never starts that thread keeps page-heap free memory until it calls `ReleaseMemoryToSystem` or hits a `SetMemoryLimit` limit; `GetStats` shows it as "Bytes in page heap freelist".
+
+> [!warning] Pitfall: tutorials that trace with `__malloc_hook`
+> glibc 2.34 removed `__malloc_hook`, `__realloc_hook`, `__memalign_hook`, and `__free_hook` from the API and moved `mtrace` and `MALLOC_CHECK_` into `libc_malloc_debug.so`.
+> Rebuilt from an old example, a hook-based tracer no longer links, because "new applications can no longer link to these symbols"; an old binary still links through compatibility symbols, but "These hooks no longer have any effect", so it silently records nothing (NEWS, 2.34).
+> Interpose with `LD_PRELOAD` as heaptrack does, or preload the debugging DSO.
 
 > [!warning] Pitfall: freeing everything and expecting RSS to fall
 > In glibc, small freed chunks sit in tcache and fastbins and are not coalesced until `malloc_consolidate` runs, so a heap of small blocks can stay resident after every block is freed.
@@ -587,6 +690,13 @@ GLIBC_TUNABLES=glibc.malloc.tcache_count=0 /tmp/workload telemetry
 > > `malloc_trim(0)` runs `malloc_consolidate`, which merges the chunks, then `madvise(MADV_DONTNEED)`s whole free pages and shrinks the top, which is why it works.
 > > Because a purge works, this is retention, not fragmentation: call `malloc_trim(0)` after the batch phase, or use an allocator whose decay returns empty slabs (jemalloc's `dirty_decay_ms`, mimalloc's purge delay), or allocate the graph from a `std::pmr::monotonic_buffer_resource` and release the whole resource at once.
 
+> [!question] L6: A heaptrack run of the `-O2` build shows 30 percent fewer allocation calls than a run of the `-O0` build on the same input; is one of the profiles wrong?
+>
+> > [!success]- Answer
+> > Neither is wrong: [expr.new] paragraph 14 allows an implementation to omit a call to a replaceable global allocation function, providing the storage itself or by extending another new-expression's allocation, and [allocator.members] says it is unspecified when or how often `std::allocator::allocate` calls `::operator new`.
+> > Inlining also exposes more such pairs to the optimizer, so the `-O2` count is the one production pays, and only `-O2` should be used for allocation-count gates.
+> > Check the other direction too: a change in inlining can bring allocations back, which is why the gate must run on the shipped build flags.
+
 > [!question] L6: When would you choose DHAT over heaptrack, and what does DHAT's access histogram reveal that no other tool here does?
 >
 > > [!success]- Answer
@@ -639,6 +749,11 @@ GLIBC_TUNABLES=glibc.malloc.tcache_count=0 /tmp/workload telemetry
 - gperftools heap profiler documentation: the `HEAPPROFILE` workflow and `pprof` options.
 - mimalloc README: free-list sharding and the environment options.
 - `madvise(2)`: the difference between `MADV_DONTNEED` and `MADV_FREE` that decides whether purging lowers RSS.
+- glibc manual, "Allocation Debugging" (2.42): `mtrace`, `MALLOC_TRACE`, the trace format, and why `muntrace` should not be called.
+- bcc `tools/memleak.py`: the probe list, map sizes, and `-o`, `-s`, `-O`, and `--symbols-prefix` options of an attach-anytime leak tracer.
+- libstdc++ `libsupc++/new_opa.cc`: how aligned `operator new` reaches the C allocator, and PR 113258's reason for preferring `posix_memalign`.
+- TCMalloc `tcmalloc/malloc_extension.h`: the release, memory-limit, and background-action API with its own cost comments.
+- Meta, "Investing in Infrastructure: Meta's Renewed Commitment to jemalloc" (2026-03-02): the project's unarchiving and its stated roadmap.
 
 ## Related
 

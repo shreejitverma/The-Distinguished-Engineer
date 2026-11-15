@@ -13,6 +13,8 @@
   re-running gives identical counts: True
   coroutine with 10 awaits: ncalls 11 (first start + one per PY_RESUME)
   calls made by another thread recorded: 1 worker, 100 add
+  two threads interleaving: ncalls leaf_a and leaf_b exact (20000 each): True
+  leaf_b recorded with callers other than worker_b (its only real caller): True
 
 [3 observer effect]
   calibrated: call_heavy and loop_heavy take equal time unprofiled (ratio 0.67 to 1.5)
@@ -28,7 +30,7 @@
   Tachyon pstats rows for two_line_work: 2, keyed by sampled line (def + [3, 5])
   cProfile rows for two_line_work: 1, keyed by the def line (def + 0)
   collapsed lines all match 'tid:N;file:func:line;... count': True
-  stack through add: tid:<TID>;lab.py:<module>:453;lab.py:main:444;lab.py:section_observer_effect:268;lab.py:call_heavy:62;lab.py:add:55 <COUNT>
+  stack through add: tid:<TID>;lab.py:<module>:506;lab.py:main:497;lab.py:section_observer_effect:316;lab.py:call_heavy:62;lab.py:add:55 <COUNT>
 
 [5 in-process GIL view]
   main thread had THREAD_STATUS_HAS_GIL in 0 samples (the sampler held it every time)
@@ -38,6 +40,7 @@
 [6 async-aware stacks]
   plain thread stack top frame: KqueueSelector.select; user coroutine frames in it: 0
   task graph: unavailable on this build (RuntimeError: AsyncioDebug section not available)
+  framework build, interpreter image basename 'Python': True
 
 [7 out-of-process attach]
   profiling.sampling run as uid non-root: denied, exit status 1

@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Andrey Mokhov, Neil Mitchell, Simon Peyton Jones, Build Systems a la Carte: Theory and Practice, Journal of Functional Programming, Vol. 30, e11, 2020, https://doi.org/10.1017/S0956796820000088"
@@ -15,21 +15,27 @@ sources:
   - "Sarah Spall, Neil Mitchell, Sam Tobin-Hochstadt, Build Scripts with Perfect Dependencies, OOPSLA 2020, https://doi.org/10.1145/3428237 (arXiv 2007.12737, https://arxiv.org/abs/2007.12737)"
   - "Sarah Spall, Neil Mitchell, Sam Tobin-Hochstadt, Forward Build Systems, Formally, Proceedings of the 11th ACM SIGPLAN International Conference on Certified Programs and Proofs (CPP), 2022, https://doi.org/10.1145/3497775.3503687 (arXiv 2202.05328, https://arxiv.org/abs/2202.05328)"
   - "Mike Shal, Build System Rules and Algorithms, gittup.org, 2009, https://gittup.org/tup/build_system_rules_and_algorithms.pdf"
-  - "Free Software Foundation, GNU Make Manual, Edition 0.77 for GNU make 4.4.1, 2023, https://www.gnu.org/software/make/manual/make.html"
+  - "Free Software Foundation, GNU Make Manual, Edition 0.77 for GNU make 4.4.1 (doc/make.texi in the make-4.4.1 release tarball), 2023, https://www.gnu.org/software/make/manual/make.html and https://ftpmirror.gnu.org/make/make-4.4.1.tar.gz"
   - "Evan Martin and Ninja contributors, The Ninja Build System manual (doc/manual.asciidoc), Ninja v1.13.2, 2025, https://github.com/ninja-build/ninja/blob/v1.13.2/doc/manual.asciidoc"
   - "Ninja contributors, src/graph.cc (DependencyScan::RecomputeOutputDirty), src/build.cc (Plan::CleanNode), src/build_log.cc, src/deps_log.cc, Ninja v1.13.2 and v1.12.1, 2025, https://github.com/ninja-build/ninja/blob/v1.13.2/src/graph.cc"
-  - "Neil Mitchell and Shake contributors, src/Development/Shake/Internal/Core/Types.hs and Build.hs (Result, Step, RunChanged), Shake master (Hackage 0.19.9), 2026, https://github.com/ndmitchell/shake/blob/master/src/Development/Shake/Internal/Core/Types.hs"
+  - "Neil Mitchell and Shake contributors, src/Development/Shake/Internal/Core/Types.hs and Build.hs (Result, Step, RunChanged, Depends) and src/Development/Shake/Internal/Options.hs (shakeChange, Change), Shake master (Hackage 0.19.9), 2026, https://github.com/ndmitchell/shake/blob/master/src/Development/Shake/Internal/Core/Types.hs"
   - "The Bazel Authors, Skyframe reference page, Bazel documentation, 2026, https://bazel.build/reference/skyframe"
-  - "The Bazel Authors, SkyFunction.java and NodeEntry.java (Skyframe restarts, SkyKeyComputeState, LifecycleState, DirtyType), bazelbuild/bazel master at release 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/master/src/main/java/com/google/devtools/build/skyframe/SkyFunction.java"
+  - "The Bazel Authors, SkyFunction.java and NodeEntry.java (Skyframe restarts, SkyKeyComputeState, LifecycleState, DirtyType), bazelbuild/bazel tag 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/skyframe/SkyFunction.java"
+  - "The Bazel Authors, StarlarkActionFactory.java (actions.run unused_inputs_list, actions.map_directory behind --experimental_allow_map_directory), bazelbuild/bazel tags 9.3.2, 9.0.0, and 8.4.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/analysis/starlark/StarlarkActionFactory.java"
+  - "The Bazel Authors, actions (Starlark builtins API reference, HEAD), Bazel documentation, 2026, https://bazel.build/rules/lib/builtins/actions"
   - "Meta Open Source, Why Buck2 (docs/about/why.md) and DICE documentation (dice/dice/docs/index.md, incrementality.md), facebook/buck2 main, 2026, https://github.com/facebook/buck2/blob/main/dice/dice/docs/incrementality.md"
   - "Meta Open Source, Introduction to Modern DICE (docs/insights_and_knowledge/modern_dice.md), facebook/buck2 main, 2026, https://github.com/facebook/buck2/blob/main/docs/insights_and_knowledge/modern_dice.md"
   - "The Rust Project, Incremental compilation in detail (red-green algorithm, Fingerprints, eval_always, no_hash), rustc-dev-guide, 2026, https://github.com/rust-lang/rust/blob/main/src/doc/rustc-dev-guide/src/queries/incremental-compilation-in-detail.md"
   - "Salsa contributors, The red-green algorithm, Backdate, and Durability pages, Salsa book, salsa-rs/salsa master, 2026, https://github.com/salsa-rs/salsa/blob/master/book/src/reference/algorithm.md"
-  - "Microsoft, Excel Recalculation, Office client developer documentation, Microsoft Learn, 2024, https://learn.microsoft.com/en-us/office/client-developer/excel/excel-recalculation"
+  - "Microsoft, Excel Recalculation (applies to Excel 2013), Office client developer documentation, Microsoft Learn, last updated 2022-01-24, https://learn.microsoft.com/en-us/office/client-developer/excel/excel-recalculation"
   - "Avery Pennarun, redo-ifchange, redo-ifcreate, and redo-stamp manual pages, apenwarr/redo main, 2026, https://github.com/apenwarr/redo/blob/main/docs/redo-stamp.md"
   - "The SCons Foundation, SCons 4.11.1 man page (Decider: content, content-timestamp), 2026, https://scons.org/doc/production/HTML/scons-man.html"
   - "Benjamin Peterson, PEP 552 - Deterministic pycs, Python Enhancement Proposals, 2017, https://peps.python.org/pep-0552/"
   - "NixOS contributors, Experimental features (ca-derivations), Nix 2.35.6 Reference Manual, 2026, https://nix.dev/manual/nix/latest/development/experimental-features"
+  - "GitHub releases API, latest releases checked 2026-11-15 (Bazel 9.3.2, 2026-11-05; Ninja v1.13.2, 2025-11-20; SCons 4.11.1, 2026-08-27), https://api.github.com/repos/bazelbuild/bazel/releases/latest, https://api.github.com/repos/ninja-build/ninja/releases/latest, https://api.github.com/repos/SCons/scons/releases/latest"
+  - "Hackage preferred versions, checked 2026-11-15 (shake 0.19.9, build 1.1), https://hackage.haskell.org/package/shake/preferred and https://hackage.haskell.org/package/build/preferred"
+  - "Meta Open Source, Why Buck2 (dynamic dependencies and anonymous targets), facebook/buck2 main, 2026, https://github.com/facebook/buck2/blob/main/docs/about/why.md"
+  - "Microsoft, Remove or allow a circular reference (iterative calculation defaults), Microsoft Support, fetched 2026-11-15, https://support.microsoft.com/en-us/office/remove-or-allow-a-circular-reference-8540bd0f-6e97-4483-bcf7-1b49cd50d123"
 ---
 
 # Build System Theory: Schedulers, Rebuilders, and Dependency Graphs
@@ -112,7 +118,14 @@ That is what makes the decomposition possible: the scheduler decides what `fetch
 
 The simplest build system, `busy`, makes `fetch` recursively rebuild every dependency every time, with no memory (`i = ()`).
 It is correct for any acyclic task description but recomputes a shared dependency once per use: with `B2 = B1 + B1`, it computes `B1` twice in one build.
+Keeping a set of already-processed keys in the state fixes that within one build, but the next build still recomputes everything, because nothing survives between runs; saving work across builds needs persistent build information `i` (Section 3.3).
 Every real build system is `busy` plus memory plus a smarter order.
+
+The last two type synonyms are the decomposition itself (Section 6.1).
+A `Rebuilder` takes a key, its current value, and a task that unconditionally recomputes the key, and returns a task in `MonadState ir` that recomputes it only if necessary, updating its persistent information `ir` either way.
+The wrapped task is always monadic, whatever the original constraint was; static analysis such as dependency extraction must be done on the original `Task Applicative` before wrapping.
+A `Scheduler` takes a rebuilder and returns a whole `Build`, deciding which keys to hand to the rebuilder in which order and possibly adding persistent information of its own (Excel's calc chain), so `i` contains `ir`.
+The paper's claim, which its executable models demonstrate, is that any scheduler can be composed with any rebuilder to obtain a correct build system (subject to the topological scheduler's need for applicative tasks); its Make is the scheduler `topological` applied to the rebuilder `modTimeRebuilder`, and its Shake is `suspending` applied to `vtRebuilder` (Sections 6.2 and 6.4).
 
 ### 2. Correctness and minimality, stated precisely
 
@@ -137,7 +150,8 @@ Make is minimal only under an assumption: its footnote 5 notes that you can fool
 
 ### 3. Task classes: what the scheduler may know before running a task
 
-Because `Task` is polymorphic in the context `f`, the constraint `c` classifies task descriptions by how much they reveal before they run (Section 3.4):
+Because `Task` is polymorphic in the context `f`, the constraint `c` classifies task descriptions by how much they reveal before they run (Section 3.4).
+Each build system instantiates `f` differently (`busy` uses `State (Store i k v)`, dependency extraction uses `Const`, the correctness check uses `Identity`), so the task must not fix `f`; it may only demand that `f` supports the operations of `c`:
 
 | Constraint `c` | What a task can do | Dependency shape | Example from the paper | Real system at this level |
 | :--- | :--- | :--- | :--- | :--- |
@@ -145,6 +159,14 @@ Because `Task` is polymorphic in the context `f`, the constraint `c` classifies 
 | `Applicative` | Combine several fetched values | Static: knowable without computing anything | `B1 = A1 + A2`, Fibonacci | Make, Ninja build edges, Buck1 |
 | `Selective` | Choose between branches on a fetched value | Statically over-approximable | `IF(C1=1, B2, A2)` | Dune (redesigned around selective functors) |
 | `Monad` | Fetch keys chosen from earlier fetched values | Dynamic: known only by running | `INDIRECT("A" & C1)`, Ackermann | Excel, Shake, redo, Nix, Bazel's Skyframe internally, Buck2 dynamic outputs |
+| `MonadFail` | Monadic, and may fail | Dynamic | `A1/A2` failing on division by zero (Section 8.1) | Any rule whose command can fail |
+| `MonadRandom`, `MonadPlus` | Monadic, with a source of non-determinism | Dynamic, possibly at the dependency level | `A1 + RANDBETWEEN(1,2)` (Section 8.3) | Profilers, parallel compilers with racy name supplies |
+| `MonadState s` | Read and write shared state | Dynamic | `cloudAckermann` consulting a shared `Map` (Section 3.8) | How the paper models cloud caches inside a task |
+
+The constraints form the usual class hierarchy: every `Monad` is a `Selective`, every `Selective` an `Applicative`, every `Applicative` a `Functor`.
+A task that demands less can therefore run in any context a more demanding task can, so a build system for `Task Monad` accepts every weaker task, and the less a task demands, the more a build system can learn about it without running it.
+For a functorial task even the single dependency is extractable: `dependency task = getConst (run task Const)` (Section 3.8).
+The paper's functorial example is also its cleanest early-cutoff example: the Collatz chain starting from `c0 = 6` runs `6 -> 3 -> 10 -> 5 -> 16 -> 8 -> 4 -> 2 -> 1`, and restarting from `c0 = 40` runs `40 -> 20 -> 10 -> ...`, so an early-cutoff build system stops after two steps because `c2 = 10` is unchanged.
 
 The applicative case has a striking consequence: you can extract a task's dependencies without doing any of its work by running it in the `Const` functor, where `fetch k` records `[k]` and the applicative instance concatenates the lists (Section 3.7):
 
@@ -154,7 +176,19 @@ dependencies task = getConst $ run task (\k -> Const [k])
 ```
 
 No such trick exists for a monadic task, because `Const` has no `Monad` instance: you cannot know what `B1 = INDIRECT("A" & C1)` reads until you know `C1`.
-For monadic tasks the paper defines `track`, which runs the task for real and records the `(key, value)` pairs it fetched, in order.
+For monadic tasks the paper defines `track`, which runs the task for real and records the `(key, value)` pairs it fetched, in order, using a `WriterT [(k, v)]` around whatever monad the build system runs in (Section 3.7):
+
+```haskell
+track :: Monad m => Task Monad k v -> (k -> m v) -> m (v, [(k, v)])
+```
+
+Dynamic dependencies buy more than flexibility; they can make a statically cyclic description buildable.
+In the paper's `sprsh2`, `B1 = IF(C1=1, B2, A2)` and `B2 = IF(C1=1, A1, B1)` mention each other, so Make could not sort them, but for any value of `C1` only one direction is taken, and Excel builds the sheet without complaint (Section 3.5).
+A selective build system sees both branches as possible dependencies, an over-approximation that here contains a false cycle; a monadic one sees only the branch taken.
+
+The task forms are older than the paper's names for them.
+Shake's 2012 paper wrote tasks in continuation-passing style, `data Action k v a = Finished a | Depends k (v -> Action k v a)`, and the paper shows `Task Monad k v` is isomorphic to `Action k v v`; likewise, for the 2012 paper's Make model `data Rule k v a = Rule { depends :: [k], action :: [v] -> a }`, `Rule k v v` is isomorphic to `Task Applicative k v` when the lengths of `[k]` and `[v]` always match (Section 7.2).
+The continuation form matters in practice: the `v -> Action k v a` inside `Depends` is the remainder of the task, exactly what a suspending scheduler must hold to pause and resume it, and the paper records Shake's later move from blocking threads to continuations as an implementation change after which "almost all external and internal details remain the same" (Section 7.2).
 
 The order matters.
 A monadic task is deterministic, so two runs that fetch the same values for their first dependency will fetch the same second key; a rebuilder that checks a monadic task's recorded dependencies must therefore check them in the recorded order and stop at the first mismatch, because a later recorded dependency may not even be needed any more.
@@ -175,8 +209,12 @@ Real build systems are rarely purely applicative or purely monadic, and the in-b
 - **Shake, redo, and Nix** are fully monadic: a rule may read a file and then `need` the files it lists.
   redo's `redo-ifchange` can even be called after the target is generated, so a `.do` script can compile first and declare the headers gcc reported afterwards; `redo-ifcreate` declares a dependency on a file that does not exist yet, so creating it later triggers a rebuild.
 - **Bazel** runs on Skyframe, which is monadic internally: a `SkyFunction` calls `env.getValue()` and gets `null` for a dependency that is not ready.
-  The paper states (2020) that user-defined Starlark rules cannot express dynamic dependencies and that some predefined rules use the internal capability instead; this note did not re-verify that statement against Bazel 9.3.2 (UNVERIFIED for current Bazel: the paper's claim predates Bazel 7 to 9).
-- **Buck2** exposes dynamic power to rule authors through dynamic dependencies (`dynamic_output`) and anonymous targets, used for Haskell and OCaml module graphs and distributed ThinLTO (Buck2 `docs/about/why.md`); [[Buck2-DICE-Starlark-and-BXL]] owns the API.
+  The paper states (2020) that user-defined rules cannot have dynamic dependencies and that users rely on predefined built-in rules that cover common cases (Table 1 footnote and Section 6.5).
+  In Bazel 9.3.2 a Starlark rule still passes each action's `inputs` as a list or depset when its implementation function creates the action, and the `ctx.actions` module offers three bounded ways around a fully static input list (as of 2026-11, Both, `StarlarkActionFactory.java` at tag 9.3.2 and the HEAD API reference).
+  `ctx.actions.declare_directory()` declares a tree artifact, one graph node whose file list is known only after the producing action runs; its contents "are not directly accessible from Starlark" but can be expanded into a command line with `Args.add_all()`.
+  `ctx.actions.run(unused_inputs_list = ...)` names an output file in which the action lists declared inputs it did not use, and the API reference requires that changes to those files "must not affect in any way the outputs of the action": post-hoc pruning of a static over-approximation, not discovery of new inputs.
+  `ctx.actions.map_directory()` takes a Starlark `implementation` function, which in the API reference's words "gets called after input directories have been built to generate actions" over their files: a staged dynamic dependency comparable to Ninja dyndep; it fails unless `--experimental_allow_map_directory` is set, and it is present at tags 9.0.0 and 9.3.2 but absent at 8.4.2.
+- **Buck2** exposes dynamic power to rule authors through two features (Buck2 `docs/about/why.md`): dynamic dependencies (`dynamic_output`), which build a file and read it before declaring later actions and are used for import-driven module graphs (Haskell, OCaml) and distributed ThinLTO, and anonymous targets, which create a graph with more sharing than the user graph so unrelated binaries compile shared code once; [[Buck2-DICE-Starlark-and-BXL]] owns the API.
 
 ### 4. Schedulers
 
@@ -212,10 +250,15 @@ Bazel's Skyframe is the large-scale restarting scheduler.
 `SkyFunction.compute()` returns `null` when `env.valuesMissing()` is true; Skyframe computes the missing dependencies and calls `compute()` again, which the source calls a "Skyframe restart" (`SkyFunction.java`, Bazel 9.3.2).
 The duplicate-work problem is acknowledged in the API: `Environment.getState()` returns a `SkyKeyComputeState` object that may survive across restarts of the same key, so a function can cache work done before its first missing dependency, and the Javadoc stresses that there is no guarantee the same instance comes back, so it is only a performance optimisation.
 The paper also notes that Bazel does not persist a calc chain; it stores the most recent dependency information, from which it can recompute an order, and may still abort when a newly discovered dependency is out of date (Section 4.2).
+Its model of Bazel's scheduler is a queue rather than a chain: the build starts with all dirty keys queued, a key whose dynamic dependency is dirty is marked blocked and deferred, and when a key finishes, every key blocked on it is re-queued and eventually restarted (Section 6.5).
+
+The Skyframe reference page gives the canonical case of sequential discovery: evaluating an input file that turns out to be a symlink forces the function to fetch the target's node, which may itself be a symlink, so each hop of the chain is another missing value and another restart.
+The same page documents the mitigation for independent discoveries: `env.getValues()` requests several nodes at once and evaluates them in parallel, so a function that knows k dependencies up front pays one restart instead of k.
+Batching is the restarting scheduler's equivalent of an applicative prefix: whatever a task can request without looking at values, it should request together.
 
 GNU make's makefile remaking (`MAKE_RESTARTS`) is a third restarting scheduler, at the granularity of the whole makefile.
 
-In parallel, a restarting scheduler can run n workers over the queue; a key may be pushed back not because it is out of date but because it raced an unfinished task, and if the order is persisted, as Excel does, racing dependencies drift apart over successive runs (Section 8.2).
+In parallel, a restarting scheduler can run n workers over the queue; a key may be pushed back not because it is out of date but because it raced an unfinished task, and if the order is persisted, as Excel does, potentially racy dependencies become separated over successive runs, giving better parallelism over time (Section 8.2).
 
 #### 4.3 Suspending scheduler
 
@@ -248,7 +291,8 @@ If a key and all its transitive dependencies are clean, it needs no rebuild.
 The external system that drives the build must supply a transitively closed set of dirty bits; marking too many is safe, marking too few is not (Section 6.3).
 Microsoft's documentation confirms the closure: "All direct and indirect dependents are marked as dirty".
 Because Excel does not record each cell's dynamic dependencies, it over-approximates: a formula is dirty if it statically mentions a dirty cell, or calls a volatile function, or the formula itself changed (Section 2.2 and 5.1).
-Microsoft lists `NOW`, `TODAY`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, and, depending on arguments, `INFO`, `CELL`, and `SUMIF` as volatile, and volatile cells are re-evaluated with all their dependents on every recalculation (as of 2026-11, Microsoft Learn page dated 2024).
+Microsoft lists `NOW`, `TODAY`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, and, depending on arguments, `INFO`, `CELL`, and `SUMIF` as volatile, and volatile cells are re-evaluated with all their dependents on every recalculation (as of 2026-11, Microsoft Learn page applying to Excel 2013, last updated 2022-01-24).
+The same page describes the two other events that touch the build information: a structural change such as entering a new formula makes Excel reconstruct the dependency tree and calc chain, and a cell that depends on itself is detected as a circular reference and reported, unless iterative calculation is enabled.
 `IF` is over-approximated too: both branches are treated as dependencies even though only one is used.
 
 **Make** uses modification times as a dirty bit that lives in the file system.
@@ -269,7 +313,9 @@ For Make, a target cannot be marked clean without making it newer than its prere
 
 Ninja's `restat` is the engineering answer.
 With `restat = 1`, Ninja "re-stat[s] the command's outputs after execution of the command", and "each output whose modification time the command did not change will be treated as though it had never needed to be built", which may remove its reverse dependencies from the plan (Ninja v1.13.2 manual).
-In the source, `Builder::FinishCommand()` calls `Plan::CleanNode()` when a restat output's mtime is unchanged, and `RecomputeOutputDirty()` compares a restat output's recorded mtime in `.ninja_log`, not its on-disk mtime, against the newest input, so the untouched output is not considered stale on the next run (`src/build.cc`, `src/graph.cc` at v1.13.2).
+In the source, `Builder::FinishCommand()` re-stats each output of a `restat` or `generator` edge and calls `Plan::CleanNode()` when a restat output's mtime is unchanged, a check that, per the source comment, "also applies to nonexistent outputs (mtime == 0)".
+The mtime written to `.ninja_log` is normally the command's start time; restat and generator edges instead log the later of that start time and the newest output mtime, but when restat cleaned an output the edge logs the start time again, not the output's old mtime, and `RecomputeOutputDirty()` compares a restat output's recorded mtime, not its on-disk mtime, against the newest input, so the untouched output is not considered stale on the next run (`src/build.cc`, `src/graph.cc` at v1.13.2).
+In this note's reading, the recorded log mtime is a second, private dirty bit that Ninja owns, which is how it escapes the paper's argument that Make cannot mark a file clean without touching it.
 `restat` is early cutoff at the price of a contract: the command must leave an unchanged output's mtime alone, which in practice means write-to-temporary-then-rename-only-if-different.
 
 The paper notes a dirty-bit rebuilder can be both minimal and support early cutoff if it starts with changed inputs dirty, rebuilds a key when a direct dependency is dirty, and marks the key dirty only if its value changed; but clearing all bits at the end is only correct if every target is rebuilt every time, and fixing that with successive execution numbers turns the dirty bit into verifying step traces (Section 5.1).
@@ -298,7 +344,9 @@ Representation choices from the paper (Section 5.2.1):
 Real verifying-trace rebuilders and what they hash:
 
 - **Ninja** stores, per output, the command hash, start and end times, and the output mtime in `.ninja_log`, and the discovered header dependencies in the binary `.ninja_deps`.
-  `RecomputeOutputDirty()` declares an output dirty if it is missing, if it is older than its newest input (or, for restat, if its recorded mtime is), if the hash of the current command differs from the logged hash, or if there is no log entry at all; generator rules ignore command changes (`src/graph.cc`, v1.13.2).
+  `RecomputeOutputDirty()` declares a non-phony output dirty, in this order, if it is missing; if its on-disk mtime is older than its newest input (skipped for a `restat` edge that has a log entry); if the hash of the current command differs from the logged hash (skipped for `generator` edges); if the logged mtime is older than the newest input; or if there is no log entry at all (except for generator edges) (`src/graph.cc`, v1.13.2).
+  The logged-mtime check applies to every edge, and the source comment says why: the on-disk mtime can be newer than the inputs "if a previous run wrote to the output file but exited with an error or was interrupted", so the build log is Ninja's defence against the truncated output that GNU make handles by deleting targets.
+  Phony edges are never dirty unless they have no inputs and their output is missing; they take the newest input's mtime so dependents compare against it.
   So Ninja's trace covers the command line exactly (by hash) and the inputs only by mtime, a hybrid of a verifying trace and a dirty bit.
   The command hash is `rapidhash` with build log format version 7 in v1.13.2, replacing the 64-bit `MurmurHash64A` of log version 6 in v1.12.1, and v1.13.2 refuses logs older than version 7 (`kOldestSupportedVersion = 7`), so the first build after upgrading treats every command as unlogged and reruns it (`src/build_log.cc` at both tags).
 - **SCons** uses the `content` decider by default: a target is out of date if a dependency's checksum differs from the one recorded when the target was last built; `content-timestamp` skips checksumming files whose timestamp matches the last build, which misses a content change made within the same timestamp (SCons 4.11.1 man page).
@@ -320,14 +368,23 @@ A variant with a single time field loses early cutoff "and indeed corresponds qu
 
 Shake's source shows the mechanism directly.
 `Result` holds `result`, `built :: Step`, `changed :: Step`, `depends`, `execution` (seconds the rule last took), and `traces`, where `Step` is a newtype over `Word32` (`Types.hs`).
-A rule reports one of four `RunChanged` values: `ChangedNothing`, `ChangedStore`, `ChangedRecomputeSame`, and `ChangedRecomputeDiff`; in `runKey`, `ChangedRecomputeSame` keeps the previous `changed` step while `built` becomes the current step, which is early cutoff (`Build.hs`, Shake master, Hackage 0.19.9).
+A rule reports one of four `RunChanged` values: `ChangedNothing`, `ChangedStore`, `ChangedRecomputeSame`, and `ChangedRecomputeDiff`; in `runKey`, `ChangedNothing` and `ChangedStore` keep the previous `Result` with a refreshed value, `ChangedRecomputeSame` keeps the previous `changed` step while `built` becomes the current step, which is early cutoff, and anything else sets both to the current step (`Build.hs`, Shake master, Hackage 0.19.9).
+The dependency field is `depends :: ![Depends]` with `newtype Depends = Depends {fromDepends :: [Id]}`, commented "dependencies (don't run them early)": a list of groups of key identifiers (`Types.hs`).
+The paper explains the grouping when describing Cloud Shake's list-of-lists dependency argument: Shake "allows a list of dependencies to be specified simultaneously, so they can all be built in parallel" (Section 7.3).
+Groups are ordered, keys within a group are not, which is the monadic-order rule from "3. Task classes" made concrete.
 
 The saving is space: the paper notes a typical cryptographic hash is 32 bytes while a Shake key is a 4-byte `Int`, and for applicative tasks the dependency list can be dropped too, so a step trace is O(1) per key instead of O(n) in its dependencies.
 Step traces also let Shake use custom value equality where `Hash v` would not be valid.
 
+What counts as a changed *file* is a separate, configurable choice, and real Shake's default differs from the paper's model.
+`shakeChange` defaults to `ChangeModtime`, documented as "very fast, `touch` causes files to rebuild": a file has changed if its modification time changed (`Options.hs`, Shake master).
+The comparison is equality, not Make's ordering, so restoring an older file still counts as a change.
+`ChangeDigest` compares only content digests, for file systems whose times are unreliable; `ChangeModtimeAndDigest` treats a file as changed only if both its time and its digest changed, checking the time first for speed; `ChangeModtimeAndDigestInput` applies that to source files and plain modification times to built files, so `touch` and switching git branches do not rebuild inputs; `ChangeModtimeOrDigest` rebuilds when either changed.
+The paper's statement that Shake stores a dependency graph "annotated with file content hashes" (Section 2.5) therefore describes the digest modes, not the default.
+
 There is one observable difference (Section 5.2.2, Figure 7): build everything at step 1; change `util.c` and build only `util.o` at step 2, so `util.o` gets `changed = 2`; change `util.c` back and build `main.exe` at step 3.
 With verifying traces, `main.exe`'s recorded hash for `util.o` matches again and `main.exe` is not rebuilt.
-With step traces, `util.o.changed = 2 > main.exe.built = 1`, so `main.exe` is rebuilt, and since its value is unchanged its `changed` stays 1.
+With step traces, `util.o` is rebuilt at step 3 because `util.c` changed again, and its new value differs from its step-2 value, so its `changed` increases once more to 3; then `util.o.changed = 3 > main.exe.built = 1`, so `main.exe` is rebuilt, and since its value is unchanged its `changed` stays 1 (Figure 7(c)).
 The paper knows of no other situation where step traces are weaker, and this one arises only when building subsets of targets; the worked example reproduces it.
 
 The same structure appears in compiler-internal incremental engines:
@@ -339,8 +396,15 @@ The same structure appears in compiler-internal incremental engines:
 - **Salsa**, used by rust-analyzer, tracks a single global revision incremented on every input write and records, for each memoised result, the revision in which it last changed; recomputing a function and finding the same value lets Salsa *backdate* it, marking it as last changed in an earlier revision, which is `changed` versus `built` under another name.
   Salsa adds *durability*: it tracks, per durability level, the last revision in which some input of that level changed, so a result that depends only on high-durability inputs (the standard library, crates.io dependencies) can be validated without walking its edges (Salsa book).
 - **Buck2's DICE** records values "with version numbers" and the last version at which each was valid; when all of an invalidated node's dependencies recompute to the same values, the node skips recomputation (Modern DICE talk transcript), and DICE tracks reverse dependencies to achieve "O(invalidated subset) traversals and O(changed subset) recomputations" for a request (`dice/dice/docs/incrementality.md`).
-- **Skyframe** distinguishes `DirtyType.DIRTY` (a dependency was dirtied: re-evaluate only if some direct dependency's value actually changed, otherwise mark clean) from `DirtyType.CHANGE` (the node's own value is known stale, for example a file node after a file-system change), and a dirty node passes through `CHECK_DEPENDENCIES` to either `VERIFIED_CLEAN` or `NEEDS_REBUILDING` (`NodeEntry.java`, Bazel 9.3.2).
-  The Bazel documentation calls the early-cutoff effect *change pruning*: if a rebuilt node's value equals its old value, nodes invalidated because of it are "resurrected" (Skyframe reference page).
+- **Skyframe** has three dirty types (`NodeEntry.java`, Bazel 9.3.2).
+  `DIRTY` means a dependency was dirtied: the node is re-evaluated only if some direct dependency's value changed since its last evaluation, and is otherwise marked clean.
+  `CHANGE` means the node's own value is stale even if no dependency changed, typically a `NONHERMETIC` function's value after an outside change such as the file system; it is always re-evaluated, but if it produces the same value, dirty parents need not be.
+  `REWIND` is `CHANGE` used within one evaluation, and even an unchanged result re-evaluates the dirty parents, so it deliberately disables early cutoff.
+  A dirty node passes through `CHECK_DEPENDENCIES` to either `VERIFIED_CLEAN` or `NEEDS_REBUILDING`.
+  The Bazel documentation calls the early-cutoff effect *change pruning*: if a rebuilt node's value equals its old value, nodes invalidated because of it are "resurrected", the page's example being a comment-only C++ edit that leaves the `.o` identical and so skips the link (Skyframe reference page).
+  The same page names the two invalidation strategies and says "Bazel only does bottom-up invalidation": mark everything that transitively depends on changed inputs, which is optimal when the same top-level target is rebuilt and requires stat-ing every input of the previous build unless a file watcher supplies the changes, as opposed to top-down checking from the requested target, which is cheaper when the next build needs only a small part of a large graph.
+  In the paper's vocabulary, bottom-up invalidation is a transitively closed dirty set computed before the build, and top-down checking is what a verifying-trace rebuilder under a suspending scheduler does; Skyframe combines the first with change pruning, which is how it keeps early cutoff (this mapping is this note's interpretation).
+  The page is also explicit about the model's limit: invalidation is all-or-nothing, a changed dependency rebuilds the dependent from scratch, and Bazel does not support incremental mutation such as in-place JAR updates because the gains were limited and it is hard to validate that a mutated result equals a clean rebuild.
 
 #### 5.3 Constructive traces
 
@@ -366,6 +430,7 @@ The paper's examples: Bazel (restarting plus constructive traces), Microsoft's C
 
 #### 5.4 Deep constructive traces
 
+An ordinary constructive trace verifies a key through its immediate dependencies, which must first be brought up to date, so the time to verify a key grows with its number of transitive dependencies.
 A deep constructive trace keys a value on the hashes of the terminal input keys only, ignoring intermediates (Section 5.4).
 To decide whether `main.exe` is up to date, a constructive trace consults `util.o` and `main.o`, which must first be brought up to date; a deep constructive trace consults `util.c`, `util.h`, and `main.c` directly.
 
@@ -398,6 +463,21 @@ The paper tabulates 12 combinations, 8 inhabited by existing systems (Table 2):
 
 The paper states all four empty cells give workable build systems; the most interesting was suspending plus constructive traces, which it named Cloud Shake and then shipped as Shake's shared cache: minimal, cloud-capable, with early cutoff and monadic dependencies (Sections 6.5 and 7).
 
+The shipped interface shows what the clean model leaves out (Section 7.3):
+
+```haskell
+addCloud    :: k -> Ver -> Ver -> [ [(k, Hash v)] ] -> v -> [k] -> IO ()
+lookupCloud :: (k -> m (Maybe (Hash v))) -> k -> Ver -> Ver
+            -> m (Maybe (v, [ [k] ], IO ()))
+```
+
+- The two `Ver` arguments are the build script version and the rule version for this key; if either changes, nothing matches, which keeps the products of an older build script from being served.
+- Dependencies are a list of lists, the parallel groups described in "5.2.2 Verifying step traces".
+- `addCloud` takes the list of files the rule produces, including those declared with `produces`, because a cache hit must restore every output, not only the key.
+- `lookupCloud` accepts `Nothing` for a dependency hash, because some keys are not buildable, and returns at most one result rather than a list, for simplicity.
+- Integration is the bolt-on design: Shake keeps its local verifying traces and consults the constructive trace only when verification fails, which avoided re-engineering the central database; the authors report no significant downside and suggest it even for a new design.
+- At the time of the paper all caches lived on shared file systems; HTTP hosting was unfinished, partly because mounting an HTTP endpoint as a file system needs administrator rights on some operating systems such as Windows.
+
 The properties of each system follow from its cell (Table 1 of the paper):
 
 | System | Persistent information | Scheduler | Dependencies | Minimal | Early cutoff | Cloud |
@@ -421,12 +501,28 @@ Systems that postdate the paper or that it mentions only in passing, placed by t
 
 The one system the paper says it cannot model is Fabricate, which runs an ordinary script top to bottom, traces each command's file accesses at the OS level, and skips commands whose traced inputs are unchanged; modelling it needs separate `read` and `write` callbacks because a command writes files that were never declared (Section 9.1).
 Rattle (Spall, Mitchell, Tobin-Hochstadt, OOPSLA 2020) develops this *forward* style: dependencies are traced, so they are correct by construction, and parallelism lost by running commands in order is recovered by speculation.
-"Forward Build Systems, Formally" (CPP 2022) defines a forward build system as correct if every build either produces the result of running the commands in order or reports an error, proves Rattle's memoisation, speculation, and parallelism preserve that in Agda, and reports that the proof found a small bug in Rattle's hazard computation.
+"Forward Build Systems, Formally" (CPP 2022) defines a forward build system as correct if, for every build, "it either produces the same result as running the commands in order, or reports an error", proves in Agda that Fabricate and Rattle (with memoisation, speculation, and parallelism) meet it, and reports that formalising the proofs found "a small bug in Rattle hazard computations".
+
+Hazards are the forward world's replacement for declared dependencies, and the three Rattle defines are worth knowing by name (CPP 2022, Section 2.1):
+
+- **Read-before-write**: a command reads a file that a later command writes, so the next rebuild must rerun the first command.
+- **Write-before-write**: two commands write the same file, so each rerun of one is likely to trigger the other.
+- **Speculative write-before-read**: a command run speculatively, not yet requested by the script, writes a file that a required command later reads, so speculation ran commands in the wrong order.
+
+The absence of hazards implies the build reached a fixed point, and when a build run with speculation raises a hazard, Rattle repeats it without speculation.
+The correctness argument rests on assumptions Rattle does not check, starting with command determinism; for non-deterministic commands Rattle supports hash forwarding, hashing a command's inputs rather than its outputs, which, in this note's analogy, is the deep-constructive-trace trade in another setting.
 
 ### 7. Engineering axes outside the grid
 
 The grid captures order and rebuild decisions; the paper's Section 8 lists what it leaves out, and each item is a source of real incidents.
 
+- **Failures and partial stores.** The model assumes every key has a value and every task succeeds; the paper gives three encodings of failure (Section 8.1).
+  Put failure in the value type (`data Value = FileNotFound | FileContents String`, or `Either e v`, with `liftEither` converting a failure-free task), which lets a task depend on the *absence* of a file and be rebuilt when it appears, the same fact `redo-ifcreate` records.
+  Put failure in the context `f` (run any task with `fetch :: k -> Maybe v`), which adds failure to tasks that know nothing about it.
+  Or demand it in the constraint (`Tasks MonadFail`), so the build can abort early and return `Either String (Store i k v)`.
+  Which encoding a real tool uses decides whether "file not found" is a cacheable value or a build error.
+- **Key-dependent value types.** Shake lets the type of a value depend on its key, for example `File :: FilePath -> Key String` beside `Program :: String -> Key Version`, encoded with GADTs and a typed `fetch :: k v -> f v` (Section 8.6).
+  Shake's oracle rules are this feature, and Hadrian uses it for partial self-tracking: it builds command lines with a small DSL and tracks them as values (Section 7.5).
 - **Self-tracking.** Excel recomputes a cell when its formula changes, and Ninja reruns an edge when its command line changes; that is modelled by making the task description itself a dependency (`B1-formula`) (Section 8.8).
   Only systems whose tasks are data, a non-embedded language, can compare tasks precisely; Shake's tasks are Haskell functions, so the safe default is to assume a changed build script may change every task.
   SCons hashes each action's command into its build signature for the same reason.
@@ -434,12 +530,17 @@ The grid captures order and rebuild decisions; the paper's Section 8 lists what 
   Cloud Shake addresses the cloud half by passing two versions to its cache functions, the build script version and the rule version; if either changes, nothing matches (Section 7.3).
 - **Volatility and non-determinism.** Volatile tasks (Excel's `RANDBETWEEN`, phony rules) are modelled as depending on a `RealWorld` key that changes every build, and cannot be cached; non-deterministic tasks can be cached but defeat early cutoff and, under deep traces, correctness (Section 8.3).
   Untracked dependencies, such as the compiler binary, are the third impurity; sandboxing narrows them, but the paper notes none is likely to capture "the CPU model and microcode version".
+  The three interact: an untracked dependency can be patched by marking the task volatile, which is what Excel does with `INDIRECT`, buying correctness with minimality.
+  `Task MonadRandom` can even express dependency-level non-determinism, `INDIRECT("A" & RANDBETWEEN(1,2))`, which chooses which key to read at random; the paper notes real build tasks usually show only value-level non-determinism, and Excel handles the dependency-level case by marking the cell volatile.
   [[Hermetic-and-Reproducible-Builds]] and [[Sandboxing-and-Hermetic-Execution-Internals]] own the defences.
 - **Cloud engineering.** Communication volume, offloading execution to remote workers, eviction (a trace may outlive its value, which lets shallow builds "pass through" hashes whose bytes are gone), and shallow builds that integrate with a virtual file system to materialise a file only on access (Section 8.4).
-  Cloud builds are less forgiving: GHC's move to Cloud Shake failed mostly on undeclared produced files (a rule declared `Foo.hi` but a later rule used `Foo.o`, which a cache hit never materialised), and missing dependencies that would be rebuilt once per developer locally might be built once ever with a cache (Section 7.4).
+  Cloud builds are less forgiving: the paper says most issues in GHC's move to cloud builds were caused by undeclared produced files (a rule declared `Foo.hi` but a later rule used `Foo.o`, which a cache hit never materialised), and missing dependencies that would be rebuilt once per developer locally might be built once ever with a cache (Section 7.4).
   Standard Chartered reported that a from-scratch build with a warm shared cache took "around 5 s, saving us up to 2 h" (quoted in Section 7.4).
+  The paper's other cloud trap is irrelevant differences: two users with `gcc` at `/usr/bin/gcc` and `/usr/local/bin/gcc` share nothing if the path is recorded, and a compiler that embeds the current time denies everyone downstream a hit; its remedies are relative paths, depending only on version numbers of system binaries, a controlled environment such as Nix, and determinism flags.
+  GHC's own numbers bound the payoff: building GHC 8.8 from scratch takes about 1 hour on Windows with either Hadrian or the old Make build, a commit that changes only tests rebuilds from the cache in about 3 minutes by symlinking cached results, but any commit that changes the Stage 1 compiler makes later hits unlikely, so in CI the cache helps mostly up to Stage 1 (Section 7.5).
+  A few GHC rules, which register libraries by mutating a shared package database rather than producing files, cannot be cached at all, and Cloud Shake lets them be labelled as excluded.
 - **Multiple outputs.** `ghc A.hs` writes `A.hi` and `A.o`; encode a combined key and partition the key space so both outputs request exactly the same combined key, otherwise the compiler runs twice (Section 8.7).
-- **Iterative computations.** LaTeX needs repeated runs to a fixed point; Excel's iterative calculation runs a self-referential formula up to N times, N defaulting to 100 per the paper (Section 8.5).
+- **Iterative computations.** LaTeX needs repeated runs to a fixed point; Excel's iterative calculation runs a self-referential formula up to N times, N defaulting to 100 (paper, Section 8.5; Microsoft Support: "By default, Excel stops after 100 iterations, or when values change by less than 0.001").
   The paper recommends encoding iteration as a bounded series of steps rather than cycles, because LaTeX can be bistable or divergent; Pluto supports cyclic builders with a user-supplied resolution strategy.
 - **File watching versus polling.** Checking every input's mtime or hash is O(n) in the project, which is prohibitive at the largest scales, so Bazel and Buck use file-watching APIs (Section 8.9); Buck2 uses Watchman internally and `inotify` or similar in the open-source default (`why.md`).
   Mike Shal's 2009 paper names the two classes: an "Alpha" build system, Make and its derivatives, uses a global view of dependencies and runs in O(n) in the number of files; a "Beta" build system starts from a list of changed files and loads only the partial DAG reachable from them, which he argues is O(log^2 n) assuming the partial DAG is O(log n) of the project and nodes are stored in a tree with O(log n) lookups.
@@ -462,19 +563,24 @@ DICE describes itself as "inspired by Adapton and Salsa", two incremental-comput
 | Ninja `restat = 1` | unchanged-mtime outputs are cleaned | Both (as of 2026-11, Ninja 1.13.2) | Early cutoff for an mtime system |
 | Ninja `generator = 1` | command changes do not dirty the output | Both (as of 2026-11, Ninja 1.13.2) | Used for the rule that regenerates `build.ninja` |
 | Ninja `\|\|` order-only inputs | must be built first, changes do not dirty | Both (as of 2026-11, Ninja 1.13.2) | Orders generated headers before first compile |
-| `.ninja_log` format | version 7, command hash `rapidhash` | Both (as of 2026-11, Ninja 1.13.2) | v1.12.1 used version 6 with `MurmurHash64A`; v1.13.2 rejects logs older than 7 |
+| `.ninja_log` format | version 7, command hash `rapidhash` | Both (as of 2026-11, Ninja 1.13.2) | v1.12.1 used version 6 with `MurmurHash64A`; v1.13.2 rejects logs older than 7 with "build log version is too old; starting over" and deletes the log |
+| `.ninja_log` entry | output, command hash, start time, end time, mtime | Both (as of 2026-11, Ninja 1.13.2) | `BuildLog::LogEntry`; the logged mtime is the command start time, except that restat and generator edges log the later of the start time and the newest output mtime unless restat cleaned an output |
 | `.ninja_deps` format | `# ninjadeps\n`, version 4 | Both (as of 2026-11, Ninja 1.13.2) | Binary store of discovered header deps |
 | `ninja -d explain` | prints why each edge is dirty | Both (as of 2026-11, Ninja 1.13.2) | Reads the `RecomputeOutputDirty()` explanations |
 | `ninja -t restat` | rewrites recorded mtimes in `.ninja_log` | Both (as of 2026-11, available since Ninja 1.10) | Repairs a log after outputs were touched externally |
 | `deps = gcc` / `msvc`, `dyndep` | since Ninja 1.3 and 1.10 | Both (as of 2026-11) | Post-hoc and staged dynamic dependencies |
 | Shake `Step` | `newtype Step = Step Word32` | Both (as of 2026-11, Shake 0.19.9) | Per-run counter for `built` and `changed` |
+| Shake `shakeChange` | default `ChangeModtime`; also `ChangeDigest`, `ChangeModtimeAndDigest`, `ChangeModtimeAndDigestInput`, `ChangeModtimeOrDigest` | Both (as of 2026-11, Shake 0.19.9 master) | Default reruns on `touch`; digest modes give hash-based minimality |
 | Shake `RunChanged` | `ChangedNothing`, `ChangedStore`, `ChangedRecomputeSame`, `ChangedRecomputeDiff` | Both (as of 2026-11, Shake 0.19.9) | `RecomputeSame` keeps the old `changed` step |
 | rustc `Fingerprint` | 128-bit stable hash of each query result | Both (as of 2026-11, rustc-dev-guide) | Red-green early cutoff |
 | Salsa durability | default low; `Durability::HIGH` for rarely edited inputs | Both (as of 2026-11, Salsa master) | Skips edge walks for stable subgraphs |
 | Skyframe node lifecycle | `NOT_YET_EVALUATING`, `CHECK_DEPENDENCIES`, `VERIFIED_CLEAN`, `NEEDS_REBUILDING`, `REBUILDING`, `DONE` | Both (as of 2026-11, Bazel 9.3.2) | Verify-then-rebuild with change pruning |
+| Skyframe `DirtyType` | `DIRTY`, `CHANGE`, `REWIND` | Both (as of 2026-11, Bazel 9.3.2) | `REWIND` re-evaluates dirty parents even when the value is unchanged |
 | `SkyKeyComputeState` | optional per-key state kept across restarts | Both (as of 2026-11, Bazel 9.3.2) | Mitigates restarting-scheduler duplicate work |
-| Excel volatile functions | `NOW`, `TODAY`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`; `INFO`, `CELL`, `SUMIF` by argument | Excel (as of 2026-11, Microsoft Learn page that applies to Excel 2013) | Recomputed with dependents on every recalculation |
-| Excel iterative calculation | default maximum 100 iterations | Excel (per the paper, Section 8.5) | Bounded fixed point instead of a cycle |
+| Bazel `unused_inputs_list` | `actions.run` parameter naming a file of unused inputs | Both (as of 2026-11, Bazel 9.3.2) | Post-hoc input pruning; listed files must not affect outputs |
+| Bazel `actions.map_directory()` | needs `--experimental_allow_map_directory` | Both (as of 2026-11, Bazel 9.3.2; present at 9.0.0, absent at 8.4.2) | Creates actions after input tree artifacts are built |
+| Excel volatile functions | `NOW`, `TODAY`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`; `INFO`, `CELL`, `SUMIF` by argument | Excel (as of 2026-11, Microsoft Learn page that applies to Excel 2013, last updated 2022-01-24) | Recomputed with dependents on every recalculation |
+| Excel iterative calculation | default maximum 100 iterations, or change below 0.001 | Both (as of 2026-11, Microsoft Support page; the paper, Section 8.5, also says 100) | Bounded fixed point instead of a cycle |
 | SCons default decider | `content`; `content-timestamp` skips unchanged-mtime files | Both (as of 2026-11, SCons 4.11.1) | Verifying traces over checksums |
 | CPython `.pyc` invalidation | `timestamp` (default), `checked-hash`, `unchecked-hash` | Both (as of 2026-11, PEP 552, Python 3.7+) | `compileall --invalidation-mode` |
 | Nix `ca-derivations` | experimental feature | Both (as of 2026-11, Nix 2.35.6) | Output-addressed early cutoff for Nix |
@@ -506,7 +612,7 @@ How it maps onto the paper:
   `Applicative` additionally exposes a static `deps` list, the analogue of extracting dependencies with `Const`.
 - `drive()` is the scheduler's `fetch` loop; a restarting scheduler raises `Missing`, which closes the task's generator and discards its work.
 - `track()` executes a task for real and records `(key, hash)` pairs in order, the paper's `track`.
-- Four rebuilders plus the step-trace and mtime variants, three schedulers, and ten named compositions; names with `*` are the paper's cells, not the real tools (real Ninja verifies inputs by mtime, and real Bazel remembers dependency information that this model's restarting scheduler discards).
+- Four rebuilders plus the step-trace and mtime variants, three schedulers, and ten named compositions; names with `*` are the paper's cells, not the real tools (real Ninja verifies inputs by mtime, and real Bazel remembers dependency information that this model's restarting scheduler discards), and the unstarred `SHAKE` rows model the paper's content-hash traces, which real Shake uses only in its digest modes.
 - `inconsistent()` implements the correctness definition of Section 3.6, skipping the comparison for tasks marked non-deterministic.
 
 The scenarios use the paper's running example: `util.o` and `main.o` compiled from `util.h`, `util.c`, and `main.c`, linked into `main.exe`, where the toy compiler ignores `/* comments */`, so a comment-only edit is the canonical early-cutoff test.
@@ -996,7 +1102,7 @@ python3 -I bsalc.py
 
 ### Recorded output
 
-Run once on darwin-arm64 (macOS, Apple Silicon) with Python 3.15.2 on 2026-11-12; the script is deterministic, so the output does not depend on the platform.
+Recorded on darwin-arm64 (macOS, Apple Silicon) with Python 3.15.2 on 2026-11-12, and re-run unchanged on the same platform on 2026-11-15 with byte-identical output; the script uses no clocks, addresses, or hash randomisation (SHA-256 of `repr`), so the output should not depend on the platform, though only darwin-arm64 was run.
 
 ```text
 == 1. Executions per build of main.exe (aborted restarts in brackets)
@@ -1032,6 +1138,7 @@ CLOUDBUILD  main.prof=prof#2 report.txt=report(prof#2) inconsistent=[]
 - **Scenario 1, columns.** `clean` builds from nothing, `edit` changes `main.c` for real, `comment` adds a comment to `util.c`, `touch` re-enters `util.h` with identical contents and a newer mtime, and `noop` rebuilds with no change; brackets count aborted restarts.
 - **Early cutoff is a property of the rebuilder row.** On `comment`, every verifying and constructive rebuilder runs one task (`util.o`, whose value turns out identical), while the dirty bits (Make, Excel) and both deep constructive systems (Buck1, Nix) also relink `main.exe`: 2 executions.
 - **Content hashes beat timestamps.** On `touch`, Make and Excel rebuild all 3 tasks; every trace-based rebuilder runs 0, because the hashes did not move.
+  Real Shake behaves like the `SHAKE` rows only with `shakeChange` set to a digest mode; its default `ChangeModtime` reruns work after a `touch`.
 - **Restarts are a property of the scheduler column, and of memory.** Excel aborts twice on the clean build while it discovers the order, then never again because it keeps the calc chain; `BAZEL*` here keeps no order and pays 2 aborts on every build, even a no-op, because verification itself fetches a not-yet-processed key.
   Real Bazel keeps the previous dependency edges and avoids most of this, which is the paper's point about persisting order or dependency information.
 - **Every row is correct.** The final `ok` column applies the Section 3.6 definition: all ten compositions are correct; they differ only in how much work they do.
@@ -1106,7 +1213,8 @@ The theory turns into decision rules once the graph and the team grow:
 > > [!success]- Answer
 > > Make's rebuilder is a dirty bit stored in the file system: a target is out of date if it is missing or older than any prerequisite, so a newer `util.h` makes both objects and then the executable stale, three tasks.
 > > Ninja also compares input mtimes against outputs, so it reruns the two compiles too; whether it then relinks depends on `restat` and on whether the compiler rewrote the objects, since without `restat` the new object mtimes dirty the link.
-> > Shake verifies traces by content hash by default, so an identical `util.h` matches its recorded hash and nothing runs; the worked example shows 3 for Make and 0 for every trace-based rebuilder.
+> > Shake's answer depends on `shakeChange`: the default `ChangeModtime` treats any change of modification time as a change, so `touch` reruns the compiles, while `ChangeDigest`, `ChangeModtimeAndDigest`, or `ChangeModtimeAndDigestInput` find the digest of `util.h` unchanged and run nothing.
+> > The worked example's `SHAKE` rows model the digest behaviour and show 3 for Make and 0 for every trace-based rebuilder.
 > > The lesson is that timestamps detect "something wrote this file", while hashes detect "the value changed", and only the second supports minimality under `touch`.
 
 > [!question] L5: What is the difference between static and dynamic dependencies, and how does Ninja get header dependencies right without dynamic dependencies?
@@ -1122,7 +1230,7 @@ The theory turns into decision rules once the graph and the team grow:
 > > [!success]- Answer
 > > The scenario: build `main.exe` from `util.o` and `main.o`; change `util.c`; build only `util.o`; change `util.c` back to its original bytes; build `main.exe`.
 > > With verifying traces, `util.o` is rebuilt (its input hash changed again) and produces its original value, so `main.exe`'s recorded hashes for both objects match and only `util.o` runs.
-> > With step traces, `util.o` was recorded as changed at step 2, and `main.exe` was last built at step 1, so `changed > built` forces `main.exe` to rerun; its value is unchanged, so its own `changed` stays at step 1 and nothing above it reruns.
+> > With step traces, `util.o` changed at step 2 and is rebuilt again at step 3 to a value different from its step-2 value, so its `changed` is 3, while `main.exe` was last built at step 1; `changed > built` forces `main.exe` to rerun, its value is unchanged, so its own `changed` stays at step 1 and nothing above it reruns.
 > > The worked example prints `['util.o']` and `['util.o', 'main.exe']`; the paper notes this subset-of-targets case is the only observable difference it knows of, and step traces buy O(1)-per-key storage for it.
 
 > [!question] L6: Debug this: after a code generator change, every `ninja` run recompiles 4,000 objects even though `version.h` never changes content.
@@ -1141,6 +1249,14 @@ The theory turns into decision rules once the graph and the team grow:
 > > The paper calls this a Frankenbuild and notes it violates all three correctness definitions; ordinary constructive traces key the target on its immediate dependencies' hashes, so the new intermediate changes the lookup and forces a consistent rebuild.
 > > Systems that use deep keys, such as input-addressed Nix, therefore rely on enforced determinism, and Nix's experimental content-addressed derivations move toward ordinary traces to regain cutoff.
 
+> [!question] L6: Which build systems can build a sheet with `B1 = IF(C1=1, B2, A2)` and `B2 = IF(C1=1, A1, B1)`, and why?
+>
+> > [!success]- Answer
+> > Statically the two formulas mention each other, so a topological scheduler that extracts dependencies from the formula text sees a cycle and refuses, which is what Make would do.
+> > Dynamically there is no cycle: with `C1 = 1`, `B1` reads `B2` and `B2` reads `A1`; with any other value, `B2` reads `B1` and `B1` reads `A2`.
+> > A monadic build system with a restarting or suspending scheduler, such as Excel or Shake, discovers only the branch taken and builds it; the paper uses exactly this sheet (Section 3.5) to show that Excel "is perfectly happy".
+> > A selective build system sits in between: it can see both branches without running anything, but the over-approximation includes the false cycle, so it must either accept a possibly cyclic static graph or fall back to dynamic discovery.
+
 > [!question] L7: Compare restarting and suspending schedulers, and explain why Bazel's Skyframe restarts.
 >
 > > [!success]- Answer
@@ -1157,6 +1273,15 @@ The theory turns into decision rules once the graph and the team grow:
 > > Keep a fast local verifying trace and fall back to the shared constructive trace only on a local miss, the bolt-on design Shake shipped, so local no-op builds never touch the network.
 > > Include the build script version and the rule version in the lookup, require every rule to declare all produced files so a hit materialises them, store values in a content-addressed store separate from the trace index, and allow several traces per key because non-deterministic tasks may legitimately have several values.
 > > Plan eviction to keep traces longer than values, so shallow builds can pass hashes through, and add file-access tracing in CI to catch missing inputs before they are cached once and served forever.
+
+> [!question] L7: Ninja has no input content hashes, yet `restat` gives it early cutoff; where does it keep the state Make lacks, and what happens if you delete `.ninja_log`?
+>
+> > [!success]- Answer
+> > Make's only state is the file system's mtimes, so it cannot mark an output clean without touching it, which is the paper's proof that a plain dirty bit has no early cutoff.
+> > Ninja keeps a second record per output in `.ninja_log`: the command hash and a logged mtime, normally the command start time.
+> > For a `restat` edge with a log entry, `RecomputeOutputDirty()` compares that logged mtime, not the on-disk one, with the newest input, and when a command leaves an output's mtime alone, `FinishCommand()` cleans the node in the plan and logs the command start time, so the old file stops looking stale.
+> > Delete the log and every non-generator edge reports "command line not found in log" and reruns once; the same happens on the first build after upgrading from Ninja 1.12 to 1.13, whose log version 7 rejects version 6 logs.
+> > The logged mtime also catches interrupted writes: an output whose disk mtime is newer than its inputs but whose logged mtime is older is rebuilt, which is Ninja's counterpart to GNU make deleting a target on a fatal signal.
 
 > [!question] L7: State the paper's correctness definition and name two situations where real systems must weaken it.
 >
@@ -1197,9 +1322,11 @@ The theory turns into decision rules once the graph and the team grow:
 - Ninja manual and `src/graph.cc` at v1.13.2: the precise dirty check, `restat`, depfiles, and dyndep.
 - rustc-dev-guide, "Incremental compilation in detail", and the Salsa book: red-green marking, fingerprints, backdating, and durability inside compilers.
 - Bazel `SkyFunction.java` and `NodeEntry.java`, and Buck2's DICE docs: how the two largest open-source engines implement restarting and suspending evaluation.
+- Bazel Skyframe reference page: the symlink-chain restart example, `getValues()` batching, bottom-up versus top-down invalidation, change pruning, and why invalidation is all-or-nothing.
+- Bazel `StarlarkActionFactory.java` at 9.3.2: where `unused_inputs_list` and the experimental `map_directory()` show how far Starlark rules can go toward dynamic dependencies.
 
 ## Related
 
 - Prerequisites: none
 - Next: [[Hermetic-and-Reproducible-Builds]]
-- See also: [[Make-and-Ninja-Mechanics]], [[Bazel-Skyframe-Bzlmod-and-Execution-Model]], [[Buck2-DICE-Starlark-and-BXL]], [[Remote-Execution-API-and-Remote-Caching]], [[Rebuild-Content-Hashed-Build-System-Lab]], [[10-Papers/Paper-Build-Systems-a-la-Carte|Paper-Build-Systems-a-la-Carte]]
+- See also: [[Make-and-Ninja-Mechanics]], [[Bazel-Skyframe-Bzlmod-and-Execution-Model]], [[Buck2-DICE-Starlark-and-BXL]], [[Remote-Execution-API-and-Remote-Caching]], [[Rebuild-Content-Hashed-Build-System-Lab]], [[Paper-Build-Systems-a-la-Carte]]

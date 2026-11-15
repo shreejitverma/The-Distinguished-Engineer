@@ -6,7 +6,7 @@ mechanism it names were absent, the printed line would differ.
 
 Sections:
   1. How profiling.tracing (cProfile) hooks the interpreter.
-  2. Exact call counts, including the recursive "total/primitive" form.
+  2. Exact call counts (incl. "total/primitive"); cross-thread caller edges go wrong.
   3. Observer effect: cProfile inflates call-heavy code; a sampler does not.
   4. Tachyon's own collectors: times are sample counts times the interval.
   5. In-process sampling sees the GIL through its own hands.
@@ -213,6 +213,52 @@ def section_exact_counts():
     st = stats_by_name(run_profiled(in_thread, None))
     print(f"  calls made by another thread recorded: {st.get('worker', (0, 0))[1]} worker,"
           f" {st.get('add', (0, 0))[1]} add")
+    section_two_threads()
+
+
+def leaf_a():
+    return sum(range(200))
+
+
+def leaf_b():
+    return sum(range(200))
+
+
+def worker_a():
+    for _ in range(20_000):
+        leaf_a()
+
+
+def worker_b():
+    for _ in range(20_000):
+        leaf_b()
+
+
+def section_two_threads():
+    """_lsprof.c keeps one context stack per Profile, not one per thread.
+
+    With two threads interleaving, a return on one thread pops the context the other
+    thread pushed, so caller edges cross threads even though per-function counts stay exact.
+    """
+    old = sys.getswitchinterval()
+    sys.setswitchinterval(0.0005)  # force frequent GIL hand-offs between the workers
+
+    def both(_):
+        ta = threading.Thread(target=worker_a)
+        tb = threading.Thread(target=worker_b)
+        ta.start()
+        tb.start()
+        ta.join()
+        tb.join()
+
+    try:
+        st = stats_by_name(run_profiled(both, None))
+    finally:
+        sys.setswitchinterval(old)
+    exact = st["leaf_a"][1] == st["leaf_b"][1] == 20_000
+    foreign = sorted({k[2] for k in st["leaf_b"][4]} - {"worker_b"})
+    print(f"  two threads interleaving: ncalls leaf_a and leaf_b exact (20000 each): {exact}")
+    print(f"  leaf_b recorded with callers other than worker_b (its only real caller): {bool(foreign)}")
 
 
 def run_profiled(fn, arg):
@@ -242,17 +288,19 @@ def section_observer_effect():
     print("  calibrated: call_heavy and loop_heavy take equal time unprofiled "
           f"(ratio {bucket(t_call / t_loop, [0.67, 1.5])})")
 
+    # Median of five profiled runs each, like the unprofiled baseline, so one preemption
+    # on a loaded host cannot move a bucket. One Profile accumulates all ten runs.
     prof = cProfile.Profile()
-    t0 = time.perf_counter()
-    prof.enable()
-    call_heavy(n)
-    prof.disable()
-    p_call = time.perf_counter() - t0
-    t0 = time.perf_counter()
-    prof.enable()
-    loop_heavy(m)
-    prof.disable()
-    p_loop = time.perf_counter() - t0
+
+    def profiled(fn, arg):
+        t0 = time.perf_counter()
+        prof.enable()
+        fn(arg)
+        prof.disable()
+        return time.perf_counter() - t0
+
+    p_call = statistics.median(profiled(call_heavy, n) for _ in range(5))
+    p_loop = statistics.median(profiled(loop_heavy, m) for _ in range(5))
     st = stats_by_name(prof)
     share = st["call_heavy"][3] / (st["call_heavy"][3] + st["loop_heavy"][3])
     print(f"  cProfile slowdown, call_heavy ({n} calls to add): {bucket(p_call / t_call, [1.5, 2.5, 6.0])}x")
@@ -402,6 +450,11 @@ def section_async():
     print(f"  plain thread stack top frame: {plain[0]}; user coroutine frames in it: {len(user & set(plain))}")
     if "error" in out:
         print(f"  task graph: unavailable on this build ({out['error']})")
+        # On macOS, Modules/_remote_debugging/asyncio.c looks for the AsyncioDebug section only
+        # in images whose basename starts with "libpython" or "python"; a framework build
+        # links the interpreter as Python.framework/.../Python, which neither prefix matches.
+        framework = sysconfig.get_config_var("PYTHONFRAMEWORK") or ""
+        print(f"  framework build, interpreter image basename {framework!r}: {bool(framework)}")
         return
     chains = sorted(" <- ".join(f.funcname for f in frames)
                     for frames, _tid, _leaf_id in iter_async_frames(out["tasks"]))

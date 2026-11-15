@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "CPython contributors, Python/perf_trampoline.c (trampoline arenas, code watcher, fork handling), python/cpython at v3.15.2, 2026, https://github.com/python/cpython/blob/v3.15.2/Python/perf_trampoline.c"
@@ -32,13 +32,27 @@ sources:
   - "Linux perf contributors, tools/perf/util/jitdump.c, util/symbol.c, and Documentation/perf-inject.txt and perf-record.txt, Linux kernel source (master), 2026, https://github.com/torvalds/linux/blob/master/tools/perf/util/jitdump.c"
   - "Ben Frederickson, py-spy README (How does py-spy work, native extensions, Docker), GitHub benfred/py-spy, 2026, https://github.com/benfred/py-spy"
   - "Markus Stange, samply README (macOS signing and samply setup), GitHub mstange/samply, 2026, https://github.com/mstange/samply"
+  - "CPython contributors, Lib/subprocess.py (_args_from_interpreter_flags), python/cpython at v3.15.2, 2026, https://github.com/python/cpython/blob/v3.15.2/Lib/subprocess.py"
+  - "CPython contributors, Include/internal/pycore_interpframe.h (_PyThreadState_UpdateLastProfiledFrame) and pycore_mmap.h (_PyAnnotateMemoryMap), python/cpython at v3.15.2, 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_interpframe.h"
+  - "CPython issue tracker, gh-146522: Segfault at exit when calling sys.activate_stack_trampoline(perf) after loading a native library, GitHub python/cpython, 2026, https://github.com/python/cpython/issues/146522"
+  - "CPython issue tracker, gh-159173: perf trampoline reports wrong code size to profiler, GitHub python/cpython, 2026, https://github.com/python/cpython/issues/159173"
+  - "CPython issue tracker, gh-161676 and PR gh-161677: Reduce perf trampoline overhead, GitHub python/cpython, 2026, https://github.com/python/cpython/issues/161676"
+  - "CPython issue tracker, gh-152330: Make perf_trampoline thread safe, GitHub python/cpython, 2026, https://github.com/python/cpython/issues/152330"
+  - "CPython issue tracker, gh-157247: perf_jit activated from a subinterpreter publishes JIT executors with the trampoline's unwind info, GitHub python/cpython, 2026, https://github.com/python/cpython/issues/157247"
+  - "Linux kernel contributors, mm/mprotect.c (mprotect_fixup calls perf_event_mmap), Linux kernel source (master), 2026, https://github.com/torvalds/linux/blob/master/mm/mprotect.c"
+  - "Linux perf contributors, tools/perf/util/map.c and map.h (map__new names anonymous executable mappings /tmp/perf-PID.map), Linux kernel source (master), 2026, https://github.com/torvalds/linux/blob/master/tools/perf/util/map.c"
+  - "Linux perf contributors, tools/perf/util/synthetic-events.c (perf_event__synthesize_mmap_events, //anon), Linux kernel source (master), 2026, https://github.com/torvalds/linux/blob/master/tools/perf/util/synthetic-events.c"
+  - "CPython contributors, configure.ac (perf trampoline allowlist and Py_DEBUG frame-pointer flags), python/cpython at v3.12.12, v3.13.9, and v3.14.0, 2025, https://github.com/python/cpython/blob/v3.14.0/configure.ac"
+  - "CPython contributors, Include/internal/pycore_runtime_structs.h (struct pyruntimestate stability comment), python/cpython at v3.15.2, 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_runtime_structs.h"
+  - "CPython contributors, Include/internal/pycore_interp_structs.h (CODE_MAX_WATCHERS) and Include/cpython/pystate.h (_PY_DATA_STACK_CHUNK_SIZE), python/cpython at v3.15.2, 2026, https://github.com/python/cpython/blob/v3.15.2/Include/internal/pycore_interp_structs.h"
+  - "CPython pull request gh-161677: Reduce perf trampoline overhead (pyperformance geomean table), GitHub python/cpython, 2026, https://github.com/python/cpython/pull/161677"
 ---
 
 # Python CPython perf Trampoline and Tachyon Internals
 
 > [!summary] Claim:
 > CPython runs every Python function through the same C function, `_PyEval_EvalFrameDefault`, so a native profiler that only sees the C stack cannot tell one Python frame from another.
-> The perf trampoline (`-X perf`, 3.12+) fixes that from inside the process: a PEP 523 eval-frame hook gives each code object its own 20-byte copy of a call stub in an executable arena and writes `START SIZE py::qualname:file` to `/tmp/perf-<pid>.map`, so `perf` or `samply` symbolizes the stub's return address as the Python function.
+> The perf trampoline (`-X perf`, 3.12+) fixes that from inside the process: a PEP 523 eval-frame hook gives each code object its own copy of a call stub (8 bytes on x86-64, 20 on arm64) in an executable arena and writes `START SIZE py::qualname:file` to `/tmp/perf-<pid>.map`, so `perf` or `samply` symbolizes the stub's return address as the Python function.
 > `-X perf_jit` (3.13+) emits the same stubs as jitdump records with DWARF CFI so `perf inject --jit` can unwind them without frame pointers, which is also why 3.15 now builds with frame pointers by default (PEP 831).
 > Tachyon (`profiling.sampling`, 3.15) solves the problem from outside the process instead: it finds `_PyRuntime` through a named binary section that starts with `_Py_DebugOffsets`, then walks `PyThreadState.current_frame` and `_PyInterpreterFrame.previous` with `process_vm_readv` or `mach_vm_read_overwrite`, and sees Python frames only.
 
@@ -112,10 +126,13 @@ Installing any eval-frame function makes `IS_PEP523_HOOKED(tstate)` true (`tstat
 
 - The inlined-call path is skipped, so every Python call goes back through `_PyEval_EvalFrame()` and gets its own C activation.
   This is required: a per-function stub can only appear on the C stack if each Python frame owns a C frame.
-- The `_CHECK_PEP_523` micro-op deoptimizes every specialized instruction that would push a Python frame without a C call: `CALL_PY_EXACT_ARGS`, `CALL_PY_GENERAL`, `CALL_BOUND_METHOD_EXACT_ARGS`, `CALL_BOUND_METHOD_GENERAL`, `BINARY_OP_SUBSCR_GETITEM`, `SEND_GEN`, `FOR_ITER_GEN`, `LOAD_ATTR_PROPERTY`, and `LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN`.
+  The generic `_DO_CALL`, `_DO_CALL_KW`, and `_DO_CALL_FUNCTION_EX` micro-ops and `_SEND` all test `!IS_PEP523_HOOKED(tstate)` before taking the inlined path, and `DISPATCH_INLINED()` asserts the hook is absent.
+- The `_CHECK_PEP_523` micro-op (`DEOPT_IF(IS_PEP523_HOOKED(tstate))`) deoptimizes every specialized instruction that would push a Python frame without a C call; at v3.15.2 thirteen macros carry it: `CALL_PY_EXACT_ARGS`, `CALL_PY_GENERAL`, `CALL_BOUND_METHOD_EXACT_ARGS`, `CALL_BOUND_METHOD_GENERAL`, `CALL_KW_PY`, `CALL_KW_BOUND_METHOD`, `CALL_EX_PY`, `CALL_ALLOC_AND_ENTER_INIT`, `BINARY_OP_SUBSCR_GETITEM`, `SEND_GEN`, `FOR_ITER_GEN`, `LOAD_ATTR_PROPERTY`, and `LOAD_ATTR_GETATTRIBUTE_OVERRIDDEN`.
 
-The trampoline's cost is therefore not just the stub; it is the loss of frame-pushing specializations and call inlining for the whole interpreter.
-Measure it on your workload with [[Python-Benchmarking-pyperf-asv-and-NumPy-Pandas-Profiling]] before enabling it permanently.
+The trampoline's cost is therefore not just the stub; it is the loss of frame-pushing specializations and call inlining for the whole interpreter, plus one extra native frame per call, because `py_trampoline_evaluator()` does the `co_extra` lookup and then calls the stub instead of tail-calling it.
+CPython's own measurement in gh-161676 and its PR gh-161677 (`main` built with PGO and ThinLTO, Clang 21, platform not stated, as of 2026-11) puts `-X perf` at +11.9% on the 121-benchmark pyperformance geometric mean (rounded to +12% in the issue), with the frame-heavy benchmarks hit hardest: `generators` +234%, `generator_resumes` +72%, `python_calls` +50%, `scimark_lu` +42%.
+The open PR gh-161677 tail-calls the stub and keeps specialized calls when the hook is the perf trampoline (the `_PUSH_FRAME` path still enters through the hook, so every frame stays visible), reporting +8.1% on the same geomean; it is not merged as of 2026-11, so 3.15.2 has the full cost.
+Measure it on your own workload with [[Python-Benchmarking-pyperf-asv-and-NumPy-Pandas-Profiling]] before enabling it permanently.
 
 #### One stub per code object
 
@@ -127,16 +144,23 @@ If anything fails (arena exhausted and `mmap` refused, `perf_status` not OK), it
 The stub is a copy of an assembly template between `_Py_trampoline_func_start` and `_Py_trampoline_func_end` in `Python/asm_trampoline.S`.
 The evaluator is passed as the fourth argument precisely so that the stub can forward the first three registers untouched and call through the fourth: `%rcx` on x86-64 System V, `x3` on AArch64, `a3` on RISC-V.
 
-| Architecture (v3.15.2) | Template body | Bytes |
+These sizes come from assembling the v3.15.2 `Python/asm_trampoline.S` with Homebrew clang 23.1.5 for each target and disassembling `.rodata` with `llvm-objdump` (as of 2026-11, cross-assembled on macOS).
+
+| Architecture (v3.15.2) | Template body | Bytes (measured) |
 | :--- | :--- | :--- |
-| x86-64 | optional `endbr64` (when `__CET__ & 1`), `push %rbp`, `mov %rsp,%rbp`, `call *%rcx`, `pop %rbp`, `ret` | 8, or 12 with `endbr64` (instruction sizes from the comments in `Python/jit_unwind.c`) |
-| AArch64 | `SIGN_LR` (`paciasp`/`pacibsp` under PAC, `bti c` under BTI, else empty), `stp x29, x30, [sp, -16]!`, `mov x29, sp`, `blr x3`, `ldp x29, x30, [sp], 16`, `VERIFY_LR`, `ret` | 20 measured on darwin-arm64 (5 instructions, no PAC or BTI) |
-| RISC-V | `addi sp,sp,-16`, `sd ra,8(sp)`, `jalr a3`, `ld ra,8(sp)`, `addi sp,sp,16`, `jr ra` | 24 (6 instructions); RISC-V is not in the `configure.ac` allowlist at v3.15.2 |
+| x86-64 | optional `endbr64` (when `__CET__ & 1`), `push %rbp` (`55`), `mov %rsp,%rbp` (`48 89 e5`), `call *%rcx` (`ff d1`), `pop %rbp` (`5d`), `ret` (`c3`) | 8; 12 with `-fcf-protection=full` |
+| AArch64 | `SIGN_LR`, `stp x29, x30, [sp, -16]!`, `mov x29, sp`, `blr x3`, `ldp x29, x30, [sp], 16`, `VERIFY_LR`, `ret` | 20 plain; 28 with `-mbranch-protection=standard` (`paciasp` first, `autiasp` before `ret`) |
+| RISC-V | `addi sp,sp,-16`, `sd ra,8(sp)`, `jalr a3`, `ld ra,8(sp)`, `addi sp,sp,16`, `jr ra` | 12 with the C extension (`-march=rv64gc`, every instruction compressed); 24 with `-march=rv64g`; RISC-V is not in the `configure.ac` allowlist at v3.15.2 |
+
+On AArch64, `asm_trampoline_aarch64.h` defines `SIGN_LR` as `paciasp` or `pacibsp` when `__ARM_FEATURE_PAC_DEFAULT` selects the A or B key, and otherwise as `bti c` when BTI is on, else nothing.
+No separate `bti c` is needed under PAC because `paciasp` is itself an implicit BTI landing pad.
+The same header emits a `GNU_PROPERTY_AARCH64_FEATURE_1_AND` note with the BTI, PAC, and GCS bits that the compiler enabled; with clang 23 `-mbranch-protection=standard` the assembled object reports `aarch64 feature: BTI, PAC, GCS` in `llvm-readelf -n`, and the separate CET note at the end of `asm_trampoline.S` makes the x86-64 `-fcf-protection=full` object report `x86 feature: IBT, SHSTK`.
+That note matters because the linker ANDs feature bits across all inputs: one assembly file without it would silently turn off BTI or IBT for all of `libpython`.
 
 Two version differences matter:
 
 - At v3.12.12 the x86-64 template was `sub $8,%rsp; call *%rcx; add $8,%rsp; ret`, which aligns the stack but builds no frame record; v3.13.9 and later push `%rbp`, so a frame-pointer walk passes through the stub as a real frame.
-- From v3.15 the template sits in `.rodata` on ELF (it is only ever copied, never executed in place), the AArch64 version carries PAC/BTI/GCS hints and a `.note.gnu.property` note from `asm_trampoline_aarch64.h`, and the x86-64 version carries a CET `.note.gnu.property` note, so linking it does not strip IBT or BTI enforcement from `libpython`.
+- At v3.15.2 the template sits in `.rodata` on ELF (it is only ever copied, never executed in place; Mach-O keeps it in `.text`), and both architectures carry the `.note.gnu.property` notes just described.
 
 #### Arenas
 
@@ -151,10 +175,26 @@ With the perf-map backend the padding is 0 and the alignment is 32, so a 20-byte
 With the jitdump backend the padding is the unwind data size rounded to 16 (80 bytes measured on darwin-arm64), so a slot is `round_up(20 + 80, 32)` = 128 bytes and one arena holds 512 stubs.
 The padding keeps the address ranges that `perf inject` later assigns to each synthetic DSO from overlapping, which the long comment at the top of `perf_jit_trampoline.c` explains.
 
+Three arena details are easy to miss in the v3.15.2 source:
+
+- The size written to the map is the template size (`perf_code_arena->code_size`), not the slot stride, so on arm64 every entry says `14` (20 bytes) while consecutive stubs sit `0x20` apart; samples in the 12-byte gap belong to no symbol.
+  gh-159173 (open as of 2026-11) reports exactly this and proposes reporting the aligned chunk size.
+- `compile_trampoline()` decides whether a new arena is needed with `round_up(code_size + code_padding, 16)` rather than the backend's 32-byte alignment, and it dereferences `perf_code_arena` before its NULL check; the same issue notes both.
+  With the shipped sizes (32-byte and 128-byte slots dividing 65,536 exactly) the arithmetic still works out.
+- None of this state is synchronized: `perf_code_arena`, `trampoline_refcount`, and `extra_code_index` are plain globals in `_PyRuntime.ceval.perf`, protected only by the GIL.
+  gh-152330 (open as of 2026-11) shows a ThreadSanitizer race between `compile_trampoline()` and `code_arena_new_code()` on a free-threaded 3.14 build, so do not trust `-X perf` on free-threaded builds yet.
+
+#### How perf learns that the arena exists
+
+The arena is mapped anonymous and read-write, so the `mmap()` itself produces no executable-mapping event.
+The event comes from the `mprotect(PROT_READ | PROT_EXEC)`: `mprotect_fixup()` in the kernel's `mm/mprotect.c` calls `perf_event_mmap(vma)` after changing the flags, and the kernel emits a `PERF_RECORD_MMAP` record for the now-executable region.
+At report time `map__new()` in `tools/perf/util/map.c` sees an anonymous mapping (`//anon`) with `PROT_EXEC` and renames its DSO to `/tmp/perf-<pid>.map`, which is the only link between a sample address and the map file.
+For a process that was already running when `perf record` started, `perf_event__synthesize_mmap_events()` in `tools/perf/util/synthetic-events.c` synthesizes the same records from `/proc/<pid>/task/<tid>/maps`, naming nameless regions `//anon`.
+
 #### The perf map file
 
 `perf_map_write_entry()` formats the name as `py::%s:%s` from `co_qualname` and `co_filename` (an encoding failure gives an empty string, not an error) and calls `PyUnstable_WritePerfMapEntry()` in `Python/sysmodule.c`.
-That function writes one line with `fprintf("%" PRIxPTR " %zx %s\n")`, under a `PyThread` lock, followed by `fflush()` for every entry.
+That function writes one line with `fprintf("%" PRIxPTR " %zx %s\n")`, under a `PyThread` lock, followed by `fflush()` for every entry, so the map is complete on disk even if the process is later killed with SIGKILL.
 The file is opened by `PyUnstable_PerfMapState_Init()` as `/tmp/perf-<pid>.map` with `O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW | O_CLOEXEC` and mode `0600`; `O_NOFOLLOW` defeats a symlink planted in `/tmp` by another user.
 The format is perf's own JIT interface (`tools/perf/Documentation/jit-interface.txt`): `START SIZE symbolname`, hex without `0x`, and the symbol name is the rest of the line, so names may contain spaces and colons.
 The path is fixed: the trampoline source says "name and location not configurable", and perf builds the same `/tmp/perf-%d.map` name in `tools/perf/util/symbol.c`.
@@ -175,11 +215,50 @@ At v3.15.2 the lifetime is reference-counted:
 - `sys.deactivate_stack_trampoline()` (`Init(0)`) only restores `prev_eval_frame` and sets `perf_status = PERF_STATUS_NO_INIT`; it frees nothing.
 - `_PyPerfTrampoline_Fini()`, called from interpreter finalization, closes the backend and drops the base reference; when the count reaches zero `perf_trampoline_reset_state()` unmaps every arena and clears the watcher.
 
-Because the watcher fires from `code_dealloc()` through `notify_code_watchers()`, which iterates over a snapshot of the active-watcher bitmask and calls each slot's callback, a callback that clears another watcher during the iteration leaves a set bit pointing at a NULL slot.
-That interaction is observable on Homebrew Python 3.15.2, darwin-arm64 (as of 2026-11): a function compiled under `-X perf`, called again after `sys.deactivate_stack_trampoline()` and `sys.activate_stack_trampoline("perf")`, followed by any new function, makes the process exit with SIGSEGV (exit status 139) during `finalize_modules`, with `frame #0: 0x0000000000000000` called from `code_dealloc + 2008` under lldb.
-The source is consistent with this explanation: `Init(1)` after `Init(0)` registers a second watcher and overwrites `code_watcher_id` without clearing the first, both watchers decrement the same `trampoline_refcount`, the count reaches zero early inside the first watcher, `reset_state()` clears the second watcher's slot, and `notify_code_watchers()` then calls that NULL slot.
-UNVERIFIED: the double-registration explanation is from source reading plus the backtrace; it was not single-stepped, and no upstream issue was located.
-Until it is fixed, activate the trampoline once per process and do not toggle it.
+#### The toggle crash: deactivate, reactivate, exit with SIGSEGV
+
+The lifetime scheme has a hole on 3.15.2 when the trampoline is turned off and on again.
+The failure needs four ingredients, all visible in the v3.15.2 source:
+
+1. `_PyPerfTrampoline_Init(0)` restores the evaluator but keeps the code watcher registered and leaves `code_watcher_id` and `trampoline_refcount` untouched.
+2. `_PyPerfTrampoline_Init(1)` only checks whether the trampoline evaluator is currently installed, which it no longer is, so it runs the full setup again: it requests a second `co_extra` index, maps a new arena, calls `PyCode_AddWatcher()` a second time, overwrites `code_watcher_id` with the new ID, and resets `trampoline_refcount` to 1.
+3. Both registered watchers run `perf_trampoline_code_watcher()`, which reads the stub through the single global `extra_code_index`, so every code object that got a stub after reactivation decrements the shared count twice when it dies, and the count reaches zero while live stubs remain.
+4. When it reaches zero inside the first watcher, `perf_trampoline_reset_state()` unmaps every arena and calls `PyCode_ClearWatcher()` on the second watcher's ID, which sets that slot in `interp->code_watchers[]` to NULL.
+   `notify_code_watchers()` in `Objects/codeobject.c` iterates over a local copy of the `active_code_watchers` bitmask taken before the loop, reads `interp->code_watchers[i]` for each set bit, and guards the NULL case only with `assert(cb != NULL)`, which a release build compiles out; it then calls address 0.
+
+One run under lldb on Homebrew Python 3.15.2, darwin-arm64 (as of 2026-11), with breakpoints on both watcher functions, shows that sequence directly (addresses removed):
+
+```text
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+   * frame #0: Python`PyCode_AddWatcher
+     frame #1: Python`_PyPerfTrampoline_Init + 180
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 1.1
+   * frame #0: Python`PyCode_AddWatcher
+     frame #1: Python`_PyPerfTrampoline_Init + 180
+active: True
+* thread #1, queue = 'com.apple.main-thread', stop reason = breakpoint 2.1
+   * frame #0: Python`PyCode_ClearWatcher
+     frame #1: Python`perf_trampoline_reset_state + 36
+     frame #2: Python`perf_trampoline_code_watcher + 100
+* thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+     frame #1: Python`code_dealloc + 2008
+     frame #2: Python`func_dealloc + 396
+     frame #3: Python`dictkeys_decref + 344
+```
+
+The script was eleven lines: define and call `f()` under `-X perf`, call `sys.deactivate_stack_trampoline()` then `sys.activate_stack_trampoline("perf")`, call `f()` again, define and call `g()`, and print `sys.is_stack_trampoline_active()`.
+`PyCode_ClearWatcher` is reached from inside `perf_trampoline_code_watcher`, which is the clear-during-iteration step, and the next callback is a call to `0x0` from `code_dealloc` (where `notify_code_watchers()` is inlined).
+
+The crash is data-dependent, which makes it a nasty production bug.
+If the count reaches zero inside the second watcher, that watcher clears its own slot after it has already been called and the loop ends cleanly; only a zero reached inside the first watcher leaves a NULL slot still ahead in the iteration.
+Which watcher hits zero depends on how many post-reactivation stubs exist and in which order their code objects die, including code that runs during shutdown.
+A variant that only calls `f()` again after reactivating (no new function) exited with status 0 on the same interpreter, and its map held two `py::f:` entries, one per `co_extra` index.
+
+The same class of bug was reported upstream as gh-146522 (repeated `sys.activate_stack_trampoline("perf")` calls register orphaned watchers and crash at exit on 3.13.12 and 3.14.3; ten calls exhaust the watcher table with "no more code watcher IDs available").
+A comment there says gh-137291 fixed the repeated-activation case on 3.15 by making a second activation a no-op, which is the `eval_frame != py_trampoline_evaluator` guard in `Init(1)`; that guard does not cover a deactivate-then-activate cycle, which is the path traced here.
+No upstream issue for the deactivate-then-activate path was found (GitHub search of python/cpython, 2026-11-15).
+Two further side effects follow from the same code: reactivation calls the map backend's `init_state` again because that backend keeps `trampoline_api.state` NULL, so `PyUnstable_PerfMapState_Init()` reopens `/tmp/perf-<pid>.map` and overwrites the previous `FILE*` and lock without closing them; and stubs compiled before deactivation keep their entries under the old `co_extra` index, so reactivation compiles and maps a second stub for every code object that runs again.
+Until it is fixed, activate the trampoline once per process and never toggle it.
 
 #### Fork
 
@@ -188,21 +267,39 @@ Until it is fixed, activate the trampoline once per process and do not toggle it
 - Off: the child calls `Fini`, clears the old code watcher but keeps the old arenas mapped (the child may still return through stubs that were on the C stack at `fork()`), and re-runs `Init(1)`, which opens a new, empty `/tmp/perf-<childpid>.map` and compiles fresh stubs as code runs in the child.
 - On: allowed only for the perf-map backend; the child calls `Fini` and appends the parent's map to its own with `PyUnstable_CopyPerfMapFile()`, and the trampoline stays inactive in the child.
 
-Measured on darwin-arm64 with Python 3.15.2 under `-X perf`: with persistence off, the child was active and its map had 7 lines including the child-only function; with persistence on, the child was inactive and its map had the parent's 283 lines and no child-only function.
+Measured on darwin-arm64 with Homebrew Python 3.15.2 under `-X perf` (as of 2026-11): with persistence off, the child was active and its map had 7 lines including the child-only function; with persistence on, the child was inactive and its map had the parent's 260 lines and no child-only function.
 Persistence fits pre-fork servers whose workers run code compiled in the parent; the default fits everything else.
+Note the asymmetry with persistence on: the child stays inactive, so code first compiled in the child gets no stub and appears only as `_PyEval_EvalFrameDefault`.
+
+`-X perf` also survives `subprocess` and `multiprocessing` spawn children: `_args_from_interpreter_flags()` in `Lib/subprocess.py` re-emits every entry in `sys._xoptions`, and on 3.15.2 it returned `['-I', '-X', 'perf']` for an `-I -X perf` parent (as of 2026-11, macOS).
+`PYTHONPERFSUPPORT` travels through the environment instead, so it is lost when the child runs with `-I` or `-E`.
+
+#### Fork under `-X perf_jit` duplicates the parent's dump
+
+The jitdump backend has no persistence mode, and its buffering interacts badly with `fork()`.
+`perf_map_jit_init()` wraps the dump in a `FILE*` with a 2 MiB `setvbuf()` buffer, and nothing in `perf_jit_trampoline.c` calls `fflush()`, so the header and every record sit in user memory until the buffer fills or `perf_map_jit_fini()` calls `fclose()`.
+After `fork()`, the child inherits a copy of that unflushed buffer and the same open file description, and `_PyPerfTrampoline_AfterFork_Child()` calls `_PyPerfTrampoline_Fini()`, whose `fclose()` writes the copy through the shared descriptor; the parent later flushes the same bytes again at its own exit.
+One run on Homebrew 3.15.2, darwin-arm64 (as of 2026-11), of a script that calls one function, forks, and has the child call `os._exit(0)`, produced a 95,756-byte parent dump with `JiTD` headers at offsets 0 and 47,878, the second half byte-identical to the first, and a 0-byte child dump (the child's own header never left its buffer because `os._exit()` skips stdio).
+A jitdump reader that walks records by `total_size` meets a second file header in the middle of the stream.
+Reading perf's `jit_get_next_entry()` in `tools/perf/util/jitdump.c` (Linux master, 2026-11-15; not run here) predicts that perf stops there: it reads the second header as a 16-byte record prefix, whose `total_size` slot overlays the header's `version` field (1 in CPython's writer), and a size below the prefix size makes the function return `NULL`, which ends `jit_process_dump()`'s loop without an error message.
+In the observed file that drops only the duplicated half, but any record the parent wrote after the fork lands behind the second header and is never seen.
+The same mechanism means a process killed with SIGKILL, or one that exits through `os._exit()`, loses every record still in the buffer, while the `-X perf` map, flushed per entry, does not.
+No upstream issue for the fork duplication was found (GitHub search of python/cpython, 2026-11-15).
 
 #### Platform gating and the JIT
 
 | Version | Where `PY_HAVE_PERF_TRAMPOLINE` is defined (`configure.ac`) | Notes |
 | :--- | :--- | :--- |
-| 3.12, 3.13, 3.14 | `x86_64-linux-gnu`, `aarch64-linux-gnu` | 3.14 adds `-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer` to debug builds only |
+| 3.12, 3.13, 3.14 | `x86_64-linux-gnu`, `aarch64-linux-gnu` | When the trampoline is enabled, `Py_DEBUG` builds get `-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer`; release builds do not |
 | 3.15 | adds `x86_64-linux-musl`, `aarch64-linux-musl`, and `darwin` unless `MACOSX_DEPLOYMENT_TARGET` is 10.0 to 10.11 | samply support on macOS starts in 3.15 (howto); frame pointers on by default (PEP 831) |
 
 Check a given interpreter with `python -m sysconfig | grep HAVE_PERF_TRAMPOLINE`; Homebrew 3.15.2 reports `PY_HAVE_PERF_TRAMPOLINE = 1` on darwin-arm64 and 3.14.10 reports `0` (as of 2026-11, macOS).
 
 The experimental JIT and the trampoline exclude each other at v3.15.2.
-With `perf_profiling > 0`, `init_interp_main()` refuses to enable the JIT and warns "JIT deactivated as perf profiling support is active"; with the JIT active in the main interpreter, `sys.activate_stack_trampoline()` raises `ValueError: Cannot activate the perf trampoline if the JIT is active` (gh-157247).
-The 3.15 tree separately adds GDB JIT-interface registration for JIT executor code (`PY_HAVE_JIT_GDB_UNWIND` in `pycore_jit_unwind.h`, Linux ELF only), which is a debugger feature, not a perf one.
+With `perf_profiling > 0`, `init_interp_main()` refuses to enable the JIT and warns "JIT deactivated as perf profiling support is active"; the comment there notes that the tier-2 interpreter is fine and only a "real JIT" is refused.
+With the JIT active in the main interpreter, `sys.activate_stack_trampoline()` raises `ValueError: Cannot activate the perf trampoline if the JIT is active`.
+The check reads `_PyInterpreterState_Main()->jit`, not the calling interpreter, because the perf state lives in `_PyRuntime` and is process-wide: gh-157247 (closed 2026-10-11) showed a subinterpreter activating `perf_jit` while the main interpreter kept its JIT, and the dump then held JIT executors named `py::jit:executor`, each tagged with the 8-byte trampoline's unwind information, so perf unwound JIT frames with the wrong CFI.
+The 3.15 tree separately builds `.eh_frame` for JIT executor code in the same `Python/jit_unwind.c`, registered with GDB's JIT interface (`__jit_debug_register_code`, under `PY_HAVE_JIT_GDB_UNWIND`) or with libgcc's `__register_frame()` (under `PY_HAVE_JIT_GNU_BACKTRACE_UNWIND`); those are debugger and in-process unwinder features, not perf ones.
 
 ### 3. Frame pointers decide whether the stub is reachable
 
@@ -213,7 +310,7 @@ So `-X perf` requires frame-pointer call graphs (`perf record -g`, which default
 
 PEP 831 (Final, Python 3.15) makes that the default: CPython is configured with `-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer`, `--without-frame-pointers` opts out, and the flags are in `sysconfig` `CFLAGS`, so extensions built from Python's configuration inherit them.
 The PEP reports under 2% geometric-mean overhead for typical workloads, and a 64-frame frame-pointer unwind on x86-64 Linux in 116 ns, about 210 times faster than the DWARF unwinders it tested (libunwind, glibc `backtrace()`, framehop).
-The PEP also warns that a single native component built without frame pointers breaks the chain for the whole process, which is why build systems that do not consume `sysconfig` (CMake, Cargo, Bazel) must add the flags themselves.
+The PEP also warns that a single native component built without frame pointers breaks the chain for the whole process, which is why code that does not inherit CPython's `CFLAGS` (the PEP names PyO3 and maturin Rust extensions, C++ libraries with their own build systems, and embedders) must add the flags itself.
 On Apple Silicon the ARM64 ABI already mandates frame pointers; Homebrew 3.15.2's `BASECFLAGS` nonetheless show both flags (as of 2026-11, macOS).
 On Windows x64 unwinding uses `.pdata`/`.xdata`, so frame pointers are not the mechanism there.
 
@@ -227,7 +324,9 @@ On Windows x64 unwinding uses `.pdata`/`.xdata`, so frame pointers are not the m
 On Linux it then maps the first page of the file `PROT_READ | PROT_EXEC`, `MAP_PRIVATE`.
 That mapping does no work for CPython; it exists so that the kernel emits a `PERF_RECORD_MMAP` event naming the file, which `jit_detect()` in `tools/perf/util/jitdump.c` matches against the pattern `.../jit-<pid>.dump`.
 On macOS the mapping is skipped ("samply uses a preload to find jitdumps and this mmap can be slow").
+The preload is samply's `DYLD_INSERT_LIBRARIES` library, which is also why the samply README says it cannot profile system-signed binaries such as Apple's `/usr/bin/python3`, while Homebrew and self-built interpreters work.
 No `/tmp/perf-<pid>.map` is written in this mode, which the darwin-arm64 run confirmed.
+Records are buffered, not flushed per record, which matters for crashes and `fork()`; see "Fork under `-X perf_jit` duplicates the parent's dump".
 
 #### Records
 
@@ -292,7 +391,7 @@ Measured on Homebrew Python 3.15.2, darwin-arm64: `otool -l` shows `sectname PyR
 
 `_Py_DebugOffsets` holds `PY_VERSION_HEX`, a free-threading flag, and `sizeof`/`offsetof` values for the runtime, interpreter, thread state, frame, code object, and common object types, plus the PEP 768 debugger-support fields.
 `validate_debug_offsets()` in `module.c` refuses to attach when the cookie is wrong ("Can't determine the Python version of the remote process"), when the major or minor versions differ, when either side is a pre-release and the versions are not identical (a release level other than `0xF` in the low byte), or when exactly one side is free-threaded, and then validates the layout against the profiler's own build.
-The header comment states the contract: the struct is stable across patch versions of one minor version only.
+The comment on `struct pyruntimestate` in `pycore_runtime_structs.h` states the contract: the struct is stable across patch versions of one minor version only.
 
 The frame offsets read from the darwin-arm64 3.15.2 binary match `struct _PyInterpreterFrame` field by field:
 
@@ -333,10 +432,12 @@ On free-threaded builds each frame also carries a `tlbc_index` into the code obj
 
 `Lib/profiling/sampling/sample.py` always constructs the unwinder with `cache_frames=True`.
 With caching on, after each walk the profiler writes the current frame address into the target's `PyThreadState.last_profiled_frame` with `_Py_RemoteDebug_WriteRemoteMemory()`.
-The interpreter maintains that anchor: when the anchored frame is popped (`_PyEval_FrameClearAndPop()` and generator returns), `_PyThreadState_UpdateLastProfiledFrame()` moves the anchor to the parent and increments `last_profiled_frame_seq`, and it does nothing for any other frame.
-On the next sample the walker stops when it reaches the anchor and splices in the cached callers, but only if the stored sequence plus the observed pops equals the target's sequence, so a new frame that reuses the same address is not mistaken for the old one.
+The interpreter maintains that anchor: when the anchored frame is popped (`_PyEval_FrameClearAndPop()` in `Python/ceval.c`, the failure path of `_PyEvalFramePushAndInit()`, and generator returns in `bytecodes.c`), the `_PyThreadState_UpdateLastProfiledFrame()` macro in `pycore_interpframe.h` moves the anchor to the parent and increments `last_profiled_frame_seq`, and it does nothing for any other frame.
+The macro's comment states the reason for the sequence: it "distinguishes this anchor from a later frame that reuses the same `_PyInterpreterFrame` address".
+On the next sample the walker stops when it reaches the anchor and splices in the cached callers, but only if the stored sequence plus the observed pops equals the target's sequence (`frame_cache.c` compares `entry->last_profiled_frame_seq + real_pops` with the live value), so a new frame that reuses the same address is not mistaken for the old one.
 Deep, stable stacks then cost a few frame reads per sample instead of the whole chain.
-The consequence for reviewers: default Tachyon sampling is not read-only; it writes one pointer per thread when the anchor changes, and the target's eval loop pays one compare per frame pop.
+When a `RemoteUnwinder` is created with `cache_frames=True`, `clear_last_profiled_frames()` first writes NULL into `last_profiled_frame` of every thread in every interpreter (bounded at 256 interpreters and 8,192 threads each), so an anchor left behind by an earlier profiler cannot stop the new walk early; the sequence is deliberately left alone.
+The consequence for reviewers: default Tachyon sampling is not read-only; it writes one pointer per thread at attach and whenever the anchor changes, and the target's eval loop pays one compare per frame pop whether or not a profiler is attached.
 
 #### Step 6: thread status, modes, and consistency
 
@@ -352,6 +453,7 @@ The consequence for reviewers: default Tachyon sampling is not read-only; it wri
 By default sampling does not stop the target, so a stack can be torn: frames pushed or popped between the first and last read.
 The base-frame check rejects truncated chains, but a chain can still mix two moments; the documentation names generator- and coroutine-heavy code as the main risk.
 `--blocking` suspends the target around each sample: Linux attaches each thread with `PTRACE_SEIZE` and stops it with `PTRACE_INTERRUPT`, macOS calls `task_suspend()`, and Windows calls `NtSuspendProcess()`; the docs recommend intervals of 1 ms or more in this mode.
+`cli.py` prints a warning only when `--blocking` is combined with an interval under 100 microseconds (above 10 kHz), so the CLI accepts 1 to 10 kHz blocking rates silently even though the docs advise against anything faster than 1 kHz.
 The sampler loop in `sample.py` schedules with `time.perf_counter()`, sleeps 90% of the remaining gap, and counts failed reads (`RuntimeError`, `OSError`, `MemoryError`, `UnicodeDecodeError`) as failed samples rather than aborting; the default rate is 1 kHz (`-r 1khz` in `cli.py`).
 
 #### Permissions and gating
@@ -393,7 +495,9 @@ Use the trampoline when the question crosses the native boundary (a NumPy kernel
 | Jitdump path and mode | `/tmp/jit-<pid>.dump`, `0666` minus umask | Both (as of 2026-11) | Read by `perf inject --jit` and samply |
 | Symbol format | `py::<co_qualname>:<co_filename>` | Both (as of 2026-11) | Same in both backends |
 | Trampoline arena | 64 KiB, RW then RX | Both (as of 2026-11) | 2,048 stubs (perf map) or 512 (jitdump) per arena on arm64 |
-| Stub size | 20 bytes arm64 (measured); 8 or 12 bytes x86-64 | Both (as of 2026-11) | Slot alignment 32 bytes |
+| Stub size | x86-64 8 (12 with CET); arm64 20 (28 with PAC); riscv64 12 (rv64gc) | Both (as of 2026-11) | Assembled with clang 23.1.5; slot alignment 32 bytes; map reports the template size, not the stride (gh-159173) |
+| `-X perf` overhead | +11.9% pyperformance geomean; `generators` +234% | CPython `main`, PGO and ThinLTO, platform not stated (as of 2026-11) | Per gh-161676 and PR gh-161677; PR gh-161677 (open) reports +8.1% |
+| Jitdump buffering | 2 MiB `setvbuf`, no per-record `fflush` | Both (as of 2026-11) | Records lost on SIGKILL or `os._exit()`; duplicated by `fork()` |
 | Jitdump unwind padding | 80 bytes (`mapped_size`) on arm64, measured | macOS (as of 2026-11) | Keeps synthetic DSOs non-overlapping |
 | `perf record -k 1` | `CLOCK_MONOTONIC` | Linux (as of 2026-11) | Required by `perf inject --jit` |
 | `--call-graph dwarf` stack copy | 8,192 bytes default (perf-record man page), 65,528 maximum (per the 3.15 howto) | Linux (as of 2026-11) | Unwind depth vs sampling overhead |
@@ -422,8 +526,8 @@ Use the trampoline when the question crosses the native boundary (a NumPy kernel
 
 ## Worked Example
 
-This note has no lab; the outputs below come from single runs on darwin-arm64 (macOS 27.3, Homebrew Python 3.15.2 and 3.14.10) on 2026-11-12, recorded verbatim in the job's `research/captured-output.txt`.
-Linux `perf` runs were not possible on this host, so no `perf report` output is shown; the commands in section 4 are the documented ones.
+This note has no lab; the outputs in this section come from single runs on darwin-arm64 (macOS 27.3, Homebrew Python 3.15.2 and 3.14.10) on 2026-11-15; each block is copied verbatim from that run.
+Linux `perf` runs were not possible on this host, so no `perf report` output is shown; the commands under "The perf side" are the documented ones.
 
 ### The perf map, written live
 
@@ -435,7 +539,7 @@ python3.15 -X perf demo.py
 
 ```text
 active at start: True
-entries after first calls: 209 after repeat calls: 209
+entries after first calls: 210 after repeat calls: 210
 size=0x14 name=py::<module>:./demo.py addr_mod32=0
 size=0x14 name=py::Box:./demo.py addr_mod32=0
 size=0x14 name=py::Box.baz:./demo.py addr_mod32=0
@@ -449,16 +553,16 @@ late() in map after reactivate: True
 
 Reading the result:
 
-- 209 entries exist before the script's own code is profiled: every code object run during startup (`site`, `encodings`, and the like) got a stub.
+- 210 entries exist before the script's own code is profiled: every code object run during startup (`site`, `encodings`, and the like) got a stub.
 - Calling the same functions again adds nothing, because the stub lives in the code object's `co_extra` slot.
 - Every stub is `0x14` = 20 bytes and 32-byte aligned, which is the AArch64 template in a 32-byte slot.
 - `py::Box` is the class body, a code object of its own, and `py::Box.baz` shows that the name is `co_qualname`, not `co_name`.
 - While deactivated, `late()` ran without a stub; after reactivation it got one.
-- The same run then exited with status 139 at finalization, which is the toggle crash described in section 2.
+- The same run then exited with status 139 at finalization, which is the toggle crash described in "The toggle crash: deactivate, reactivate, exit with SIGSEGV".
 
 ### The jitdump, parsed
 
-A short parser (in `research/scratch/jitdump_read.py`) runs `python3.15 -X perf_jit -c ...` and walks the dump with `struct`:
+A 30-line parser runs `python3.15 -X perf_jit -c ...` and walks the dump with `struct`:
 
 ```text
 header: magic=0x4a695444 version=1 size=40 e_machine=183 pid_matches=True
@@ -502,8 +606,18 @@ The section is exactly `sizeof(_PyRuntimeState)`, the version is 3.15.2 final (`
 > PEP 831 propagates the flags only through `sysconfig`; Cargo, CMake, and vendored libraries need their own flags.
 
 > [!warning] Pitfall: toggling the trampoline at run time
-> On 3.15.2 (darwin-arm64, as of 2026-11) deactivating and reactivating with the `sys` functions, then running more code, crashed the process at exit with SIGSEGV in `code_dealloc`.
+> On 3.15.2 (darwin-arm64, as of 2026-11) deactivating and reactivating with the `sys` functions, then running more code, crashed the process at exit with SIGSEGV: a call to address 0 from `code_dealloc`, because a second code watcher was registered and then cleared during notification.
+> Whether it crashes depends on which watcher drops the shared count to zero, so a passing test proves nothing.
 > Activate once, early, and keep it on for the process lifetime.
+
+> [!warning] Pitfall: forking or hard-exiting under `-X perf_jit`
+> The jitdump is written through a 2 MiB stdio buffer that is never flushed per record.
+> A `fork()` makes the child flush its inherited copy of the parent's buffer into the parent's dump, so the parent's file ends up with the same header and records twice (measured on 3.15.2, darwin-arm64), and `os._exit()` or SIGKILL loses everything still buffered.
+> For pre-fork servers use `-X perf` with `PyUnstable_PerfTrampoline_SetPersistAfterFork(1)`, or make sure the parent has produced no records before it forks.
+
+> [!warning] Pitfall: `-X perf` on a free-threaded build
+> The trampoline's arena pointer, refcount, and `co_extra` index are unsynchronized globals; gh-152330 shows a ThreadSanitizer race in `compile_trampoline()` on a free-threaded 3.14 build, and the fix (PR gh-152331) is open as of 2026-11.
+> Until it lands, treat mixed-stack profiling of free-threaded interpreters as unsupported.
 
 > [!warning] Pitfall: expecting the trampoline to be free
 > The PEP 523 hook disables inlined Python-to-Python calls and call specialization interpreter-wide, not just for profiled functions.
@@ -593,6 +707,17 @@ Decision rules:
 > > Then check that `/tmp/jit-<pid>.dump` exists where perf inject runs, which matters across containers and hosts.
 > > If frames are still truncated, raise the DWARF stack copy with `--call-graph dwarf,65528`, especially for `-O0` builds.
 
+> [!question] L6: Predict the parent's jitdump after a fork.
+>
+> Under `python3.15 -X perf_jit`, a script calls one function, then `os.fork()`; the child immediately calls `os._exit(0)` and the parent waits for it and exits normally.
+> How many `JiTD` file headers does `/tmp/jit-<parent>.dump` contain, and what is in `/tmp/jit-<child>.dump`?
+>
+> > [!success]- Answer
+> > Two headers, and the second half of the parent's file is a byte-for-byte copy of the first: on 3.15.2 darwin-arm64 the file was 95,756 bytes with headers at offsets 0 and 47,878.
+> > The writer buffers through a 2 MiB `setvbuf()` buffer with no per-record flush, so at `fork()` the header and every record are still in user memory; the child inherits that buffer and the shared file description, `_PyPerfTrampoline_AfterFork_Child()` calls `Fini`, and its `fclose()` writes the copy, after which the parent's exit flushes the original.
+> > The child's dump is empty (0 bytes): `Init(1)` in the child wrote its own header into a fresh buffer, and `os._exit()` skips stdio flushing.
+> > The same buffering explains why a SIGKILLed process leaves a jitdump with missing names while its `-X perf` map, flushed per entry, is complete.
+
 > [!question] L6: How does Tachyon find the interpreter's state in a stripped binary loaded at a random address?
 >
 > > [!success]- Answer
@@ -617,9 +742,11 @@ Decision rules:
 >
 > > [!success]- Answer
 > > Deactivation does not tear anything down: it restores the old evaluator and leaves the arenas, the extra-index slot, and the code watcher alive, because frames on the C stack may still return through stubs.
-> > Reactivation calls `_PyPerfTrampoline_Init(1)` again, which requests a new `co_extra` index, maps a new arena, registers a second code watcher, overwrites `code_watcher_id`, and resets `trampoline_refcount` to 1.
-> > At finalization each destroyed code object notifies both watchers, the shared count reaches zero early, `perf_trampoline_reset_state()` clears the second watcher's slot while `notify_code_watchers()` is iterating over a bitmask snapshot, and the loop calls the now-NULL callback.
-> > That chain is consistent with the backtrace and the v3.15.2 source but was not single-stepped; the fix on the application side is to activate once at startup and never toggle.
+> > Reactivation calls `_PyPerfTrampoline_Init(1)` again, which requests a new `co_extra` index, maps a new arena, registers another code watcher, overwrites `code_watcher_id`, and resets `trampoline_refcount` to 1.
+> > Every registered watcher decrements the same count for each dying code object that has a stub under the current index, so the count reaches zero early; when that happens inside an earlier watcher, `perf_trampoline_reset_state()` clears the newest watcher's slot while `notify_code_watchers()` is still iterating over its copy of the bitmask, and the loop calls the NULL slot because only an `assert` guards it.
+> > An lldb run on 3.15.2 shows exactly that order: two `PyCode_AddWatcher` calls from `_PyPerfTrampoline_Init`, `PyCode_ClearWatcher` called from inside `perf_trampoline_code_watcher`, then `EXC_BAD_ACCESS` at address 0 from `code_dealloc`.
+> > Per-request toggling adds a second hazard: each interpreter has only `CODE_MAX_WATCHERS` = 8 watcher slots, so after a few cycles `PyCode_AddWatcher` fails, and the failure path in `Init(1)` calls `free_code_arenas()`, which unmaps every arena, including ones whose stubs may still be on the C stack (source reading).
+> > gh-146522 is the upstream report for the repeated-activation variant; the application-side fix is to activate once at startup and never toggle.
 
 > [!question] L7: With Python in a container and `perf` on the host, which files does each mechanism need, and where?
 >
