@@ -1,0 +1,11 @@
+[package]
+name = "shared"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+# The usual shape of a no_std-capable crate: std is on by default,
+# and no_std users opt out with default-features = false.
+default = ["std"]
+std = []

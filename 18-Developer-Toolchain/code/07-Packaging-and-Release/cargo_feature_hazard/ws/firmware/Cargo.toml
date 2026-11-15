@@ -1,0 +1,17 @@
+[package]
+name = "firmware"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# The firmware build must get shared without std.
+shared = { path = "../shared", default-features = false }
+
+[dev-dependencies]
+# Host-side unit tests want the std-only helpers.
+shared = { path = "../shared", features = ["std"] }
+
+[lints.rust]
+# firmware_target stands in for target_os = "none" in the host-only lab.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(firmware_target)'] }

@@ -1,0 +1,13 @@
+MARKET_1.0 {
+    global:
+        market_init_order;
+        market_process_batch;
+    local:
+        *;
+};
+
+MARKET_2.0 {
+    global:
+        market_init_order;
+        market_process_batch;
+} MARKET_1.0;

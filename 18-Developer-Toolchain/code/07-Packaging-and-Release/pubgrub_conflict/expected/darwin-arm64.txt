@@ -1,0 +1,160 @@
+wrote 14 metadata-only wheels for 4 packages
+=== Stage 1: uv resolves the same registry per platform (the observed symptom) ===
+--- uv pip compile --python-platform macos -> exit 0 ---
+Resolved 3 packages in <time>
+ingest==2.1.0
+report==1.2.0
+wire==3.1.0
+--- uv pip compile --python-platform linux -> exit 1 ---
+  x No solution found when resolving dependencies:
+  `-> Because ingest>=2.0.0 depends on wire>=3.0.0 and only the following
+      versions of ingest are available:
+          ingest<=2.0.0
+          ingest==2.1.0
+      we can conclude that ingest>=2.0.0 depends on wire>=3.0.0. (1)
+
+      Because wire-native<=1.1.0 depends on wire<3.0.0 and only the following
+      versions of wire-native{sys_platform == 'linux'} are available:
+          wire-native{sys_platform == 'linux'}<=1.0.0
+          wire-native{sys_platform == 'linux'}==1.1.0
+          wire-native{sys_platform == 'linux'}>=2.0.0
+      we can conclude that wire-native{sys_platform == 'linux'}<2.0.0 depends
+      on wire<3.0.0.
+      And because report>=1.0.0 depends on wire-native{sys_platform
+      == 'linux'}<2.0.0, we can conclude that report>=1.0.0 depends on
+      wire<3.0.0.
+      And because we know from (1) that ingest>=2.0.0 depends on wire>=3.0.0,
+      we can conclude that ingest>=2.0.0 and report>=1.0.0 are incompatible.
+      And because only the following versions of report are available:
+          report<=1.0.0
+          report==1.1.0
+          report==1.2.0
+      we can conclude that ingest>=2.0.0 and report>=1.0.0 are incompatible.
+      And because you require ingest>=2.0.0 and report>=1.0.0, we can conclude
+      that your requirements are unsatisfiable.
+--- uv pip compile --universal -> exit 1 ---
+explanation identical to the linux one: yes
+=== Stage 2: the toy PubGrub reproduces the platform split ===
+darwin  ingest==2.1.0 report==1.2.0 wire==3.1.0
+        decisions=4 conflicts=0 backjumps=0 incompatibilities=5
+linux   NO SOLUTION
+        decisions=4 conflicts=3 backjumps=2 incompatibilities=7
+win32   ingest==2.1.0 report==1.2.0 wire==3.1.0
+        decisions=4 conflicts=0 backjumps=0 incompatibilities=5
+=== Stage 3: the solver trace on linux (decisions, propagation, conflicts, backjumps) ===
+  derive svc  (from #1, level 0)
+  add #2 {svc, not ingest>=2.0.0}: svc depends on ingest>=2.0.0
+  add #3 {svc, not report>=1.0.0}: svc depends on report>=1.0.0
+decide svc (root) 1.0.0  (level 1)
+  derive report>=1.0.0  (from #3, level 1)
+  derive ingest>=2.0.0  (from #2, level 1)
+  add #4 {ingest>=2.0.0, not wire>=3.0.0}: ingest>=2.0.0 depends on wire>=3.0.0
+decide ingest 2.1.0  (level 2)
+  derive wire>=3.0.0  (from #4, level 2)
+decide wire 3.1.0  (level 3)
+  add #5 {every version of report, not every version of wire}: every version of report depends on wire
+  add #6 {report>=1.0.0, not wire-native<2.0.0}: report>=1.0.0 depends on wire-native<2.0.0 (when sys_platform == 'linux')
+decide report 1.2.0  (level 4)
+  derive wire-native<2.0.0  (from #6, level 4)
+  add #7 {wire-native<2.0.0, not wire<3.0.0}: wire-native<2.0.0 depends on wire<3.0.0
+conflict: #7 {wire-native<2.0.0, not wire<3.0.0}
+  satisfier wire-native<2.0.0 is a derivation at level 4; previous satisfier level 2
+  backjump to decision level 2
+  derive not wire-native<2.0.0  (from #7, level 2)
+conflict: #6 {report>=1.0.0, not wire-native<2.0.0}
+  satisfier not wire-native<2.0.0 is a derivation at level 2; previous satisfier level 1
+  backjump to decision level 1
+  derive wire-native<2.0.0  (from #6, level 1)
+  derive wire<3.0.0  (from #7, level 1)
+conflict: #4 {ingest>=2.0.0, not wire>=3.0.0}
+  resolve with #7 on wire -> {ingest>=2.0.0, wire-native<2.0.0}
+  resolve with #6 on wire-native -> {ingest>=2.0.0, report>=1.0.0}
+  resolve with #2 on ingest -> {report>=1.0.0}
+  resolve with #3 on report -> {svc}
+=== Stage 4: the derivation graph and pub's error writer ===
+derived  -   {svc}
+  derived  -   {report>=1.0.0}
+    derived  -   {ingest>=2.0.0, report>=1.0.0}
+      derived  -   {ingest>=2.0.0, wire-native<2.0.0}
+        external #4  {ingest>=2.0.0, not wire>=3.0.0}
+        external #7  {wire-native<2.0.0, not wire<3.0.0}
+      external #6  {report>=1.0.0, not wire-native<2.0.0}
+    external #2  {svc, not ingest>=2.0.0}
+  external #3  {svc, not report>=1.0.0}
+--- report ---
+Because ingest>=2.0.0 depends on wire>=3.0.0 and wire-native<2.0.0 depends on wire<3.0.0, ingest>=2.0.0 is incompatible with wire-native<2.0.0.
+And because report>=1.0.0 depends on wire-native<2.0.0 (when sys_platform == 'linux'), ingest>=2.0.0 is incompatible with report>=1.0.0.
+So, because svc depends on ingest>=2.0.0 and svc depends on report>=1.0.0, version solving failed.
+--- external facts: 5 in the proof, 1 loaded but irrelevant ---
+irrelevant: every version of report depends on wire
+=== Stage 5: every fact in the proof is necessary, and the cheapest widening of each ===
+fact: ingest>=2.0.0 depends on wire>=3.0.0
+  necessary for the conflict: yes
+  owner: third-party; widen wire to >=2.1.0 (admits 2.1.0)
+  linux:  ingest==2.1.0 report==1.2.0 wire==2.1.0 wire-native==1.1.0
+  darwin: ingest==2.1.0 report==1.2.0 wire==3.1.0
+fact: wire-native<2.0.0 depends on wire<3.0.0
+  necessary for the conflict: yes
+  owner: third-party; widen wire to >=2.0.0,<3.1.0 (admits 3.0.0)
+  linux:  ingest==2.1.0 report==1.2.0 wire==3.0.0 wire-native==1.1.0
+  darwin: ingest==2.1.0 report==1.2.0 wire==3.1.0
+fact: report>=1.0.0 depends on wire-native<2.0.0 (when sys_platform == 'linux')
+  necessary for the conflict: yes
+  owner: third-party; widen wire-native to >=1.0.0 (admits 2.0.0)
+  linux:  ingest==2.1.0 report==1.2.0 wire==3.1.0 wire-native==2.0.0
+  darwin: ingest==2.1.0 report==1.2.0 wire==3.1.0
+fact: svc depends on ingest>=2.0.0
+  necessary for the conflict: yes
+  owner: project; widen ingest to >=1.4.0 (admits 1.4.0)
+  linux:  ingest==1.4.0 report==1.2.0 wire==2.1.0 wire-native==1.1.0
+  darwin: ingest==2.1.0 report==1.2.0 wire==3.1.0
+fact: svc depends on report>=1.0.0
+  necessary for the conflict: yes
+  owner: project; widen report to >=0.9.0 (admits 0.9.0)
+  linux:  ingest==2.1.0 report==0.9.0 wire==3.1.0
+  darwin: ingest==2.1.0 report==1.2.0 wire==3.1.0
+--- 5 single-edge relaxations, each admitting 1 version(s) ---
+=== Stage 6: uv's proof names the same dependency edges as the toy proof ===
+uv exit 1; edges in uv's explanation: ingest->wire, report->wire-native, wire-native->wire
+edges in the toy proof:              ingest->wire, report->wire-native, wire-native->wire
+same edge set: yes
+=== Stage 7: replay every relaxation through uv on linux ===
+scoped override of ingest 2.0.0,2.1.0: wire>=2.1.0
+  uv exit 0: ingest==2.1.0 report==1.2.0 wire==2.1.0 wire-native==1.1.0
+  matches the toy solver: yes
+scoped override of wire-native 1.0.0,1.1.0: wire>=2.0.0,<3.1.0
+  uv exit 0: ingest==2.1.0 report==1.2.0 wire==3.0.0 wire-native==1.1.0
+  matches the toy solver: yes
+scoped override of report 1.0.0,1.1.0,1.2.0: wire-native>=1.0.0
+  uv exit 0: ingest==2.1.0 report==1.2.0 wire==3.1.0 wire-native==2.0.0
+  matches the toy solver: yes
+edit requirement to ingest>=1.4.0
+  uv exit 0: ingest==1.4.0 report==1.2.0 wire==2.1.0 wire-native==1.1.0
+  matches the toy solver: yes
+edit requirement to report>=0.9.0
+  uv exit 0: ingest==2.1.0 report==0.9.0 wire==3.1.0
+  matches the toy solver: yes
+=== Stage 8: an unscoped override erases the marker ===
+global, no marker    macos exit 0: ingest==2.1.0 report==1.2.0 wire==3.1.0 wire-native==2.0.0
+                     wire-native installed on macOS: yes
+global, marker kept  macos exit 0: ingest==2.1.0 report==1.2.0 wire==3.1.0
+                     wire-native installed on macOS: no
+=== Stage 9: uv's own resolver log for the failing linux resolve ===
+Selecting: ingest==2.1.0 [compatible] (ingest-2.1.0-py3-none-any.whl)
+Selecting: report==1.2.0 [compatible] (report-1.2.0-py3-none-any.whl)
+Selecting: wire==3.1.0 [compatible] (wire-3.1.0-py3-none-any.whl)
+Selecting: wire-native==1.1.0 [compatible] (wire_native-1.1.0-py3-none-any.whl)
+Selecting: wire-native==1.1.0 [compatible] (wire_native-1.1.0-py3-none-any.whl)
+Recording unit propagation conflict of wire-native from incompatibility of (wire-native, wire)
+Selecting: wire-native==1.0.0 [compatible] (wire_native-1.0.0-py3-none-any.whl)
+Selecting: wire-native==1.0.0 [compatible] (wire_native-1.0.0-py3-none-any.whl)
+Recording dependency conflict of wire-native==1.0.0 from incompatibility of (wire-native, wire)
+Recording unit propagation conflict of wire-native from incompatibility of (wire-native, wire)
+No compatible version found for: wire-native{sys_platform == 'linux'}
+Recording unit propagation conflict of wire-native from incompatibility of (wire-native{sys_platform == 'linux'}, wire)
+Recording unit propagation conflict of wire-native{sys_platform == 'linux'} from incompatibility of (wire-native, wire-native{sys_platform == 'linux'}, wire)
+Recording unit propagation conflict of wire-native from incompatibility of (wire-native{sys_platform == 'linux'}, wire)
+Recording unit propagation conflict of wire-native{sys_platform == 'linux'} from incompatibility of (report, wire)
+Recording unit propagation conflict of report from incompatibility of (report, wire)
+... 39 resolver events in total: 15 selections, 17 recorded conflicts, 3 priority changes
+uv and the toy solver agree on every relaxation

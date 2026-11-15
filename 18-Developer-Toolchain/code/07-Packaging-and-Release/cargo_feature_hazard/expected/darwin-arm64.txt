@@ -1,0 +1,63 @@
+=== 1. Incident: resolver = "1", dev-dependency enables std ===
+shared features for cargo build -p firmware (cargo tree -e normal,build): shared v0.1.0 [default,std]
+cargo build -p firmware: FAILED (tripwire: shared has std)
+first rustc error line: error[E0080]: evaluation panicked: feature leak: shared was compiled with std for the firmware build
+inverted feature graph (cargo tree -p firmware -e features -i shared):
+  shared v0.1.0
+  `-- firmware v0.1.0
+      `-- firmware feature "default" (command-line)
+  |-- shared feature "default"
+  |   [dev-dependencies]
+  |   `-- firmware v0.1.0 (*)
+  `-- shared feature "std"
+      [dev-dependencies]
+      `-- firmware v0.1.0 (*)
+      `-- shared feature "default" (*)
+
+=== 2. Implicit resolver: virtual workspace with no resolver key ===
+cargo warning: virtual workspace defaulting to `resolver = "1"` despite one or more workspace members being on edition 2021 which implies `resolver = "2"`
+cargo build -p firmware: FAILED (tripwire: shared has std)
+
+=== 3. Fix A: resolver = "2" ===
+shared features, cargo tree -e normal,build (what cargo build sees): shared v0.1.0 []
+shared features, cargo tree default edges (includes dev, what cargo test sees): shared v0.1.0 [default,std]
+cargo build -p firmware: ok
+cargo test -p firmware (host, std helper used by the unit test): ok
+  test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+=== 4. Remaining hazard under resolver 2: one invocation selects firmware and host-tool ===
+cargo build --workspace: FAILED (tripwire: shared has std)
+cargo build -p firmware -p host-tool: FAILED (tripwire: shared has std)
+shared features, cargo tree --workspace -e normal,build: shared v0.1.0 [default,std]
+separate invocation: cargo build -p firmware: ok
+separate invocation: cargo build -p host-tool: ok
+
+=== 5. resolver = "3" keeps the resolver 2 feature rules ===
+shared features for cargo build -p firmware: shared v0.1.0 []
+cargo build -p firmware: ok
+cargo build --workspace: FAILED (tripwire: shared has std)
+
+=== 6. Build-dependency path: firmware/build.rs uses shared with std ===
+resolver 1:
+  cargo build -p firmware: FAILED (tripwire: shared has std)
+  shared built with features [default,std]
+  distinct shared compilations: 1
+resolver 2:
+  cargo build -p firmware: ok
+  shared built with features []
+  shared built with features [default,std]
+  distinct shared compilations: 2
+
+=== 7. Workspace inheritance: default-features = false on an inherited dependency ===
+firmware edition 2021:
+  shared features: shared v0.1.0 [default,std]
+  cargo build -p firmware: FAILED (tripwire: shared has std)
+  cargo manifest warning: `default-features` is ignored for shared, since `default-features` was not specified for `workspace.dependencies.shared`; overriding workspace `default-features` to false requires Rust 1.99+ and the 2024 edition
+firmware edition 2024:
+  shared features: shared v0.1.0 []
+  cargo build -p firmware: ok
+  cargo manifest warning: none
+fix: workspace dependency declares default-features = false, members opt in to std:
+  shared features for firmware: shared v0.1.0 []
+  shared features for host-tool: shared v0.1.0 [std]
+  cargo build -p firmware: ok

@@ -1,0 +1,68 @@
+=== 1. Compile Shared Libraries and Downstream Application ===
+[build] libmarket.so.1 (v1.0), libmarket.so.1 (v1.1 broken), and app successfully compiled
+
+=== 2. Scenario A: Legacy App running against libmarket v1.0 ===
+[app runtime] sizeof(struct Order): 24
+[app runtime] items[0] id=1001 price=150.25 qty=10
+[app runtime] items[1] id=1002 price=250.50 qty=20
+[app runtime] Batch canary before process: VALID
+[app runtime] items[0] price after process: 151.75
+[app runtime] items[1] price after process: 253.00
+[app runtime] items[1] qty after process:   20
+[app runtime] Batch canary after process:  UNTOUCHED
+[app runtime] Heap boundary canary after init: UNTOUCHED
+
+=== 3. Scenario B: Legacy App running against unbumped libmarket v1.1 (ABI Break) ===
+[app runtime] sizeof(struct Order): 24
+[app runtime] items[0] id=1001 price=150.25 qty=10
+[app runtime] items[1] id=1002 price=250.50 qty=20
+[app runtime] Batch canary before process: CORRUPTED
+[app runtime] items[0] price after process: 151.75
+[app runtime] items[1] price after process: 250.50
+[app runtime] items[1] qty after process:   42949693
+[app runtime] Batch canary after process:  CORRUPTED
+[app runtime] Heap boundary canary after init: CORRUPTED
+
+=== 4. Struct Layout Inspection (GDB DWARF Offset Tracing) ===
+[gdb ptype /o v1.0 struct Order]
+/*      0      |       8 */    uint64_t order_id;
+/*      8      |       8 */    double price;
+/*     16      |       4 */    uint32_t quantity;
+                               /* total size (bytes):   24 */
+[gdb ptype /o v1.1 struct Order]
+/*      0      |       8 */    uint64_t order_id;
+/*      8      |       8 */    double price;
+/*     16      |       4 */    uint32_t quantity;
+/*     20      |       4 */    uint32_t flags;
+/*     24      |       8 */    uint64_t client_timestamp;
+                               /* total size (bytes):   32 */
+
+=== 5. SONAME and Dynamic Relocation Inspection ===
+[readelf soname v1.0] libmarket.so.1
+[readelf soname v1.1] libmarket.so.1
+
+=== 6. Scenario C: Interface Repair via GNU Symbol Versioning ===
+[readelf version definitions]
+004:   1 (*global*)      1 (*global*)      1 (*global*)      2h(MARKET_1.0) 
+008:   3 (MARKET_2.0)    3 (MARKET_2.0)    2h(MARKET_1.0)    3 (MARKET_2.0) 
+00c:   2 (MARKET_1.0) 
+Version definition section '.gnu.version_d' contains 3 entries:
+0x001c: Rev: 1  Flags: none  Index: 2  Cnt: 1  Name: MARKET_1.0
+0x0038: Rev: 1  Flags: none  Index: 3  Cnt: 2  Name: MARKET_2.0
+0x0054: Parent 1: MARKET_1.0
+[execution with versioned shared library]
+[app runtime] sizeof(struct Order): 24
+[app runtime] items[0] id=1001 price=150.25 qty=10
+[app runtime] items[1] id=1002 price=250.50 qty=20
+[app runtime] Batch canary before process: VALID
+[app runtime] items[0] price after process: 151.75
+[app runtime] items[1] price after process: 253.00
+[app runtime] items[1] qty after process:   20
+[app runtime] Batch canary after process:  UNTOUCHED
+[app runtime] Heap boundary canary after init: UNTOUCHED
+
+=== 7. Scenario D: Interface Repair via Opaque Pointer (PImpl Idiom) ===
+[app_pimpl runtime] sizeof(MarketOrderHandle): 8
+[app_pimpl runtime] Order ID: 8888, Price: 300.00, Qty: 15
+[app_pimpl runtime] Processed Price: 303.00
+[app_pimpl runtime] PImpl lifecycle completed: PASS
