@@ -1,0 +1,14 @@
+load("//rules:defs.bzl", "flavor_flag")
+
+# A user-defined build setting; --//:flavor=loud changes the configuration.
+flavor_flag(
+    name = "flavor",
+    build_setting_default = "plain",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "loud",
+    flag_values = {":flavor": "loud"},
+    visibility = ["//visibility:public"],
+)

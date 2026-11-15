@@ -1,0 +1,10 @@
+module(name = "skyframe_lab", version = "0.0.0")
+
+# lib_a asks for base 1.1 and lib_b asks for base 1.3: a diamond that MVS resolves.
+bazel_dep(name = "lib_a", version = "1.0")
+bazel_dep(name = "lib_b", version = "1.0")
+
+# A root-only module extension: tags in, one generated repo out.
+facts = use_extension("//rules:ext.bzl", "facts")
+facts.fact(text = "the root module tagged this")
+use_repo(facts, "lab_facts")

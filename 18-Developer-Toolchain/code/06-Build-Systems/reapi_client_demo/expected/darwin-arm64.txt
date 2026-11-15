@@ -1,0 +1,98 @@
+
+== 1. Replaying Bazel 9.3.2 disk-cache entries (fixtures/bazel, captured on Darwin-arm64)
+fixture tool: bazel 9.3.2; cas/ blobs: 7, all named by their SHA-256
+Action, Command, and input root rebuilt byte-for-byte for 4/4 variants
+variant  action             command            input root         runner          output
+base     61e24119fb9c/146   b5f0ceab77ab/238   8f4e25b35800/159   darwin-sandbox  HELLO REAPI
+env      2fafed256af4/146   fac3e58d9b60/256   8f4e25b35800/159   darwin-sandbox  HELLO REAPI
+input    a8a70e770c2e/146   b5f0ceab77ab/238   c5ce90c66969/159   darwin-sandbox  HELLO REAPI V2
+hit      61e24119fb9c/146   b5f0ceab77ab/238   8f4e25b35800/159   disk cache hit  HELLO REAPI
+  env vs base: changed = command
+  input vs base: changed = input root
+  hit vs base: changed = nothing (same action key)
+input root holds 6 Directory messages for 2 input files (root, external, external/bazel_tools, .../tools, .../genrule, pkg)
+Action salt bytes: 0801 = CacheSalt{may_be_executed_remotely: true}
+ActionResult execution_metadata fields set: [3, 4, 7, 8] (timestamps; no worker name)
+ac/ entries: 3 (keyed by action digest, value is an ActionResult, not content-addressed)
+
+== 2. Canonical encoding is part of the cache key
+empty Directory encodes to 0 bytes; its digest is the empty blob e3b0c44298fc/0
+env sorted   -> command 9a2bb00cc7fd/49
+env unsorted -> command b26cc6e329a2/49 (environment_variables not sorted by name)
+Directory [b.txt, a.txt]: files not sorted by name; digest differs: True
+  action with timeout unset            -> 8dc6e50927d2/138
+  action with timeout 60s              -> 652a2eb67ef2/142
+  action with timeout 61s              -> 2ddfe7a88bdc/142
+  action with salt b'v2'               -> 04b2409eeb2f/142
+  action with platform OSFamily=linux  -> acc770e9ca24/159
+
+== 3. Merkle input roots: one changed file re-hashes one path to the root
+1000 files under src/m0..m9/s0..s9/: 112 Directory blobs (root, src, 10 mN, 100 sN)
+first upload: 1112 digests checked, 1112 missing, 1 BatchUpdateBlobs call(s)
+after editing src/m3/s7/f5.cc: FindMissingBlobs reports 5 missing = 1 file + 4 Directory blobs (s7, m3, src, root)
+two identical subdirectories a/ and b/ share one Directory blob: 2 blobs incl. root
+
+== 4. CAS uploads: FindMissingBlobs, BatchUpdateBlobs limit, ByteStream for large blobs
+max_batch_total_size_bytes=65536: 5 small blobs in 3 batches, 2 blobs over the limit via ByteStream.Write
+one batch of all 7 blobs (505,100 bytes) -> INVALID_ARGUMENT
+second upload of the same blobs: 0 missing, 0 bytes sent
+instance_name 'other-instance' sees 7/7 missing: instances are separate namespaces
+BatchUpdateBlobs with data not matching its digest -> per-blob status INVALID_ARGUMENT
+FindMissingBlobs digests per 1 MiB request: (1048576 - 2) // 70 = 14979
+FindMissingBlobs digests per 4 MiB request: (4194304 - 2) // 70 = 59918
+
+== 5. ByteStream Write/Read: resource names, offsets, resume, dedup, compression
+upload resource: main/uploads/{uuid}/blobs/b00b31b3b158.../100000
+stream broken after 3 x 16 KiB messages: committed_size=49152, QueryWriteStatus={committed_size: 49152, complete: False}
+resume at write_offset 0 instead of 49152 -> INVALID_ARGUMENT
+resume at write_offset 49152: committed_size=100000, messages so far=8, bytes sent=100000
+second client uploads the same blob: committed_size=100000 at once, 0 bytes accepted
+upload whose bytes do not hash to the named digest -> INVALID_ARGUMENT
+compressed-blobs/deflate upload of 72000 bytes as 216 bytes: committed_size=-1
+repeat compressed upload of an existing blob: committed_size=-1
+Read blobs/... read_offset=99000 read_limit=500 -> 500 bytes, match
+Read compressed-blobs/deflate -> 216 bytes, inflates to the 72000-byte blob
+compressed read with read_limit=10 -> INVALID_ARGUMENT
+instance name segment 'blobs' -> INVALID_ARGUMENT (reserved keyword)
+blake3 upload names its function: function=blake3 instance=''
+
+== 6. Execute: cache check, stages, skip_cache_lookup, do_not_cache, precondition failures
+first Execute     : stages=CACHE_CHECK>QUEUED>EXECUTING>COMPLETED cached_result=False output='HELLO REAPI'
+second Execute    : stages=CACHE_CHECK>COMPLETED cached_result=True output='HELLO REAPI'
+skip_cache_lookup : stages=CACHE_CHECK>QUEUED>EXECUTING>COMPLETED cached_result=False output='HELLO REAPI'
+do_not_cache=true: executed twice, AC entries for it: 0 (executions now 4)
+exit_code=1: result returned but not cached (status OK, exit code is not)
+input never uploaded -> FAILED_PRECONDITION, PreconditionFailure MISSING subject=blobs/26e8cfd3b09d21.../16
+
+== 7. Output directories: Tree message and the is_topologically_sorted record stream
+Tree for gen/: root + 3 unique child Directory records, 549 bytes, record tags 0x0a 0x12 0x12 0x12
+tree_digest=f07cd42ff979/549  root_directory_digest=ef56e2abe97c/230
+
+== 8. Build without the Bytes: what each --remote_download_outputs mode fetches
+--remote_download_outputs=all     : downloads 1,400,000 of 1,400,000 output bytes
+--remote_download_outputs=toplevel: downloads   600,000 of 1,400,000 output bytes
+--remote_download_outputs=minimal : downloads         0 of 1,400,000 output bytes
+minimal + one local action consuming bin/app: downloads 600,000 bytes (inputs of local actions)
+evict obj/u2.o from CAS: completeness-checking GetActionResult -> NOT_FOUND
+new link action over the evicted object -> FAILED_PRECONDITION with 1 MISSING violation
+rewind: re-execute the compile of obj/u2.o (same digest regenerated), then the link succeeds: exit_code=0
+
+== 9. Action cache poisoning: an undeclared host tool and an open AC
+same action digest 5d2979ac40a9/140 on both machines: compiler is not an input
+open AC: laptop wrote first; CI gets cached_result=True, object fb0cf1e18401/200000 != CI compiler's 115f4877aa25/200000
+CAS cannot be poisoned the same way: storing laptop bytes under the honest digest -> INVALID_ARGUMENT
+AC with writer ACL {ci-worker}: laptop UpdateActionResult -> PERMISSION_DENIED
+compiler declared in the input root: 2 compilers -> 2 distinct action digests
+salt rotated: new digest f5ac76b70542/158, cache miss, CI rebuilds the honest object
+skip_cache_lookup on the old digest: entry overwritten, next lookup serves the honest object
+
+== 10. Digest functions: SHA256TREE test vectors and GITSHA1
+SHA256TREE: 18/18 spec test vectors match (1025..102400 bytes); <=1024 bytes equals plain SHA-256: True
+2048-byte input: SHA256TREE b584996386f01793 vs SHA-256 b2a8170614e23194
+GITSHA1 of the empty blob = e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 (Git's empty blob name)
+
+== 11. Chunked CAS (GetChunkMapping / RegisterChunkMapping): why content-defined cuts
+fixed 64 KiB        : 17 chunks after a 10-byte prepend, 0 already in CAS, 1,048,586 bytes to upload
+gear CDC avg 64 KiB : 15 chunks after a 10-byte prepend, 14 already in CAS, 50,676 bytes to upload
+
+All checks passed.

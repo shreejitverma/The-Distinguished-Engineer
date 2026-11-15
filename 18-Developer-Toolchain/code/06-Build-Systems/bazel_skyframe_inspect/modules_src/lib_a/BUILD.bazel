@@ -1,0 +1,6 @@
+# The apparent name @base resolves through lib_a's own repo mapping.
+filegroup(
+    name = "data",
+    srcs = ["lib_a.txt", "@base//:VERSION.txt"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,162 @@
+toolchain: clang 23, clang-scan-deps 23, ninja 1.13.2, cmake 4.5.0, gcc 16
+
+== 1. P1689R5 scan results (one .ddi per source, written before any compile)
+  main.cpp        provides=- requires=['report']
+  report.cppm     provides=['report'] requires=['geom']
+  geom_impl.cpp   provides=- requires=['geom']
+  geom.cppm       provides=['geom'] requires=['geom:vec']
+  geom-vec.cppm   provides=['geom:vec'] requires=-
+  raw scan/geom.ddi:
+    {
+      "revision": 0,
+      "rules": [
+        {
+          "primary-output": "obj/geom.o",
+          "provides": [
+            {
+              "is-interface": true,
+              "logical-name": "geom",
+              "source-path": "src/geom.cppm"
+            }
+          ],
+          "requires": [
+            {
+              "logical-name": "geom:vec"
+            }
+          ]
+        }
+      ],
+      "version": 1
+    }
+
+== 2. Collated dyndep file modules.dd, variant B (CMake 4.5 shape)
+  ninja_dyndep_version = 1
+  build obj/geom-vec.o | bmi/geom-vec.pcm: dyndep
+    restat = 1
+  build obj/geom.o | bmi/geom.pcm: dyndep | bmi/geom-vec.pcm
+    restat = 1
+  build obj/geom_impl.o: dyndep | bmi/geom.pcm
+  build obj/main.o: dyndep | bmi/report.pcm
+  build obj/report.o | bmi/report.pcm: dyndep | bmi/geom.pcm
+    restat = 1
+  variant A main.o line: build obj/main.o: dyndep | bmi/geom.pcm bmi/geom-vec.pcm bmi/report.pcm
+  obj/main.o.modmap (every variant names the whole closure for the compiler):
+    -fmodule-file=geom=bmi/geom.pcm
+    -fmodule-file=geom:vec=bmi/geom-vec.pcm
+    -fmodule-file=report=bmi/report.pcm
+
+== 3. Clean build with -j1, variant B: edge order after Ninja loads the dyndep file
+  SCAN src/main.cpp
+  SCAN src/report.cppm
+  SCAN src/geom_impl.cpp
+  SCAN src/geom.cppm
+  SCAN src/geom-vec.cppm
+  COLLATE modules.dd
+  CXX obj/geom-vec.o
+  CXX obj/geom.o
+  CXX obj/report.o
+  CXX obj/main.o
+  CXX obj/geom_impl.o
+  LINK app
+  app prints: summary() = 95
+  null build: ninja: no work to do.
+
+== 4. Edit the body of a module implementation unit (geom_impl.cpp), variant B
+  SCAN src/geom_impl.cpp
+  COLLATE modules.dd
+  CXX obj/geom_impl.o
+  LINK app
+
+== 5. Edit a function body in interface partition geom-vec.cppm
+  A (transitive BMI inputs, no restat): 5 compiles: obj/geom-vec.o, obj/geom.o, obj/report.o, obj/main.o, obj/geom_impl.o
+    BMIs whose bytes changed: geom-vec.pcm, geom.pcm; app prints: summary() = 95
+  B (direct BMI inputs, restat = 1 (CMake 4.5 shape)): 5 compiles: obj/geom-vec.o, obj/geom.o, obj/report.o, obj/main.o, obj/geom_impl.o
+    BMIs whose bytes changed: geom-vec.pcm, geom.pcm; app prints: summary() = 95
+  C (B plus copy-if-different BMIs): 4 compiles: obj/geom-vec.o, obj/geom.o, obj/report.o, obj/geom_impl.o
+    BMIs whose bytes changed: geom-vec.pcm, geom.pcm; app prints: summary() = 95
+
+== 6. touch geom-vec.cppm without changing its bytes
+  A: 5 compiles: obj/geom-vec.o, obj/geom.o, obj/report.o, obj/main.o, obj/geom_impl.o
+  B: 5 compiles: obj/geom-vec.o, obj/geom.o, obj/report.o, obj/main.o, obj/geom_impl.o
+  C: 1 compiles: obj/geom-vec.o
+
+== 7. Variant C after report.cppm switches to `export import geom;`, same body edit
+  C: 5 compiles: obj/geom-vec.o, obj/geom.o, obj/report.o, obj/main.o, obj/geom_impl.o
+
+== 8. No dyndep: implicit build, BMIs found through -fprebuilt-module-path=bmi
+  ninja obj/main.o on a clean tree: src/main.cpp:3:8: fatal error: module 'report' not found
+  full -j1 build, sources listed main-first: src/main.cpp:3:8: fatal error: module 'report' not found
+  full -j1 build, sources hand-listed in import order: ok
+  then report.cppm gains an export: 1 compiles: obj/report.o (main.o imports report)
+
+== 9. Import cycle a -> b -> a (variant B)
+  ninja: build stopped: dependency cycle: bmi/a.pcm -> bmi/b.pcm -> bmi/a.pcm.
+
+== 10. Flip an import direction between two builds (ninja issue 2666)
+  hand-written manifest, Clang, build 2 after the flip: ok
+  .ninja_deps for obj/a.o: src/a.cppm (+1 absolute SDK path); no BMI
+  CMake + GCC, build 2 after the flip: ninja: build stopped: dependency cycle: CMakeFiles/hasmodules.dir/a.gcm -> CMakeFiles/hasmodules.dir/b.gcm -> CMakeFiles/hasmodules.dir/a.gcm.
+  .ninja_deps for atob.cpp.o: atob.cpp, CMakeFiles/hasmodules.dir/atob.cpp.o.modmap, CMakeFiles/hasmodules.dir/b.gcm
+  build 3 after deleting .ninja_deps: ok
+
+== 11. Consumer flags must match the BMI: main.cpp at -std=c++23 against C++20 BMIs
+  error: C++23 was disabled in precompiled file 'bmi/report.pcm' but is currently enabled
+
+== 12. CMake native support (FILE_SET CXX_MODULES, Ninja generator)
+  app prints: summary() = 95
+  module files CMake wrote:
+    CMakeFiles/@cmake_cxx_std.dir/CXXModules.json
+    CMakeFiles/app.dir/CXX.dd
+    CMakeFiles/app.dir/CXXDependInfo.json
+    CMakeFiles/app.dir/CXXModules.json
+    CMakeFiles/app.dir/report.pcm
+    CMakeFiles/app.dir/src/main.cpp.o.ddi
+    CMakeFiles/app.dir/src/main.cpp.o.modmap
+    CMakeFiles/app.dir/src/report.cppm.o.ddi
+    CMakeFiles/app.dir/src/report.cppm.o.modmap
+    CMakeFiles/geom.dir/CXX.dd
+    CMakeFiles/geom.dir/CXXDependInfo.json
+    CMakeFiles/geom.dir/CXXModules.json
+    CMakeFiles/geom.dir/geom-vec.pcm
+    CMakeFiles/geom.dir/geom.pcm
+    CMakeFiles/geom.dir/src/geom-vec.cppm.o.ddi
+    CMakeFiles/geom.dir/src/geom-vec.cppm.o.modmap
+    CMakeFiles/geom.dir/src/geom.cppm.o.ddi
+    CMakeFiles/geom.dir/src/geom.cppm.o.modmap
+    CMakeFiles/geom.dir/src/geom_impl.cpp.o.ddi
+    CMakeFiles/geom.dir/src/geom_impl.cpp.o.modmap
+  CXX_SCAN__app rule command: "<clang-scan-deps>" -format=p1689 -- <cxx> $DEFINES $INCLUDES $FLAGS -x c++ -c -o $OBJ_FILE -resource-dir "<resource-dir>" -MT $DYNDEP_INTERMEDIATE_FILE -MD -MF $DEP_FILE $in > $DYNDEP_INTERMEDIATE_FILE.tmp && mv $DYNDEP_INTERMEDIATE_FILE.tmp $DYNDEP_INTERMEDIATE_FILE
+  CXX_DYNDEP__app rule command: <cmake> -E cmake_ninja_dyndep --tdi=CMakeFiles/app.dir/CXXDependInfo.json --lang=CXX --modmapfmt=clang --dd=$out @$out.rsp
+  CMakeFiles/app.dir/src/main.cpp.o.modmap:
+    -fmodule-file="report=CMakeFiles/app.dir/report.pcm"
+    -fmodule-file="geom=CMakeFiles/geom.dir/geom.pcm"
+    -fmodule-file="geom:vec=CMakeFiles/geom.dir/geom-vec.pcm"
+  CMakeFiles/app.dir/src/report.cppm.o.modmap:
+    -x c++-module
+    -fmodule-output="CMakeFiles/app.dir/report.pcm"
+    -fmodule-file="geom=CMakeFiles/geom.dir/geom.pcm"
+    -fmodule-file="geom:vec=CMakeFiles/geom.dir/geom-vec.pcm"
+  CMakeFiles/app.dir/CXX.dd:
+    ninja_dyndep_version = 1.0
+    build CMakeFiles/app.dir/src/main.cpp.o: dyndep | CMakeFiles/app.dir/report.pcm
+    build CMakeFiles/app.dir/src/report.cppm.o | CMakeFiles/app.dir/report.pcm: dyndep | CMakeFiles/geom.dir/geom.pcm
+      restat = 1
+  CMakeFiles/geom.dir/CXX.dd:
+    ninja_dyndep_version = 1.0
+    build CMakeFiles/geom.dir/src/geom_impl.cpp.o: dyndep | CMakeFiles/geom.dir/geom.pcm
+    build CMakeFiles/geom.dir/src/geom.cppm.o | CMakeFiles/geom.dir/geom.pcm: dyndep | CMakeFiles/geom.dir/geom-vec.pcm
+      restat = 1
+    build CMakeFiles/geom.dir/src/geom-vec.cppm.o | CMakeFiles/geom.dir/geom-vec.pcm: dyndep
+      restat = 1
+  touch src/geom-vec.cppm, rebuild: 5 compiles: CMakeFiles/geom.dir/src/geom-vec.cppm.o, CMakeFiles/geom.dir/src/geom.cppm.o, CMakeFiles/geom.dir/src/geom_impl.cpp.o, CMakeFiles/app.dir/src/report.cppm.o, CMakeFiles/app.dir/src/main.cpp.o
+
+== 13. CMake with the Unix Makefiles generator
+  configure exit status 1
+  CMake Error in CMakeLists.txt:
+  The target named "geom" has C++ sources that may use modules, but modules
+  are not supported by this generator:
+  Unix Makefiles
+  Modules are supported only by Ninja, Ninja Multi-Config, and Visual Studio
+  generators for VS 17.4 and newer.  See the cmake-cxxmodules(7) manual for
+  details.  Use the CMAKE_CXX_SCAN_FOR_MODULES variable to enable or disable
+  scanning.

@@ -1,0 +1,168 @@
+
+== Bazel
+release 9.3.2
+
+== Bzlmod: module graph after Minimal Version Selection
+<root> (skyframe_lab@0.0.0)
+|---lib_a@1.0
+|   `---base@1.3
+`---lib_b@1.0
+    `---base@1.3 (*)
+verbose: base@1.3 (was 1.1, cause lib_b@1.0)
+
+== Bzlmod: apparent -> canonical repo names
+seen from <root>: {"lab_facts": "+facts+lab_facts", "lib_a": "lib_a+", "lib_b": "lib_b+"}
+seen from lib_a+: {"base": "base+", "lib_a": "lib_a+"}
+module extension repo: +facts+lab_facts
+module extension rule: _facts_repo
+
+== Loading: query sees every select() branch
+//:flavor
+//:loud
+//app:a
+//app:a.txt
+//app:c
+//app:c.txt
+//app:c_loud.txt
+
+== Analysis: cquery resolves select() per configuration
+flags (none):
+  //:flavor (<cfg1>)
+  //:loud (<cfg1>)
+  //app:a (<cfg1>)
+  //app:a.txt (null)
+  //app:c (<cfg1>)
+  //app:c.txt (null)
+flags --//:flavor=loud:
+  //:flavor (<cfg2>)
+  //:loud (<cfg2>)
+  //app:a (<cfg2>)
+  //app:a.txt (null)
+  //app:c (<cfg2>)
+  //app:c_loud.txt (null)
+  WARNING: Build option --//:flavor has changed, discarding analysis cache
+
+== Analysis: providers returned by //app:b
+SourcesInfo.transitive: ["app/a.norm", "app/b.norm"]
+provider keys: ["//rules:defs.bzl%SourcesInfo", "DefaultInfo", "FileProvider", "FilesToRunProvider", "OutputGroupInfo"]
+
+== Analysis: the action graph (aquery)
+Bundle    args=12 exec_info=[]
+Normalize args=5 exec_info=[requires-worker-protocol=json, supports-workers=1]
+Normalize args=5 exec_info=[requires-worker-protocol=json, supports-workers=1]
+Normalize args=5 exec_info=[requires-worker-protocol=json, supports-workers=1]
+
+== Execution 1: first build (aquery already ran the analysis)
+INFO: Analyzed target //app:bundle (0 packages loaded, 0 targets configured).
+INFO: 5 processes: 1 internal, 1 darwin-sandbox, 3 worker.
+  Executing action 'BazelWorkspaceStatusAction stable-status.txt': unconditional execution is requested.
+  Executing action 'Bundling //app:bundle': no entry in the cache (action is new).
+  Executing action 'Normalizing app/a.txt': no entry in the cache (action is new).
+  Executing action 'Normalizing app/b.txt': no entry in the cache (action is new).
+  Executing action 'Normalizing app/c.txt': no entry in the cache (action is new).
+bundle.txt:
+  == a.norm
+  alpha one
+  alpha two
+  == b.norm
+  bravo
+  == c.norm
+  charlie plain
+  == facts.txt
+  skyframe_lab: the root module tagged this
+  == lib_a.txt
+  payload from lib_a
+  == VERSION.txt
+  base version 1.3
+  == lib_b.txt
+  payload from lib_b
+
+== Execution 2: null build
+INFO: Analyzed target //app:bundle (0 packages loaded, 0 targets configured).
+INFO: 1 process: 1 internal.
+  Executing action 'BazelWorkspaceStatusAction stable-status.txt': unconditional execution is requested.
+
+== Execution 3: edit only a comment in app/a.txt
+INFO: Analyzed target //app:bundle (0 packages loaded, 0 targets configured).
+INFO: 2 processes: 1 action cache hit, 1 internal, 1 worker.
+  Executing action 'BazelWorkspaceStatusAction stable-status.txt': unconditional execution is requested.
+  Executing action 'Normalizing app/a.txt': action changed since cached execution.
+
+== Execution 4: edit real content in app/a.txt
+INFO: Analyzed target //app:bundle (0 packages loaded, 0 targets configured).
+INFO: 3 processes: 1 internal, 1 darwin-sandbox, 1 worker.
+  Executing action 'BazelWorkspaceStatusAction stable-status.txt': unconditional execution is requested.
+  Executing action 'Bundling //app:bundle': action changed since cached execution.
+  Executing action 'Normalizing app/a.txt': action changed since cached execution.
+profile phase markers with --explain: ['Launch Blaze', 'Initialize command', 'Evaluate target patterns', 'Load and analyze dependencies', 'Prepare for build', 'Build artifacts', 'Complete build']
+action keys unchanged by the content edit: True
+
+== Execution 5: edit only a comment in app/BUILD.bazel
+INFO: Analyzed target //app:bundle (1 packages loaded, 7 targets configured).
+INFO: 1 process: 4 action cache hit, 1 internal.
+  Executing action 'BazelWorkspaceStatusAction stable-status.txt': unconditional execution is requested.
+
+== Execution 6: real edit again, without --explain (Skymeld on)
+INFO: Analyzed target //app:bundle (0 packages loaded, 0 targets configured).
+INFO: 3 processes: 1 internal, 1 darwin-sandbox, 1 worker.
+profile phase markers without --explain: ['Launch Blaze', 'Initialize command', 'Evaluate target patterns', 'Load, analyze dependencies and build artifacts', 'Complete build']
+
+== Persistent worker
+Normalize worker processes started: 1; requests served: 6
+
+== Skyframe: the node behind the Bundle action
+ACTION_EXECUTION:ActionLookupData0{actionLookupKey=ConfiguredTargetKey{label=//app:bundle, config=BuildConfigurationKey[<cfg1>]}, actionIndex=0}
+  Group 1:
+    CONFIGURED_TARGET:ConfiguredTargetKey{label=//app:bundle, config=BuildConfigurationKey[<cfg1>]}
+  Group 2:
+    ARTIFACT_NESTED_SET:ArtifactNestedSetKey[2]@<id>
+    ARTIFACT_NESTED_SET:ArtifactNestedSetKey[4]@<id>
+
+== Skyframe: the configured target node, dependency groups in request order
+CONFIGURED_TARGET:ConfiguredTargetKey{label=//app:bundle, config=BuildConfigurationKey[<cfg1>]}
+  (2 node(s) matched, configurations: <cfg1>, <cfg3>)
+  group 1: PACKAGE(app)
+  group 2: PLATFORM(@@bazel_tools//tools:host_platform)
+  group 3: PLATFORM_MAPPING(PlatformMappingKey{path=platform_mappings, wasExplicitlySetB)
+  group 4: BUILD_CONFIGURATION(BuildConfigurationKey[<cfg1>])
+  group 5: TOOLCHAIN_RESOLUTION(ToolchainContextKey{configurationKey=BuildConfigurationKey[<)
+  group 6: BZL_LOAD(@@_builtins//:common/builtin_exec_platforms.bzl)
+  group 7: CONFIGURED_TARGET(//app:b), CONFIGURED_TARGET(//app:c), CONFIGURED_TARGET(@@+facts+lab_facts//:facts.txt), CONFIGURED_TARGET(@@lib_a+//:data), CONFIGURED_TARGET(@@lib_b+//:data)
+  group 8: STARLARK_BUILTINS(Starlark @_builtins)
+
+== Skyframe: the package node
+PACKAGE:app
+  (1 node(s) matched, configurations: none)
+  group 1: PRECOMPUTED(lazy_macro_expansion_packages)
+  group 2: PACKAGE_LOOKUP(app)
+  group 3: PRECOMPUTED(autoload_symbols)
+  group 4: STARLARK_BUILTINS(Starlark @_builtins)
+  group 5: REPOSITORY_MAPPING(Key{repoName=@@})
+  group 6: FILE([<SCRATCH>/ws]/[app/BUILD.bazel])
+  group 7: PRECOMPUTED(default_visibility)
+  group 8: PRECOMPUTED(config_setting_visibility_policy)
+  group 9: IGNORED_SUBDIRECTORIES(@@)
+  group 10: REPO_PACKAGE_ARGS(@@)
+  group 11: BZL_LOAD(//tools/build_rules:prelude_bazel)
+  group 12: BZL_LOAD(//rules:defs.bzl)
+
+== Skyframe: a source file is two nodes
+FILE:[<SCRATCH>/ws]/[app/a.txt]
+  Group 1:
+    FILE:[<SCRATCH>/ws]/[app]
+  Group 2:
+    FILE_STATE:[<SCRATCH>/ws]/[app/a.txt]
+
+== Skyframe: node counts for this workspace
+{'PACKAGE': 1, 'CONFIGURED_TARGET': 8, 'ACTION_EXECUTION': 4}
+
+== Aspects: a shadow graph along deps
+INFO: Analyzed 2 targets (0 packages loaded, 0 targets configured, 3 aspect applications).
+b kind=normalized shadow_nodes=2
+c kind=normalized shadow_nodes=2
+
+== Lockfile
+lockFileVersion: 28
+registry file hashes from the local file:// registry: 0
+registry file hashes from bcr.bazel.build: nonzero = True
+root extension recorded: True

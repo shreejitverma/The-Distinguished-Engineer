@@ -1,0 +1,60 @@
+== ccache 4.14.3 ==
+
+-- 1. Direct mode and its preprocessor-mode fallback --
+cold compile                                 cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+same command again                           direct_cache_hit=1
+touch util.c (mtime only)                    direct_cache_hit=1
+edit a comment in util.c                     direct_cache_miss=1 preprocessed_cache_hit=1
+edit a comment in config.h                   direct_cache_miss=1 preprocessed_cache_hit=1
+add unused -DLAB_UNUSED=1                    direct_cache_miss=1 preprocessed_cache_hit=1
+change -O1 to -O2                            cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+
+-- 2. A second checkout at another absolute path --
+bob, no base_dir                             cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+alice, base_dir=ROOT (first time)            cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+bob, base_dir=ROOT                           direct_cache_hit=1
+alice, base_dir, -g                          cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+bob, base_dir, -g (CWD is hashed)            cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+alice, -g -fdebug-prefix-map=CWD=.           cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+bob, -g -fdebug-prefix-map=CWD=.             direct_cache_hit=1
+
+-- 3. Time macros --
+stamp.c uses __TIME__                        cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+log: __TIME__ found, direct mode disabled for stamp.c
+sloppiness=time_macros, first                cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+sloppiness=time_macros, again                direct_cache_hit=1
+
+-- 4. Depend mode: no preprocessor, no fallback --
+depend mode, cold                            cache_miss=1 direct_cache_miss=1
+depend mode, again                           direct_cache_hit=1
+depend mode, edit a comment in util.c        cache_miss=1 direct_cache_miss=1
+
+-- 5. Compiler identity is part of the key --
+compiler_check=string:toolchain-1            cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+compiler_check=string:toolchain-1 again      direct_cache_hit=1
+compiler_check=string:toolchain-2            cache_miss=1 direct_cache_miss=1 preprocessed_cache_miss=1
+
+-- 6. Calls ccache refuses to cache --
+link step                                    called_for_link=1
+two sources in one -c call                   multiple_source_files=1
+preprocess only (-E)                         called_for_preprocessing=1
+future mtime, a stored result exists         direct_cache_miss=1 preprocessed_cache_hit=1
+future mtime, -O3 (would store)              direct_cache_miss=1 modified_input_file=1 preprocessed_cache_miss=1
+
+-- 7. Whole-run totals from the stats log --
+direct hits 7, preprocessed hits 4, misses 14
+hit rate over cacheable calls: 11/25 = 44.0%
+
+== sccache 0.19.0 ==
+-- 8. rustc through sccache --
+lib crate, cold                              miss[Rust]=1
+lib crate, again                             hit[Rust]=1
+lib crate, same args, other CWD              miss[Rust]=1
+lib crate, -C incremental=inc                not_cached[incremental]=1
+bin crate                                    not_cached[crate-type (bin)]=1
+lib crate, --edition 2021 (space)            not_cached[multiple input files]=1
+
+-- 9. C through sccache (preprocessor cache mode on local disk) --
+C cold                                       miss[C/C++]=1
+C again                                      hit[C/C++]=1
+use_preprocessor_cache_mode=true max_cache_size=10737418240

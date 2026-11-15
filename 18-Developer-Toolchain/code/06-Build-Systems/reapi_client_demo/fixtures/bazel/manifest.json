@@ -1,0 +1,263 @@
+{
+ "bazel": "bazel 9.3.2",
+ "cas_blobs_hex": {
+  "2fafed256af4a602edaeccd610a595982f57341286536fd8f211c6a3e798f6e4": "0a450a406661633365353864396236303534643238633962313965656436366661303064623763383863333366393365393636326130313232636631363962396136363410800212450a4038663465323562333538303038646437303566363837306631313461643232643930373331383638623431393436663031633336323236653466656638363639109f014a020801",
+  "49de3ea78ec45c008b2e990564ee0ebc67afdbff289f0934d44c5f6faf067343": "48454c4c4f2052454150490a",
+  "61e24119fb9cffd46c8478dedae66f0ef802e6a7fee00719d80656c7ee9c3f60": "0a450a406235663063656162373761623362376638306166353964383231356162323931373237396238303631306335333761373539633965626634326662313431363610ee0112450a4038663465323562333538303038646437303566363837306631313461643232643930373331383638623431393436663031633336323236653466656638363639109f014a020801",
+  "a8a70e770c2ee2c63abaacb0d83f58a7d45bf765ef9f7385788462633dc9d9ef": "0a450a406235663063656162373761623362376638306166353964383231356162323931373237396238303631306335333761373539633965626634326662313431363610ee0112450a4063356365393063363639363965373935663439366432656632663336303366393537636265306566633638333338393063326534663936333333666331313031109f014a020801",
+  "b5f0ceab77ab3b7f80af59d8215ab2917279b80610c537a759c9ebf42fb14166": "0a092f62696e2f626173680a022d630a8501736f757263652065787465726e616c2f62617a656c5f746f6f6c732f746f6f6c732f67656e72756c652f67656e72756c652d73657475702e73683b20747220612d7a20412d5a203c20706b672f696e2e747874203e2062617a656c2d6f75742f64617277696e5f61726d36342d666173746275696c642f62696e2f706b672f75702e74787412240a0450415448121c2f62696e3a2f7573722f62696e3a2f7573722f6c6f63616c2f62696e3a2f62617a656c2d6f75742f64617277696e5f61726d36342d666173746275696c642f62696e2f706b672f75702e747874",
+  "bed0995a2c3d6dd2260b05ea467a910b85a82e7d1dc0480e61e0578da6db2c7c": "48454c4c4f2052454150492056320a",
+  "fac3e58d9b6054d28c9b19eed66fa00db7c88c33f93e9662a0122cf169b9a664": "0a092f62696e2f626173680a022d630a8501736f757263652065787465726e616c2f62617a656c5f746f6f6c732f746f6f6c732f67656e72756c652f67656e72756c652d73657475702e73683b20747220612d7a20412d5a203c20706b672f696e2e747874203e2062617a656c2d6f75742f64617277696e5f61726d36342d666173746275696c642f62696e2f706b672f75702e74787412240a0450415448121c2f62696e3a2f7573722f62696e3a2f7573722f6c6f63616c2f62696e12100a0a52454150495f44454d4f12026f6e3a2f62617a656c2d6f75742f64617277696e5f61726d36342d666173746275696c642f62696e2f706b672f75702e747874"
+ },
+ "disk_cache_files": [
+  "ac/2f/2fafed256af4a602edaeccd610a595982f57341286536fd8f211c6a3e798f6e4",
+  "ac/61/61e24119fb9cffd46c8478dedae66f0ef802e6a7fee00719d80656c7ee9c3f60",
+  "ac/a8/a8a70e770c2ee2c63abaacb0d83f58a7d45bf765ef9f7385788462633dc9d9ef",
+  "cas/2f/2fafed256af4a602edaeccd610a595982f57341286536fd8f211c6a3e798f6e4",
+  "cas/49/49de3ea78ec45c008b2e990564ee0ebc67afdbff289f0934d44c5f6faf067343",
+  "cas/61/61e24119fb9cffd46c8478dedae66f0ef802e6a7fee00719d80656c7ee9c3f60",
+  "cas/a8/a8a70e770c2ee2c63abaacb0d83f58a7d45bf765ef9f7385788462633dc9d9ef",
+  "cas/b5/b5f0ceab77ab3b7f80af59d8215ab2917279b80610c537a759c9ebf42fb14166",
+  "cas/be/bed0995a2c3d6dd2260b05ea467a910b85a82e7d1dc0480e61e0578da6db2c7c",
+  "cas/fa/fac3e58d9b6054d28c9b19eed66fa00db7c88c33f93e9662a0122cf169b9a664"
+ ],
+ "host": "Darwin-arm64",
+ "variants": {
+  "base": {
+   "actualOutputs": [
+    {
+     "digest": {
+      "hash": "49de3ea78ec45c008b2e990564ee0ebc67afdbff289f0934d44c5f6faf067343",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "12"
+     },
+     "isTool": false,
+     "path": "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt",
+     "symlinkTargetPath": ""
+    }
+   ],
+   "cacheHit": false,
+   "commandArgs": [
+    "/bin/bash",
+    "-c",
+    "source external/bazel_tools/tools/genrule/genrule-setup.sh; tr a-z A-Z < pkg/in.txt > bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "digest": {
+    "hash": "61e24119fb9cffd46c8478dedae66f0ef802e6a7fee00719d80656c7ee9c3f60",
+    "hashFunctionName": "SHA256",
+    "sizeBytes": "146"
+   },
+   "environmentVariables": [
+    {
+     "name": "PATH",
+     "value": "/bin:/usr/bin:/usr/local/bin"
+    }
+   ],
+   "exitCode": 0,
+   "inputs": [
+    {
+     "digest": {
+      "hash": "2138ccc4608e0a41291680587baced12bb80379b6924c3c4c2d9ef272f99139f",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "866"
+     },
+     "isTool": false,
+     "path": "external/bazel_tools/tools/genrule/genrule-setup.sh"
+    },
+    {
+     "digest": {
+      "hash": "8bd7ceadc08aa6846efe34205b8b849afcad204bac7adc641e7565136bf4e4fc",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "12"
+     },
+     "isTool": false,
+     "path": "pkg/in.txt"
+    }
+   ],
+   "listedOutputs": [
+    "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "mnemonic": "Genrule",
+   "remoteCacheable": true,
+   "runner": "darwin-sandbox"
+  },
+  "env": {
+   "actualOutputs": [
+    {
+     "digest": {
+      "hash": "49de3ea78ec45c008b2e990564ee0ebc67afdbff289f0934d44c5f6faf067343",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "12"
+     },
+     "isTool": false,
+     "path": "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt",
+     "symlinkTargetPath": ""
+    }
+   ],
+   "cacheHit": false,
+   "commandArgs": [
+    "/bin/bash",
+    "-c",
+    "source external/bazel_tools/tools/genrule/genrule-setup.sh; tr a-z A-Z < pkg/in.txt > bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "digest": {
+    "hash": "2fafed256af4a602edaeccd610a595982f57341286536fd8f211c6a3e798f6e4",
+    "hashFunctionName": "SHA256",
+    "sizeBytes": "146"
+   },
+   "environmentVariables": [
+    {
+     "name": "PATH",
+     "value": "/bin:/usr/bin:/usr/local/bin"
+    },
+    {
+     "name": "REAPI_DEMO",
+     "value": "on"
+    }
+   ],
+   "exitCode": 0,
+   "inputs": [
+    {
+     "digest": {
+      "hash": "2138ccc4608e0a41291680587baced12bb80379b6924c3c4c2d9ef272f99139f",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "866"
+     },
+     "isTool": false,
+     "path": "external/bazel_tools/tools/genrule/genrule-setup.sh"
+    },
+    {
+     "digest": {
+      "hash": "8bd7ceadc08aa6846efe34205b8b849afcad204bac7adc641e7565136bf4e4fc",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "12"
+     },
+     "isTool": false,
+     "path": "pkg/in.txt"
+    }
+   ],
+   "listedOutputs": [
+    "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "mnemonic": "Genrule",
+   "remoteCacheable": true,
+   "runner": "darwin-sandbox"
+  },
+  "hit": {
+   "actualOutputs": [
+    {
+     "digest": {
+      "hash": "49de3ea78ec45c008b2e990564ee0ebc67afdbff289f0934d44c5f6faf067343",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "12"
+     },
+     "isTool": false,
+     "path": "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt",
+     "symlinkTargetPath": ""
+    }
+   ],
+   "cacheHit": true,
+   "commandArgs": [
+    "/bin/bash",
+    "-c",
+    "source external/bazel_tools/tools/genrule/genrule-setup.sh; tr a-z A-Z < pkg/in.txt > bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "digest": {
+    "hash": "61e24119fb9cffd46c8478dedae66f0ef802e6a7fee00719d80656c7ee9c3f60",
+    "hashFunctionName": "SHA256",
+    "sizeBytes": "146"
+   },
+   "environmentVariables": [
+    {
+     "name": "PATH",
+     "value": "/bin:/usr/bin:/usr/local/bin"
+    }
+   ],
+   "exitCode": 0,
+   "inputs": [
+    {
+     "digest": {
+      "hash": "2138ccc4608e0a41291680587baced12bb80379b6924c3c4c2d9ef272f99139f",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "866"
+     },
+     "isTool": false,
+     "path": "external/bazel_tools/tools/genrule/genrule-setup.sh"
+    },
+    {
+     "digest": {
+      "hash": "8bd7ceadc08aa6846efe34205b8b849afcad204bac7adc641e7565136bf4e4fc",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "12"
+     },
+     "isTool": false,
+     "path": "pkg/in.txt"
+    }
+   ],
+   "listedOutputs": [
+    "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "mnemonic": "Genrule",
+   "remoteCacheable": true,
+   "runner": "disk cache hit"
+  },
+  "input": {
+   "actualOutputs": [
+    {
+     "digest": {
+      "hash": "bed0995a2c3d6dd2260b05ea467a910b85a82e7d1dc0480e61e0578da6db2c7c",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "15"
+     },
+     "isTool": false,
+     "path": "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt",
+     "symlinkTargetPath": ""
+    }
+   ],
+   "cacheHit": false,
+   "commandArgs": [
+    "/bin/bash",
+    "-c",
+    "source external/bazel_tools/tools/genrule/genrule-setup.sh; tr a-z A-Z < pkg/in.txt > bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "digest": {
+    "hash": "a8a70e770c2ee2c63abaacb0d83f58a7d45bf765ef9f7385788462633dc9d9ef",
+    "hashFunctionName": "SHA256",
+    "sizeBytes": "146"
+   },
+   "environmentVariables": [
+    {
+     "name": "PATH",
+     "value": "/bin:/usr/bin:/usr/local/bin"
+    }
+   ],
+   "exitCode": 0,
+   "inputs": [
+    {
+     "digest": {
+      "hash": "2138ccc4608e0a41291680587baced12bb80379b6924c3c4c2d9ef272f99139f",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "866"
+     },
+     "isTool": false,
+     "path": "external/bazel_tools/tools/genrule/genrule-setup.sh"
+    },
+    {
+     "digest": {
+      "hash": "87857e1b434a02db4aa1d41536b10d448500f0a4d6af7cb1602f140bc032a9c9",
+      "hashFunctionName": "SHA-256",
+      "sizeBytes": "15"
+     },
+     "isTool": false,
+     "path": "pkg/in.txt"
+    }
+   ],
+   "listedOutputs": [
+    "bazel-out/darwin_arm64-fastbuild/bin/pkg/up.txt"
+   ],
+   "mnemonic": "Genrule",
+   "remoteCacheable": true,
+   "runner": "darwin-sandbox"
+  }
+ }
+}

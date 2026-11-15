@@ -1,0 +1,35 @@
+load("//rules:defs.bzl", "bundle", "normalized")
+
+normalized(
+    name = "a",
+    src = "a.txt",
+)
+
+normalized(
+    name = "b",
+    src = "b.txt",
+    deps = [":a"],
+)
+
+# select() is resolved in analysis, against the configuration.
+normalized(
+    name = "c",
+    src = select({
+        "//:loud": "c_loud.txt",
+        "//conditions:default": "c.txt",
+    }),
+    deps = [":a"],
+)
+
+bundle(
+    name = "bundle",
+    data = [
+        "@lab_facts//:facts.txt",
+        "@lib_a//:data",
+        "@lib_b//:data",
+    ],
+    deps = [
+        ":b",
+        ":c",
+    ],
+)
