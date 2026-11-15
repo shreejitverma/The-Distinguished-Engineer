@@ -23,8 +23,21 @@ import tempfile
 import time
 
 MODES = ("symlink", "hardlink", "copy")
-DECLARED = ["src/main.c", "src/util.h", "src/util.c", "src/log.h", "src/log.c", "BUILD", "include/api.h", "include/types.h"]
+DECLARED = [
+    "src/main.c",
+    "src/inc.c",
+    "src/util.h",
+    "src/util.c",
+    "src/log.h",
+    "src/log.c",
+    "BUILD",
+    "include/api.h",
+    "include/types.h",
+]
 UNDECLARED = "src/secret.h"
+# src/inc.c quote-includes the undeclared sibling, so the compiler probe shows whether the
+# compiler searches the directory of the path as named (the execroot) or of its realpath (the source).
+INC_C = b'#include "secret.h"\nint value(void) { return SECRET; }\n'
 SCALE_FILES = 2000
 SCALE_DIRS = 40
 SCALE_FILE_BYTES = 4096
@@ -89,6 +102,7 @@ def part1(work, action_py):
     source_root = os.path.join(work, "source")
     for i, rel in enumerate(DECLARED):
         write(os.path.join(source_root, rel), ("/* declared input %d */\n" % i).encode())
+    write(os.path.join(source_root, "src/inc.c"), INC_C)
     write(os.path.join(source_root, UNDECLARED), b"#define SECRET 42\n")
     main_c = os.path.join(source_root, "src/main.c")
     pristine = digest(main_c)
@@ -105,7 +119,7 @@ def part1(work, action_py):
             stderr=subprocess.PIPE,
             universal_newlines=True,
             check=False,
-            env={"PATH": "/usr/bin:/bin", "LC_ALL": "C"},
+            env={"PATH": "/usr/bin:/bin", "LC_ALL": "C", "CC": os.environ.get("CC", "cc")},
         )
         if proc.returncode != 0:
             sys.stderr.write(proc.stderr)
@@ -126,6 +140,7 @@ def part1(work, action_py):
         ("read undeclared src/secret.h (relative)", "read_undeclared_relative"),
         ("read undeclared src/secret.h (absolute)", "read_undeclared_absolute"),
         ("read undeclared via realpath(src/main.c)", "read_undeclared_via_realpath"),
+        ('cc: src/inc.c #include "secret.h"', "compile_quote_include"),
         ("append to declared src/main.c", "append_to_declared_input"),
         ("source tree src/main.c modified", "source_file_modified"),
     ]

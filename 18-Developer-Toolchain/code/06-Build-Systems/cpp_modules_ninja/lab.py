@@ -134,10 +134,27 @@ def compiles(out: list[str]) -> str:
     return f"{len(objs)} compiles: {', '.join(objs) or '-'}"
 
 
+def canonical_cycle(ln: str) -> str:
+    """Rotate 'dependency cycle: n1 -> n2 -> ... -> n1' to start at the smallest node.
+
+    Ninja starts the message at whichever node it reaches first, which varies between runs.
+    """
+    m = re.match(r"^(.*dependency cycle: )(.+?)(\.?)$", ln)
+    if not m:
+        return ln
+    nodes = m.group(2).split(" -> ")
+    if len(nodes) < 3 or nodes[0] != nodes[-1]:
+        return ln
+    ring = nodes[:-1]
+    i = ring.index(min(ring))
+    ring = ring[i:] + ring[:i]
+    return m.group(1) + " -> ".join([*ring, ring[0]]) + m.group(3)
+
+
 def verdict(out: list[str], *dirs: Path) -> str:
     for ln in out:
         if "error" in ln or "dependency cycle" in ln:
-            return scrub(ln, *dirs)
+            return canonical_cycle(scrub(ln, *dirs))
     return "ok"
 
 

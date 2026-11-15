@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "The Bazel Authors, Skyframe, Bazel Documentation (site/en/reference/skyframe.md), Bazel 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/site/en/reference/skyframe.md"
@@ -13,6 +13,10 @@ sources:
   - "The Bazel Authors, ArtifactNestedSetKey.java, Bazel source at 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/collect/nestedset/ArtifactNestedSetKey.java"
   - "The Bazel Authors, SkymeldModule.java and BuildRequestOptions.java (experimental_merged_skyframe_analysis_execution), Bazel source at 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/skyframe/SkymeldModule.java"
   - "The Bazel Authors, WorkerPoolImpl.java and WorkerOptions.java (default worker instance limits), Bazel source at 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/worker/WorkerPoolImpl.java"
+  - "The Bazel Authors, TargetAndConfigurationProducer.java (rule-transition delegation), Bazel source at 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/analysis/producers/TargetAndConfigurationProducer.java"
+  - "The Bazel Authors, TestTrimmingTransitionFactory.java and TestConfiguration.java (trim_test_configuration), Bazel source at 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/analysis/test/TestTrimmingTransitionFactory.java"
+  - "The Bazel Authors, rules_python 2.5.1 precompile.bzl and rules_rust 0.75.0 settings.bzl (pipelined_compilation) and cargo_build_script.bzl, 2026, https://github.com/bazelbuild/rules_rust/blob/0.75.0/rust/settings/settings.bzl"
+  - "The Bazel Authors, rustc.bzl (execution requirements), rules_rust 0.75.0, 2026, https://github.com/bazelbuild/rules_rust/blob/0.75.0/rust/private/rustc.bzl"
   - "The Bazel Authors, Extension Overview and Starlark Language, Bazel Documentation (site/en/extending/concepts.md, site/en/rules/language.md), Bazel 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/site/en/extending/concepts.md"
   - "The Bazel Authors, Rules, Depsets, Aspects, and Configurations, Bazel Documentation (site/en/extending/rules.md, depsets.md, aspects.md, config.md), Bazel 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/site/en/extending/rules.md"
   - "The Bazel Authors, Optimizing Performance (rules) and Args reference, Bazel Documentation, Bazel 9.3.2, 2026, https://bazel.build/rules/lib/builtins/Args"
@@ -24,6 +28,13 @@ sources:
   - "Russ Cox, Minimal Version Selection, research!rsc, 2018, https://research.swtch.com/vgo-mvs"
   - "The Bazel Authors, Release notes for Bazel 7.0.0, 8.0.0, 9.0.0, and 9.1.0, GitHub releases, 2023-2026, https://github.com/bazelbuild/bazel/releases/tag/9.0.0"
   - "The Bazel Authors, bazel help build --long and bazel help startup_options output, Bazel 9.3.2 darwin-arm64, 2026, https://github.com/bazelbuild/bazel/releases/tag/9.3.2"
+  - "The Bazel Authors, Release notes for Bazel 8.0.0 (aspects may return DefaultInfo, config.none, + separator), 2024, https://github.com/bazelbuild/bazel/releases/tag/8.0.0"
+  - "The Bazel Authors, Release notes for Bazel 9.0.0 (single_version_override below a bazel_dep is an error, macOS output root), 2026, https://github.com/bazelbuild/bazel/releases/tag/9.0.0"
+  - "The Bazel Authors, Release notes for Bazel 6.4.0 (allow_analysis_cache_discard) and 7.0.0 (Skymeld, Bzlmod and lockfile defaults, Build without the Bytes), https://github.com/bazelbuild/bazel/releases/tag/7.0.0"
+  - "The Bazel Authors, SkymeldModule.java at 9.3.2 (logger.atInfo on incompatible flags), https://raw.githubusercontent.com/bazelbuild/bazel/9.3.2/src/main/java/com/google/devtools/build/lib/skyframe/SkymeldModule.java"
+  - "The Bazel Authors, Bazel lockfile, Bzlmod FAQ, Bazel registries, Bazel 9.3.2, https://raw.githubusercontent.com/bazelbuild/bazel/9.3.2/site/en/external/lockfile.md"
+  - "The Bazel Authors, ActionCacheChecker.java at 9.3.2 (reportDigestMismatch), https://raw.githubusercontent.com/bazelbuild/bazel/9.3.2/src/main/java/com/google/devtools/build/lib/actions/ActionCacheChecker.java"
+  - "The Bazel Authors, Bazel GitHub releases list (9.3.2 2026-11-05, 10.0.0rc3 2026-11-10, 8.9.0rc2 2026-11-13), https://github.com/bazelbuild/bazel/releases"
 ---
 
 # Bazel: Skyframe, Bzlmod, and the Execution Model
@@ -71,18 +82,18 @@ flowchart TD
 
 ## The Mechanism
 
-Everything below is Bazel 9.3.2 (released 2026-11-05; 10.0.0rc3 is the current prerelease, as of 2026-11, Both) unless a version is named.
+Everything below is Bazel 9.3.2 (released 2026-11-05; 10.0.0rc3, 2026-11-10, is the newest 10.x prerelease, as of 2026-11, Both) unless a version is named.
 Source-file citations are to the `9.3.2` tag of `bazelbuild/bazel`.
 [[Build-System-Theory-Schedulers-and-Rebuilders]] owns the abstract vocabulary (schedulers, verifying and constructive traces, early cutoff); this note shows how Bazel instantiates it.
 
 ### 1. Client, server, and output base
 
 `bazel` is a native client (`src/main/cpp/blaze.cc`) that talks to a Java server over gRPC (`service CommandServer`, with `Run` returning a stream of responses, in `src/main/protobuf/command_server.proto`).
-It derives an output base from a hash of the workspace root under the user's output root (`~/.cache/bazel/_bazel_$USER/<hash>/` on Linux), and finds or starts one server per output base.
+It derives an output base from a hash of the workspace root under the user's output root (`~/.cache/bazel/_bazel_$USER/<hash>/` on Linux; on macOS the default root moved to `$HOME/Library/Caches/bazel` in Bazel 9.0, per the 9.0.0 release notes), and finds or starts one server per output base.
 A server handles at most one invocation at a time; others block or fail fast according to `--block_for_lock` (`run/client-server.md`).
 The client unpacks Bazel's embedded files into the install base and sets their mtimes nine years into the future, then checks those mtimes on later starts to detect tampering.
 The server exits after `--max_idle_secs` of inactivity, default `10800` (3 hours).
-Changing a startup option (anything before the command, such as `--host_jvm_args`) restarts the server and throws away the in-memory graph, which is the most expensive thing Bazel owns.
+Changing a startup option (anything before the command, such as `--host_jvm_args`) restarts the server (`--max_idle_secs` is a documented exception: its help text says changing it does not restart the server) and throws away the in-memory graph, which is the most expensive thing Bazel owns.
 
 The output base holds the persistent state that survives a server restart:
 
@@ -177,6 +188,13 @@ Analysis evaluates `CONFIGURED_TARGET` nodes: a target label paired with a `Buil
 `select()` is resolved here, against that configuration: the lab's `cquery` picks `c.txt` in the default configuration and `c_loud.txt` under `--//:flavor=loud`, and the two runs report different configuration IDs for every configured target.
 Source files are configured in the `null` configuration.
 
+A top-level target can occupy two `CONFIGURED_TARGET` nodes, because the configuration a target is requested in is not always the one it is analyzed in.
+`TargetAndConfigurationProducer` applies the target's rule transition to the requested key; if the configuration changes, it "delegates to a target with the new configuration", and the requesting node's value is simply the delegate's value (`TargetAndConfigurationProducer.java`, `computeTargetAndConfigurationOrDelegatedValue`).
+The transition every non-test rule gets is test trimming: `TestTrimmingTransitionFactory` removes the `TestOptions` fragment when `--trim_test_configuration` is on (default `true`), and the option's help text in `TestConfiguration.java` gives the trade: "changes to test-related options will not cause non-test rules to be re-analyzed", but "tests cannot be built as dependencies of non-test rules".
+The command line's top-level configuration still carries `TestOptions`, so `bazel build //app:bundle` requests the bundle in that untrimmed configuration, and that node depends on the package, the platform, the platform mapping, and then the trimmed `CONFIGURED_TARGET`, which does the real analysis.
+`bazel config <untrimmed> <trimmed>` is the command to diff the two; by the source above the difference is the `TestOptions` fragment, and the lab does not run that diff.
+`cquery` reports the trimmed configuration, which is why the lab's `cquery` IDs and its dump of the real node agree.
+
 A rule is `rule(implementation, attrs, ...)`; the implementation receives `ctx` and must:
 
 1. Declare outputs with `ctx.actions.declare_file` (only declared files may be written).
@@ -200,7 +218,7 @@ Changing a build option between commands discards the analysis cache, and the la
 An aspect is a rule-like function applied to existing targets along chosen attributes (`attr_aspects`).
 Applying aspect A to X creates a shadow graph A(X) over the edges in A's propagation list; edges not in the list, such as `runtime_deps` for an aspect on `deps`, are not shadowed (`extending/aspects.md`).
 Aspect nodes are memoized like configured targets: in the lab, applying `inventory_aspect` to `//app:b` and `//app:c`, which both depend on `//app:a`, reports `3 aspect applications`, not 4.
-Aspects are how IDE integrations, linters, and language-agnostic code generators read the graph without editing any `BUILD` file; since Bazel 8 an aspect may return `DefaultInfo` (files only), merged into the target's.
+Aspects are how IDE integrations, linters, and language-agnostic code generators read the graph without editing any `BUILD` file; since Bazel 8 an aspect may return `DefaultInfo` (files only), merged into the target's (8.0.0 release notes; `extending/aspects.md` at 9.3.2 still says aspects "may never return" it, which is stale).
 
 ### 8. Execution and Skymeld
 
@@ -211,7 +229,7 @@ The build summary counts spawns per strategy: the lab's cold build prints `5 pro
 
 Bazel 7.0 made execution start while other top-level targets are still being analyzed ("Project Skymeld").
 The flag is `--experimental_merged_skyframe_analysis_execution`, default `true` and undocumented in `bazel help` (`BuildRequestOptions.java`).
-`SkymeldModule` silently turns it off for `--nobuild` (so always for `cquery` and `aquery`), for `--explain`, for multiple `--package_path` entries, for an aquery dump after the build, for `--check_licenses`, and for a non-positive CPU-heavy SkyKey thread pool.
+`SkymeldModule` turns it off, with only an INFO line in the server log and nothing on the console, for `--nobuild` (so always for `cquery` and `aquery`), for `--explain`, for multiple `--package_path` entries, for an aquery dump after the build, for `--check_licenses`, and for a non-positive CPU-heavy SkyKey thread pool.
 The lab's profile proves it: with `--explain` the build has separate `Load and analyze dependencies`, `Prepare for build`, and `Build artifacts` phases; without it there is one `Load, analyze dependencies and build artifacts` phase.
 Turning on `--explain` to debug a slow build therefore changes how that build is scheduled.
 
@@ -264,7 +282,7 @@ Selecting a yanked version is an error unless `--allow_yanked_versions` allows i
 
 Only the root module's overrides apply, but they may target any module in the graph:
 
-- `single_version_override` pins a version, a registry, or patches.
+- `single_version_override` pins a version, a registry, or patches; since Bazel 9.0, pinning a version lower than one some `bazel_dep` requests is an error instead of being silently honored (9.0.0 release notes).
 - `multiple_version_override` keeps several versions, upgrading each dependent to the nearest allowed higher version.
 - `archive_override`, `git_override`, and `local_path_override` remove a module from version resolution and take its `MODULE.bazel` from the repo itself.
 
@@ -301,7 +319,7 @@ To trade incrementality for memory (`advanced/performance/memory.md`):
 
 | Item | Value | Platform and date | What it controls |
 | :--- | :--- | :--- | :--- |
-| Current release | 9.3.2 (LTS line 9.x); 10.0.0rc3 prerelease | Both (as of 2026-11) | Version every fact here is checked against |
+| Current release | 9.3.2 (LTS line 9.x); 10.0.0rc3 newest 10.x prerelease | Both (as of 2026-11) | Version every fact here is checked against |
 | `--max_idle_secs` | `10800` | Both (as of 2026-11) | Idle seconds before the server exits; `0` keeps it forever |
 | `--experimental_merged_skyframe_analysis_execution` | `true`, undocumented | Both (as of 2026-11) | Skymeld; ignored with `--explain`, `--nobuild`, multiple package paths |
 | `--watchfs` | `false` | Linux, macOS (as of 2026-11) | OS file watching instead of stat-scanning for changed leaves |
@@ -319,6 +337,7 @@ To trade incrementality for memory (`advanced/performance/memory.md`):
 | `lockFileVersion` | `28` in 9.3.2 | darwin-arm64, Bazel 9.3.2 (as of 2026-11) | Lockfile schema; tied to the Bazel version |
 | Canonical repo names | `module+`, `module+version`, `module+ext+repo` | Both (as of 2026-11) | `+` since 8.0, `~` before; not an API |
 | Configuration ID | SHA-256 of options, prefix in `cquery` | Both (as of 2026-11) | `bazel config <id>` shows the options |
+| `--trim_test_configuration` | `true` | Both (as of 2026-11) | Strips `TestOptions` below the top level; a top-level non-test target gets a delegating node plus a trimmed one |
 | `--noallow_analysis_cache_discard` | since 6.4.0 | Both (as of 2026-11) | Fail instead of silently re-analyzing |
 | `bazel dump --skyframe=` | `summary`, `count`, `value`, `deps`, `rdeps`, `function_graph`, ... | Both (as of 2026-11) | Raw graph; unstable output |
 
@@ -328,13 +347,13 @@ Bazel's own rules are Starlark modules in Bazel 9; what each language's rules do
 
 | Concern | C++ (`rules_cc`) | Python (`rules_python`) | Rust (`rules_rust`) |
 | :--- | :--- | :--- | :--- |
-| Where the rules live in 9.x | `rules_cc`; native C++ rules removed from Bazel in 9.0 | `rules_python`, a dependency of Bazel's built-in modules (its flag aliases appear in every build's options) | `rules_rust` module from the BCR |
-| Unit of action | One `CppCompile` per source file, one link per binary | Mostly no compile; actions assemble runfiles trees and launchers | One `Rustc` action per crate, not per file |
-| Header or interface discovery | Headers must be declared; compiler-reported includes are checked after the action | Imports are not tracked; undeclared imports work locally and break hermeticity | Crate deps declared; build scripts run as separate actions |
-| Early cutoff point | Object digest feeds the link through the action cache | Runfiles symlink trees, cheap to rebuild | Metadata-only outputs can let dependents start early, which [[Cargo-Build-Graph-and-Rustc-Pipelining]] explains for Cargo |
+| Where the rules live in 9.x | `rules_cc`; native C++ rules removed from Bazel in 9.0 | `rules_python`, a `bazel_dep` in Bazel 9.3.2's own `MODULE.bazel` (version 1.7.0; its flag aliases appear in every build's options) | `rules_rust` module from the BCR |
+| Unit of action | One `CppCompile` per source file, one link per binary | Mostly no compile; actions assemble runfiles trees and launchers, and `.pyc` precompilation is opt-in (`precompile` in `rules_python`'s `precompile.bzl`) | One `Rustc` action per crate, not per file |
+| Header or interface discovery | Headers must be declared; compiler-reported includes are checked after the action | Imports are not tracked; undeclared imports work locally and break hermeticity | Crate deps declared; build scripts run as separate actions (`cargo_build_script`) |
+| Early cutoff point | Object digest feeds the link through the action cache | Runfiles symlink trees, cheap to rebuild | `--@rules_rust//rust/settings:pipelined_compilation` makes `rlib` dependents consume `*.rmeta` outputs and start early, which [[Cargo-Build-Graph-and-Rustc-Pipelining]] explains for Cargo |
 | Persistent workers | Not used for the default C++ toolchain | Not typical | Not used: `rules_rust` 0.75.0 ships no worker implementation and its `rustc` actions set no worker execution requirement (checked against the repository tree, as of 2026-11) |
 
-The C++ column's per-file compile and declared-header model is documented in `docs/bazel-and-cpp.md`; the Python and Rust columns describe the rule sets' design at the level their documentation states, and are not re-measured here.
+The C++ column's per-file compile and declared-header model is documented in `docs/bazel-and-cpp.md`; the Python and Rust columns were checked against the `rules_python` 2.5.1 and `rules_rust` 0.75.0 source trees (as of 2026-11) and are not re-measured here.
 
 ## Worked Lab Example
 
@@ -546,7 +565,8 @@ root extension recorded: True
 - Execution 6 against Execution 4: the same kind of edit, but without `--explain` the profile has a single merged phase marker, which is Skymeld.
 - The worker log shows one process answering all 6 `Normalize` requests (3 + 1 + 1 + 1).
 - The Bundle action's node depends on its owning configured target and on two `ARTIFACT_NESTED_SET` nodes, not on eight individual files; the `[2]` and `[4]` are the child counts of the depset nodes Bazel mirrored.
-- The configured-target dump matched two nodes for `//app:bundle`, in `<cfg1>` and in a third configuration that none of the lab's commands names; the lab does not establish where `<cfg3>` comes from, so treat it as an open observation (UNVERIFIED: likely a configuration produced by a command-specific option set, not checked).
+- The configured-target dump matched two nodes for `//app:bundle`, in `<cfg1>` and `<cfg3>`: `<cfg3>` is the untrimmed top-level configuration that still carries `TestOptions`, and its node only delegates to the trimmed `<cfg1>` node that `cquery` reports.
+  The delegation follows from `TargetAndConfigurationProducer` and `TestTrimmingTransitionFactory` at 9.3.2; the lab's dump shows the two nodes, and no lab output isolates the `TestOptions` difference.
 - Three aspect applications for two requested targets: `inventory_aspect` on `//app:a` is computed once and shared by both shadow paths.
 
 ## Pitfalls
@@ -613,7 +633,7 @@ Decision rules:
 > First, add a fourth `normalized` target that depends on `:c`, and predict how many packages load and targets configure on the next build.
 > Second, change `normalize.py` itself: predict whether action keys change (the tool is an input, so its digest changes, but is it part of the key?), then check with `aquery --output=jsonproto` and the action-cache hit counts.
 > Third, rerun Execution 3 with `--worker_sandboxing` and compare spawn counts.
-> Fourth, add `single_version_override(module_name = "base", version = "1.1")` to the root `MODULE.bazel`, predict `mod graph --verbose`, and confirm `bundle.txt` changes.
+> Fourth, add `single_version_override(module_name = "base", version = "1.1")` to the root `MODULE.bazel` and predict what `mod graph --verbose` does; since Bazel 9.0 a pin below `lib_b`'s request for `base@1.3` is a resolution error, so expect a failure rather than a changed `bundle.txt`, then pin `1.3` instead and confirm the graph is unchanged.
 > Last, write an outgoing transition on `deps` that sets `//:flavor` to `loud` and count configured targets for `//app:a` with `cquery` before and after.
 > [[Diagnose-Bazel-and-Buck2-Cache-Misses]] continues with remote cache misses, and [[Drill-Build-Systems-Hunt-Non-Determinism-with-Diffoscope]] with outputs that differ when they should not.
 
@@ -667,7 +687,7 @@ Decision rules:
 >
 > > [!success]- Answer
 > > MVS picks, for each module, the highest version that any module in the graph requests, assuming newer versions are backward compatible, and never picks a newer version that nobody asked for; the result is deterministic and needs no solver.
-> > `single_version_override` pins a version, registry, or patches for one module everywhere, which is the normal way to converge a monorepo.
+> > `single_version_override` pins a version, registry, or patches for one module everywhere, which is the normal way to converge a monorepo; since Bazel 9.0 it cannot pin below a version some `bazel_dep` requests.
 > > `multiple_version_override` keeps an allowed set of versions, for a migration window when two parts of the tree cannot share one version and never meet in one binary.
 > > `local_path_override`, `git_override`, and `archive_override` take a module out of resolution entirely, for local development or unreleased fixes.
 > > Only the root module's overrides apply, so these are central governance tools, not something libraries can ship.
@@ -690,7 +710,8 @@ Decision rules:
 > > For CI, drop incremental state (`--notrack_incremental_state`, `--nokeep_state_after_build`); for developers, consider Skyfocus working sets, still experimental.
 > > Execution scale-out (remote execution) does not fix any of this, because analysis runs in the one server.
 
-> [!question] L8+: Your organization is on Bazel 7 with a large `WORKSPACE`. Lay out the migration to Bazel 9.
+> [!question] L8+: Your organization is on Bazel 7 with a large `WORKSPACE`.
+> Lay out the migration to Bazel 9.
 >
 > > [!success]- Answer
 > > Bazel 9 has no `WORKSPACE` support and no native language rules, so the migration has two tracks: external dependencies to Bzlmod, and explicit `load()`s from `rules_cc`, `rules_java`, `rules_python`, and other rule modules.

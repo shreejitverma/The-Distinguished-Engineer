@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Ben Boeckel and Brad King, P1689R5 Format for describing dependencies of source files, ISO/IEC JTC1/SC22/WG21 paper, 2022-06-03, https://isocpp.org/files/papers/P1689R5.html"
@@ -10,6 +10,13 @@ sources:
   - "Kitware, CMake 3.28, 4.4, and 4.5 Release Notes, Help/release in CMake v4.5.0, 2023-2026, https://github.com/Kitware/CMake/tree/v4.5.0/Help/release"
   - "Kitware, Modules/Compiler/Clang-CXX.cmake, GNU-CXX.cmake, and MSVC-CXX.cmake (CMAKE_CXX_SCANDEP_SOURCE and module map templates), CMake v4.5.0 source, 2026, https://github.com/Kitware/CMake/tree/v4.5.0/Modules/Compiler"
   - "Kitware, Source/cmGlobalNinjaGenerator.h (RequiredNinjaVersionForDyndepsCxx), CMake v4.5.0 source, 2026, https://github.com/Kitware/CMake/blob/v4.5.0/Source/cmGlobalNinjaGenerator.h"
+  - "Ben Boeckel, Ninja: require Ninja 1.11 for C++ module support, Kitware/CMake commit 7abddcab08, 2023-01-20, https://github.com/Kitware/CMake/commit/7abddcab08"
+  - "Kitware, Source/cmGeneratorTarget.cxx (ApplyCXXStdTarget, CreateCxxStdlibTarget, GetTargetForCxxModules), CMake v4.5.0 source, 2026, https://github.com/Kitware/CMake/blob/v4.5.0/Source/cmGeneratorTarget.cxx"
+  - "Kitware, Source/cmCxxModuleUsageEffects.cxx (BMI compatibility hash), CMake v4.5.0 source, 2026, https://github.com/Kitware/CMake/blob/v4.5.0/Source/cmCxxModuleUsageEffects.cxx"
+  - "Kitware, EXPORT_BUILD_DATABASE target property, CMake Reference Documentation, CMake 4.5.0, 2026, https://cmake.org/cmake/help/v4.5/prop_tgt/EXPORT_BUILD_DATABASE.html"
+  - "Brad King, dyndep: reconcile dyndep-specified outputs with depfile-specified inputs, ninja-build/ninja pull request 1937 (milestone 1.11.0), 2021-03-28, https://github.com/ninja-build/ninja/pull/1937"
+  - "Ninja contributors, Remove phony edges for nodes created by a dependency loader, ninja-build/ninja commit a744eea2b6, 2023-11-06, https://github.com/ninja-build/ninja/commit/a744eea2b6"
+  - "Ninja Authors, src/version.cc (ParseVersion), ninja-build/ninja at v1.13.2, 2025, https://github.com/ninja-build/ninja/blob/v1.13.2/src/version.cc"
   - "Bill Hoffman, Brad King, and Ben Boeckel, import CMake; the Experiment is Over!, Kitware Blog, 2023-10-18, https://www.kitware.com/import-cmake-the-experiment-is-over/"
   - "Ninja Authors, The Ninja build system manual, section Dynamic Dependencies, Ninja 1.13.2, 2025, https://ninja-build.org/manual.html"
   - "Ninja Authors, src/dyndep.cc and src/dyndep_parser.cc, ninja-build/ninja at v1.13.2, 2025, https://github.com/ninja-build/ninja/blob/v1.13.2/src/dyndep.cc"
@@ -22,9 +29,20 @@ sources:
   - "The Bazel Authors, Bazel 9.0.0 release notes, 2026-01-20, https://github.com/bazelbuild/bazel/releases/tag/9.0.0"
   - "The Bazel Authors, src/main/java/com/google/devtools/build/lib/rules/cpp/CppOptions.java (experimental_cpp_modules), Bazel 9.3.2 source, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/rules/cpp/CppOptions.java"
   - "The rules_cc Authors, docs/features.md (cpp_modules) and cc/common/cc_helper.bzl (_check_cpp_modules), bazelbuild/rules_cc main branch, 2026, https://github.com/bazelbuild/rules_cc/blob/main/docs/features.md"
-  - "Meta Open Source, prelude/cxx/compile.bzl, compile_types.bzl, cxx.bzl, and cxx_toolchain.bzl (use_header_units, export_header_unit, supports_two_phase_compilation), facebook/buck2 main branch, 2026, https://github.com/facebook/buck2/tree/main/prelude/cxx"
+  - "The rules_cc Authors, cc/private/compile/compile.bzl (_create_cc_compile_actions_with_cpp20_module_helper), bazelbuild/rules_cc main branch, 2026, https://github.com/bazelbuild/rules_cc/blob/main/cc/private/compile/compile.bzl"
+  - "The Bazel Authors, src/main/java/com/google/devtools/build/lib/rules/cpp/CppCompileAction.java (discoverInputs, computeUsedCpp20Modules), bazelbuild/bazel master branch, 2026, https://github.com/bazelbuild/bazel/blob/master/src/main/java/com/google/devtools/build/lib/rules/cpp/CppCompileAction.java"
+  - "Meta Open Source, prelude/cxx/compile.bzl, compile_types.bzl, cxx.bzl, attrs.bzl, preprocessor.bzl, and cxx_toolchain.bzl (use_header_units, export_header_unit, supports_two_phase_compilation), facebook/buck2 at commit 5b3b13d3ea, 2026-11-15, https://github.com/facebook/buck2/tree/5b3b13d3eacefe325bf971369197e33c5f4b3968/prelude/cxx"
   - "The Meson Development Team, mesonbuild/scripts/depscan.py and mesonbuild/backend/ninjabackend.py (should_use_dyndeps_for_target), mesonbuild/meson master branch, 2026, https://github.com/mesonbuild/meson/blob/master/mesonbuild/scripts/depscan.py"
   - "Joel Rosdahl and ccache contributors, Ccache manual, section C++ modules, ccache master branch, 2026, https://github.com/ccache/ccache/blob/master/doc/manual.adoc"
+  - "The Bazel Authors, Automated rollback of commit cb9bd8615210dda2104f79d281938e47187dc2de, bazelbuild/bazel commit aea3f208d4, 2025-12-18, https://github.com/bazelbuild/bazel/commit/aea3f208d4"
+  - "The Bazel Authors, Allow multiple module interfaces per cc_library (#545), bazelbuild/bazel commit c4705bc172, 2025-12-15, https://github.com/bazelbuild/bazel/commit/c4705bc172"
+  - "The Bazel Authors, src/main/starlark/builtins_bzl/common/cc/compile/compile.bzl (one module_interfaces check), Bazel 9.3.2 source, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/starlark/builtins_bzl/common/cc/compile/compile.bzl"
+  - "Kitware, Source/cmGlobalNinjaGenerator.h, CMake v3.25.2 and v3.25.3 source, 2023, https://github.com/Kitware/CMake/blob/v3.25.3/Source/cmGlobalNinjaGenerator.h"
+  - "Kitware, Help/release/4.4.rst and 4.5.rst, CMake v4.5.0, 2026, https://github.com/Kitware/CMake/blob/v4.5.0/Help/release/4.5.rst"
+  - "Kitware, Modules/Compiler/Clang-CXX.cmake, GNU-CXX.cmake, MSVC-CXX.cmake as installed by CMake 4.5.0 (checked locally 2026-11-15), https://github.com/Kitware/CMake/blob/v4.5.0/Modules/Compiler/Clang-CXX.cmake"
+  - "The Meson Development Team, mesonbuild/compilers/cpp.py (get_cpp_modules_args), mesonbuild/meson master branch, 2026, https://github.com/mesonbuild/meson/blob/master/mesonbuild/compilers/cpp.py"
+  - "Ninja Authors, Releases (v1.10.0 2020-01-28, v1.11.0 2022-05-15, v1.13.2 2025-11-20), ninja-build/ninja, https://github.com/ninja-build/ninja/releases"
+  - "Ninja contributors, Only load depsfile if not dirty [Fix #2666], ninja-build/ninja pull request 2680, merged 2026-07-19, https://github.com/ninja-build/ninja/pull/2680"
 ---
 
 # C++20 Modules in Build Systems
@@ -116,6 +134,19 @@ Each rejected design violates one of them:
 
 CMake therefore runs a static build whose graph contains every scan, collate, and compile command, and lets the build tool add the module edges at run time.
 GCC's manual itself calls mapper functionality "in its infancy and ... intended for experimentation with build system interactions."
+The cost of a static graph is that every module-aware source must be known when CMake generates, even if the file does not exist yet, because the dyndep file can only add edges between commands that are already in the graph.
+
+Which sources get a scan edge is decided per source by the first rule that answers, in this order (cmake-cxxmodules(7), "Scanning Control"):
+
+1. A source in a `CXX_MODULES` file set is always scanned.
+2. A target below C++20 is never scanned.
+3. A source whose language is not `CXX` is never scanned.
+4. A source in another kind of file set uses that file set's `CXX_SCAN_FOR_MODULES` property (CMake 4.4+), if set.
+5. The source file's `CXX_SCAN_FOR_MODULES` property, as seen from the target's directory, if set.
+6. The target's `CXX_SCAN_FOR_MODULES` property, if set; `CMAKE_CXX_SCAN_FOR_MODULES` initializes it on every new target.
+7. Otherwise the source is scanned if the compiler and generator support scanning and policy `CMP0155` is `NEW`.
+
+Every scanned source is also removed from unity builds, because a translation unit may contain only one module declaration.
 
 ### 3. Step one: scanning to P1689R5
 
@@ -146,8 +177,11 @@ Each compiler ships a scanner, and CMake 4.5 stores the command template in `CMA
 | GCC 14+ | `<compiler> <flags> -E -x c++ <SOURCE> -MT <DYNDEP_FILE> -MD -MF <DEP_FILE> -fmodules-ts -fdeps-file=<DYNDEP_FILE> -fdeps-target=<OBJECT> -fdeps-format=p1689r5 -o <PREPROCESSED_SOURCE>` | A preprocessing run; `p1689r5` is "the only supported format" |
 | MSVC 14.34+ | `<compiler> <flags> <SOURCE> -nologo -TP -showIncludes -scanDependencies <DYNDEP_FILE> -Fo<OBJECT>` | `/scanDependencies` exists since VS 2022 17.2, writes absolute paths, lists direct imports only |
 
+Microsoft's `/scanDependencies` page adds four operational details: given a directory it writes `<source>.module.json` there (for example `main.cpp.module.json`); it reports `import <h>;` and `import "h";` as header-unit dependencies; it still writes the file after a non-fatal compile error; and under `/MP` it recommends the directory form, because two compiler instances can collide on one output file name.
+
 The Clang template writes to `<DYNDEP_FILE>.tmp` and renames, with a source comment citing CMake issue 25419: Ninja "assumes that failed commands either delete or leave output files alone," so a half-written scan result must never replace a good one.
 The `-MD -MF` depfile on the scan edge is what makes Ninja rescan when an included header changes, because a header can add or remove an `import`.
+CMake scans one source per edge; cmake-cxxmodules(7) lists "Batch Scanning" (one scan per target) as a possible future enhancement, faster when sources share transitive includes but forcing a rescan of the whole target whenever any source changes.
 GCC's `-fdeps-format` also strips C++ module information from the `-MF` output "so that it does not use extended makefile syntax"; without it GCC writes `CXX_MODULES +=` lines that Ninja cannot parse, which P1689R5 cites as the reason Makefile snippets do not work.
 
 ### 4. Step two: collation
@@ -164,8 +198,15 @@ It writes:
 - `CXXModules.json` for targets that depend on this one.
 - One `.modmap` per compile, in the format selected by `CMAKE_CXX_MODULE_MAP_FORMAT` (`clang`, `gcc`, or `msvc`) and passed with `CMAKE_CXX_MODULE_MAP_FLAG` (`@<MODULE_MAP_FILE>` for Clang and MSVC, `-fmodules-ts -fmodule-mapper=<MODULE_MAP_FILE> -MD -fdeps-format=p1689r5 -x c++` for GCC).
 - `install-cxx-module-bmi-<CONFIG>.cmake` scripts and export fragments that set `IMPORTED_CXX_MODULES_<CONFIG>`, because BMI file names are only known at build time: CMake names BMIs after the module, not the source.
+  The install step includes these scripts with `OPTIONAL`, so installing from an incomplete build silently installs an incomplete set of BMIs.
+- `CXX_build_database.json` when the target's `EXPORT_BUILD_DATABASE` property is set, which CMake 4.5 still gates behind `CMAKE_EXPERIMENTAL_EXPORT_BUILD_DATABASE` (as of 2026-11, Both).
+
+`CXXDependInfo.json` records, for each object in `cxx-modules`, the owning file set's `name`, `type`, and `visibility`, its `compile-features`, `compile-options`, `definitions`, and `include-directories`, the install `destination` and `relative-directory`, and a `bmi-only` flag for providers whose source is not available; that is enough for the collator to enforce visibility and to write install rules without rerunning CMake.
 
 It enforces two invariants: one BMI per public module name across the program, and module visibility, meaning a module from a `PRIVATE` file set may not be imported by dependent targets or by `PUBLIC` interface units of the same target.
+The first works because each `CXXModules.json` carries, for every module it provides, the modules that module transitively imports, so when two paths reach one name the collator can check that they agree on one BMI file.
+Visibility exists because an entity imported into a module interface can affect consumers even when it is not exported, and a `PRIVATE` interface unit is never installed, so an installed module that imported it could not be rebuilt by a consumer.
+The collator also cannot recover from a bad scan: cmake-cxxmodules(7) says that because CMake "only provides the locations of modules that are discovered by the scan command, any modules missed by it will not be provided to the compilation."
 It does not detect import cycles; CMake leaves that to the build tool (CMake issue 26119 tracks improving it), and the lab shows Ninja's message.
 
 Two details matter for incremental builds, and the lab's CMake output shows both:
@@ -184,9 +225,25 @@ When the dyndep file is ready, `DyndepLoader::LoadDyndeps` in `src/dyndep.cc` pa
 3. Appends the implicit outputs (the BMIs) and makes the edge their producer, failing with "multiple rules generate <path>" if another edge already produces one.
 4. Inserts the implicit inputs (the imported BMIs) before the order-only inputs and registers the edge as their consumer.
 
-The parser accepts `ninja_dyndep_version = 1` or `1.0` with any suffix, exactly one explicit output per statement, and the rule name `dyndep`; explicit inputs and order-only inputs are rejected.
+`DyndepParser` in `src/dyndep_parser.cc` is strict:
+
+- The first statement must be `ninja_dyndep_version = ...`, and `ParseVersion` (`src/version.cc`) must read major 1 and minor 0, so `1`, `1.0`, and `1.0.3` pass and `1.1` fails with "unsupported 'ninja_dyndep_version = 1.1'".
+- Each statement needs exactly one explicit output that already has a build statement ("no build statement exists for ..."), named at most once ("multiple statements for ..."), the rule name `dyndep`, and no explicit outputs beyond the first, explicit inputs, or order-only inputs.
+- The only binding it accepts is `restat`, and it tests only whether the value is empty (`dyndeps->restat_ = !value.empty()`), so `restat = 0` turns restat on.
+
 So the dyndep file can only add edges between existing edges; it cannot create a compile command, which is why every module-providing source must be known when the graph is generated.
-CMake requires Ninja 1.11 for C++ dyndep (`RequiredNinjaVersionForDyndepsCxx() { return "1.11"; }` in `cmGlobalNinjaGenerator.h`) but 1.10 for Fortran; UNVERIFIED: the specific 1.11 fix that motivated the higher floor is not named in the CMake source or docs I read.
+
+CMake requires Ninja 1.11 for C++ dyndep (`RequiredNinjaVersionForDyndepsCxx()` returns `"1.11"` in `cmGlobalNinjaGenerator.h`) but only 1.10 for Fortran (`RequiredNinjaVersionForDyndepsFortran()`).
+The split comes from CMake commit 7abddcab08, "Ninja: require Ninja 1.11 for C++ module support" (2023-01-20; first released in CMake 3.25.3, whose `cmGlobalNinjaGenerator.h` has the split while 3.25.2 still has one `RequiredNinjaVersionForDyndeps()` returning `"1.10"`), whose message cites Ninja pull request 1937.
+That pull request (Brad King, merged 2021-03-28, milestone 1.11.0; Ninja 1.11.0 was published 2022-05-15) fixed precisely the module case:
+
+1. When a depfile or the deps log names a path that has no node yet, Ninja creates the node and, before the fix, gave it a placeholder phony producer edge.
+2. GCC's compile depfile lists the CMIs the compile read, so on an incremental build the deps-log entry for an importer's object names `b.gcm`.
+3. The dyndep file then declares `b.gcm` as an implicit output of the compile of `b`, and `UpdateEdge` saw an existing producer and failed with "multiple rules generate b.gcm".
+4. The fix marked placeholder edges `generated_by_dep_loader_` and let a dyndep-declared real producer replace them.
+
+Ninja 1.12.0 removed the placeholder edges altogether (commit a744eea2b6, 2023-11-06, "Remove phony edges for nodes created by a dependency loader"), moving the flag from `Edge` to `Node`, and describes the change as a simplification "without modifying its behavior": the `generated_by_dep_loader_` special case is present in `src/dyndep.cc` at v1.11.1 and absent at v1.12.0, and in v1.13.2 `UpdateEdge` reports "multiple rules generate" only when a real edge already produces the path.
+The Fortran check also still accepts Kitware's own Ninja branch, whose version string carries a `.dyndep-1` suffix (the comment in `CheckNinjaFeatures` reads "Our ninja branch adds '.dyndep-#' to its version number"); since that commit the C++ check does not.
 
 ### 6. Step four: compiling, BMI models, and BMI compatibility
 
@@ -197,6 +254,7 @@ Clang has two compilation models for an interface unit:
 
 Clang's documentation gives the trade-off: with `B` importing `A`, one-phase compiles them serially, while two-phase lets `B` start "as soon as `A.pcm` is available."
 cmake-cxxmodules(7) lists separate BMI generation as a possible future enhancement and explains why it is not done: only Clang can compile an object directly from a BMI, and GCC does not support two-phase generation.
+It also records a structural conflict: a two-phase rule needs every BMI-generating source known at generate time, which rules out the other wished-for enhancement, "just list sources; CMake will figure it out" (Easier Source Specification), on the same target.
 
 Clang 22 made the Reduced BMI the default (Clang 23.1.5 docs: "As of Clang 22.x, the Reduced BMI is enabled by default").
 A Reduced BMI omits unreachable global-module-fragment entities and the definitions of non-inline functions and variables, so it is smaller and depends on less; `-fno-modules-reduced-bmi` restores the full BMI, which two-phase builds need when they generate the object from the `.pcm`.
@@ -212,6 +270,16 @@ A BMI is a cache, not a library artifact:
 CMake turns this into graph structure.
 For an `IMPORTED` target that provides modules, it creates a synthetic target that compiles only BMIs from the installed interface sources, using `CMAKE_CXX_MODULE_BMI_ONLY_FLAG` (`-fmodule-only` for GCC, `-ifcOnly;-ifcOutput;<OBJECT>` for MSVC) or `CMAKE_CXX_COMPILE_BMI` (`--precompile` for Clang).
 Before CMake 4.4 it assumed all consumers were compatible and built one set of BMIs per provider; since 4.4 it decides compatibility per consumer and creates synthetic targets whose `COMPILE_FEATURES` and `COMPILE_OPTIONS` come from the consumer and everything else from the provider.
+
+In CMake 4.5 the compatibility decision is a hash computed by `cmCxxModuleUsageEffects` (`Source/cmCxxModuleUsageEffects.cxx`):
+
+- Input: the target's C++ compile options, sorted, then `CXX_STANDARD` (falling back to `CMAKE_CXX_STANDARD_DEFAULT`, then `20`), `CXX_EXTENSIONS`, `CXX_STANDARD_REQUIRED`, and `MSVC_RUNTIME_LIBRARY` when `CMAKE_MSVC_RUNTIME_LIBRARY_DEFAULT` is set; for an `IMPORTED` provider, its imported module compile features and options.
+- Ignored: warning flags (for the GNU frontend `-W...`, `-w...`, `-pedantic`, `-pedantic-errors`, and similar; for MSVC `/W`, `/w`, `/external:`).
+- Set aside, not hashed: preprocessor flags (`-D`, `-U`, `-I`, `-isystem`, `-iquote`, `-idirafter`, `-include`, `-imacros`, `--embed-dir`; for MSVC `/D`, `/U`, `/I`).
+- Digest: SHA3-512; for a compiler whose frontend variant is neither GNU nor MSVC, every option is hashed.
+
+`cmGeneratorTarget::GetTargetForCxxModules` returns the provider itself (or, for an `IMPORTED` provider, its synthetic target) when the consumer's digest equals the provider's.
+Two consequences follow from that code: a consumer that differs only in `-DNDEBUG` shares the provider's BMIs, which matches Clang accepting mismatched macros, and two option lists that differ only in order hash the same, although order can matter to a compiler.
 
 ### 7. What rebuilds after an edit
 
@@ -233,34 +301,45 @@ Variant B is no better than A on these edits because the BMI mtime always moves,
 
 - Without dyndep, an implicit build that searches `-fprebuilt-module-path=bmi` fails on a clean tree as soon as an importer runs first, and a hand-ordered implicit build under-builds: after `report.cppm` gains an export, only `report.o` recompiles and the importer `main.o` is never reconsidered, because no edge declares that it read `report.pcm`.
 - An import cycle is ill-formed, and with dyndep it becomes a graph cycle that Ninja reports when it loads the dyndep file.
-- Ninja issue 2666 (opened 2025-09-02): a compile's depfile is stored in `.ninja_deps`, and GCC's depfile lists the CMIs the compile read.
+- Ninja issue 2666 (opened 2025-09-02 by Ben Boeckel with a CMake reproducer): a compile's depfile is stored in `.ninja_deps`, and GCC's depfile lists the CMIs the compile read.
   If `a` imports `b` in one build and `b` imports `a` in the next, the old `a.o` deps-log entry still says `a.o` read `b.gcm` while the new dyndep file says `b.o` reads `a.gcm`, and Ninja reports a cycle that no longer exists.
-  Clang's depfile records no BMI, so the same flip builds cleanly with Clang, which the lab shows side by side.
-  Pull request 2680 ("Only load depsfile if not dirty") fixed it on Ninja's master branch on 2026-07-19, but the newest release, 1.13.2 (2025-11-20), predates the fix (as of 2026-11, Both), and cmake-cxxmodules(7) in CMake 4.5 still documents the issue.
-  Bazel hit the same class of bug in its action cache and fixed it in commit cb9bd86152 (2025-12-10) by not reusing previously discovered inputs when mandatory inputs such as the modmap change.
+  A root-cause comment on the issue (2025-10-12) places the fault in `Builder::AddTarget`, which loads an edge's deps-log entry whenever one exists, without asking whether the edge is dirty and its depfile about to be replaced.
+  The same comment shows the cycle with CMake-generated Clang `.pcm` paths, so Clang is not immune; in the lab, a hand-written Clang manifest flips cleanly because its compile depfile lists no BMI, while CMake with GCC 16 reproduces the cycle.
+  Pull request 2680 ("Only load depsfile if not dirty [Fix #2666]") merged to Ninja's master branch on 2026-07-19 as commit 88f90e87fd, but the newest release, 1.13.2 (2025-11-20), predates the fix (as of 2026-11, Both), and cmake-cxxmodules(7) in CMake 4.5 still documents the issue.
+  Bazel hit the same class of bug in its action cache: commit cb9bd86152 (2025-12-10) stopped reusing previously discovered inputs when mandatory inputs such as the modmap change, but commit aea3f208d4 rolled it back on 2025-12-18 ("Causes a Blaze performance regression"), its 9.0.0 cherry-pick was reverted on 2026-01-08, and no later change to `ActionCacheChecker.java` up to 10.0.0rc3 relands it (as of 2026-11, Both).
 
 ### 9. `import std` and header units
 
 `import std` became generally available in CMake 4.5 ("now available for all C++ 20 and later code with `CXX_SCAN_FOR_MODULES` enabled"), limited to Clang 18.1.2+ with libc++ or libstdc++, MSVC 14.36+, GCC 15+ (not on macOS), and GCC 16+ on macOS, and only with Ninja generators, because Visual Studio generators cannot build BMIs for `IMPORTED` targets.
 The standard library ships interface sources plus a metadata file (`libc++.modules.json`, `libstdc++.modules.json`) that CMake reads to build a synthetic `std` target; `CMAKE_CXX_STDLIB_MODULES_JSON` (4.5) points at the file when the compiler cannot find it, and the manual warns that Ubuntu before 26.04 ships broken `libstdc++.modules.json` files.
-The lab's CMake build wrote `CMakeFiles/@cmake_cxx_std.dir/CXXModules.json` although no source imports `std`, which is consistent with CMake preparing that synthetic target for every scanned C++20 target; UNVERIFIED beyond that directory name.
+That synthetic target is named in the source: `cmGeneratorTarget::ApplyCXXStdTarget` (CMake 4.5 `Source/cmGeneratorTarget.cxx`) creates one global `IMPORTED` `INTERFACE` library called `@cmake_cxx_std`, which a source comment calls "the single, unreferenceable import std target."
+`CreateCxxStdlibTarget` populates it from the metadata file and requires `cxx_std_20` on it; for MSVC it also requires the interface object files, and for Clang its synthetic compiles add `-Wno-reserved-module-identifier`, which silences Clang's warning about the reserved name `std`.
+`ApplyCXXStdTarget` then appends `$<BUILD_LOCAL_INTERFACE:@cmake_cxx_std>` to the `LINK_LIBRARIES` of every non-imported target that has at least one C++ source needing dyndep, wrapped in `$<CONFIG:...>` when only some configurations scan, and adds it to `IMPORTED_CXX_MODULES_LINK_LIBRARIES` of imported targets that have C++20 module sources.
+That is why the lab's CMake build wrote `CMakeFiles/@cmake_cxx_std.dir/CXXModules.json` although no source imports `std`; no `std` BMI appears in the lab's file list, consistent with the manual's rule that "only modules that are actually used will be generated."
+When the compiler reports an `import std` error, or `CMAKE_CXX_STDLIB_MODULES_JSON` is empty or unset (the code tests `IsEmpty()`, although the error text says "set to empty string"), CMake still creates the target, carrying `CXX_IMPORT_ERROR_MESSAGE` and `CXX_IMPORT_ERROR_MODULES` (`std;std.compat`), and configuration continues; only a metadata file that fails to parse is a configure-time fatal error.
 GCC alone offers a one-command path, `--compile-std-module`, which builds the `bits/stdc++.h` header unit and the `std` and `std.compat` modules before the sources on the command line.
 
 Header units stay out of mainstream build systems as of 2026-11: cmake-cxxmodules(7) says "Header units are not supported" for all generators, Clang marks its header-unit options experimental, and clang-scan-deps reports named modules only.
 They are hard for a scanner because a header unit exports macros, so `import <config.h>;` can change which later `#if` branches, and therefore which imports, are active; GCC's manual notes that detecting such imports requires preprocessing "to phase 4 (macro expansion)."
-Buck2's prelude uses header units the other way round, as a precompiled-header replacement rather than as user-visible imports (section 10).
+Buck2's prelude uses header units the other way round, as a precompiled-header replacement generated from a library's exported headers rather than as imports users write.
 
 ### 10. How the other build systems do it (as of 2026-11)
 
 - **Bazel**: support landed as a five-part split of pull request 19940 by PikachuHyA: the `module_interfaces` attribute (2024-06-14), module tools (2024-08-28), the dependency-scanner action names `c++-module-deps-scanning`, `c++20-module-compile`, and `c++20-module-codegen` with `.ddi`, `.CXXModules.json`, and `.modmap` artifacts modeled on CMake (2024-08-30), and one-phase compilation (2025-10-31).
   Bazel 9.0.0 (2026-01-20) calls it "Introductory support for C++20 modules; it supports `cc_library` with a single module interface"; it needs `--experimental_cpp_modules` (named so in the Bazel 9.3.2 source) and the `cpp_modules` toolchain feature (rules_cc `docs/features.md`).
-  Scan results go through `aggregate-ddi` and `generate-modmap` actions, and the compile action uses Skyframe's restart mechanism: "if the necessary C++20 Modules files are not ready during compilation, the current compilation will exit and wait."
-  Multiple module interfaces per `cc_library` (commit cb9bd86152) is in 10.0.0rc3 and not in 9.3.2.
-  A commit search on 2026-11-14 found parts 1 to 4 and no part 5 (two-phase compilation) in the history; UNVERIFIED that no other two-phase path exists.
+  Bazel 9.0.0 also made language rules load from their own modules ("all language-specific rules will now need to be loaded from their respective modules (`rules_cc`, `rules_java`, etc)"), so the action graph is built by `_create_cc_compile_actions_with_cpp20_module_helper` in rules_cc's `cc/private/compile/compile.bzl` (main, as of 2026-11).
+  Per `module_interfaces` source, a scan-deps action writes a `.ddi` (the code comment links P1689R5); one `aggregate-ddi` action merges the target's `.ddi` files with its dependencies' module-info files; per source, a `generate-modmap` action writes a modmap and a modmap input file; and one `cpp20_module_compile` action writes the object plus the BMI (`cpp_module_output_file`), which is the one-phase model.
+  The action name `c++20-module-codegen` is defined (`CppActionNames.java`, `action_names.bzl`) and `CppCompileAction.isCpp20ModuleCompilationAction` accepts it, but no code in that file creates it; the only codegen action there, `_create_module_codegen_action`, serves Clang header modules behind the `HEADER_MODULE_CODEGEN` feature, so Bazel has no two-phase C++20 path (as of 2026-11, Both).
+  Each compile declares every BMI of the target and its dependencies as a potential input, and `CppCompileAction.discoverInputs` narrows that set: `computeUsedCpp20Modules` reads the modmap input file line by line and keeps only declared module files whose exec paths it lists, silently skipping unknown lines so that the compiler reports them.
+  The original commit's wording for the scheduling side is "if the necessary C++20 Modules files are not ready during compilation, the current compilation will exit and wait," which is a Skyframe restart: `discoverInputs` returns `null` "when a required SkyValue is missing and a Skyframe restart is required."
+  Multiple module interfaces per `cc_library` came from commit c4705bc172 (2025-12-15), which removed the one-interface check from Bazel's built-in `compile.bzl`; that check is absent from rules_cc main and from 10.0.0rc3, while Bazel 9.3.2, the newest stable release, still fails with "module_interfaces must be a list of files with exactly one file" (as of 2026-11).
+  The companion action-cache fix for imports between interfaces of one target (cb9bd86152) was rolled back, as described in section 8, so treat incremental builds of multi-interface targets as unproven.
   [[Bazel-Skyframe-Bzlmod-and-Execution-Model]] owns Skyframe restarts and input discovery.
-- **Buck2**: the prelude (main branch) supports Clang header units built from a generated umbrella header with `-xc++-user-header -fmodule-header`, exported by a library through `export_header_unit` and consumed through `use_header_units` (`True`, `False`, or `"stub"`), and only when the toolchain sets `supports_two_phase_compilation`.
-  The `"stub"` mode uses inert `.pcm.stub` files that are cached like real PCMs, to "estimate the overhead of precompiling modules in terms of additional uncached Buck actions" before migrating.
-  I found no P1689 scanning or named-module rule attribute in the prelude files inspected (`compile.bzl`, `compile_types.bzl`, `cxx.bzl`, `cxx_library.bzl`, `cxx_toolchain.bzl`); UNVERIFIED that Buck2 has no named-module support elsewhere.
+- **Buck2**: the prelude (main at commit 5b3b13d3ea, 2026-11-15) supports Clang header units and no named modules: a search of the entire `prelude/` tree for `p1689`, `scan-deps`, `scan_deps`, `fmodule-output`, `module_interface`, `.cppm`, and `export module` finds no match in any C++ rule.
+  A library exports a header unit with `export_header_unit = "include"` (replace includes of its exported headers with an import of the precompiled unit) or `"preload"` (load the unit in every dependent that uses header units), and `export_header_unit_filter` regexes split its headers into groups, each of which "should only depend on headers in previous groups."
+  The precompile writes a `module.modulemap` (`module "<name>" { header "<name>" export * }`) beside the headers and runs Clang with `-xc++-user-header -fmodule-header -fmodule-name=<name> -Xclang -fmodule-file-home-is-cwd -Xclang -fmodules-embed-file=<header> --precompile`, so the PCM carries its header's text and resolves paths against the working directory; consumers get `-fmodule-file=<name>=<pcm>` and `-fmodule-map-file=<dir>/module.modulemap`.
+  A dependent opts in with `use_header_units` (`True`, `False`, or `"stub"`), and only on a toolchain whose `compiler_type` contains `clang` and that sets `supports_two_phase_compilation` (`_compiler_supports_header_units` in `compile.bzl`); on an Apple toolchain the precompile path fails with "C++20 modules are not supported for AppleToolchain."
+  The `"stub"` mode replaces each PCM with an inert `.pcm.stub` that is cached and rebuilt exactly when a real PCM would be, which `compile_types.bzl` says "helps estimate the overhead of precompiling modules in terms of additional uncached Buck actions" before migrating.
   Buck2's `dynamic_output` is the mechanism a scan-then-compile rule would use; [[Buck2-DICE-Starlark-and-BXL]] owns it.
 - **Meson**: the Ninja backend uses dyndep for a C++ target only when its `cpp_args` contain what Meson treats as the compiler's module flag (`-fmodules` or `-fmodules-ts` for Clang and GCC, `/interface` for MSVC), or when it uses MSVC 19.28.28617 or newer with `cpp_std` set to a `latest` value, and its own `depscan.py` finds modules with the regular expressions `\w*import ([a-zA-Z0-9]+);` and `\w*export module ([a-zA-Z0-9]+);`, which miss dotted names, partitions, and anything behind the preprocessor (master branch; release 1.12.1).
   [[Meson-Build-System-and-WrapDB]] owns Meson.
@@ -274,7 +353,7 @@ Buck2's prelude uses header units the other way round, as a precompiled-header r
 | CMake modules support | Non-experimental since 3.28 | Both (as of 2026-11) | `FILE_SET CXX_MODULES`, scanning, collation |
 | CMake compilers for scanning | MSVC 14.34+, Clang 16.0+, `clang-cl` 19.1+ (CMake 4.4+), GCC 14+ | Both (as of 2026-11) | `CMAKE_CXX_SCANDEP_SOURCE` is set only for these |
 | CMake generators | `Ninja`, `Ninja Multi-Config`, `Visual Studio 17 2022`, `Visual Studio 18 2026` | Both (as of 2026-11) | Makefile generators fail at configure |
-| Minimum Ninja for C++ modules | 1.11 (dyndep exists since 1.10) | Both (as of 2026-11) | `RequiredNinjaVersionForDyndepsCxx` |
+| Minimum Ninja for C++ modules | 1.11 (dyndep exists since 1.10; Fortran needs 1.10) | Both (as of 2026-11) | `RequiredNinjaVersionForDyndepsCxx`; 1.11 carries Ninja PR 1937 (dyndep output replaces a depfile placeholder) |
 | Policy `CMP0155` | Introduced 3.28; `NEW` scans C++20 sources by default | Both (as of 2026-11) | Unset means `OLD` with no warning |
 | `CMAKE_CXX_SCAN_FOR_MODULES` | Set to `0` in projects without modules | Both (as of 2026-11) | Removes the scan edges; do not put it in the cache |
 | `CXX_SCAN_FOR_MODULES` | Source, target, and (4.4+) file set property | Both (as of 2026-11) | `CXX_MODULES` file sets are always scanned |
@@ -292,10 +371,13 @@ Buck2's prelude uses header units the other way round, as a precompiled-header r
 | Clang BMI lookup | `-fmodule-file=<name>=<path>` (lazy), `-fprebuilt-module-path=<dir>` | Both (as of 2026-11) | `-fmodule-file=<path>` alone is deprecated for named modules |
 | Clang Reduced BMI | Default since Clang 22; `-fno-modules-reduced-bmi` to disable | Both (as of 2026-11) | Omits non-inline definitions |
 | Clang `-fmodules-embed-all-files` | Embeds input sources in the BMI | Both (as of 2026-11) | Consumers need not reopen sources |
-| Ninja dyndep file header | `ninja_dyndep_version = 1` (CMake writes `1.0`) | Both (as of 2026-11) | Any other version is rejected |
-| Ninja dyndep bindings | `restat` only | Both (as of 2026-11) | Anything else is a parse error |
-| Ninja issue 2666 fix | On master since 2026-07-19, not in 1.13.2 | Both (as of 2026-11) | False cycle after an import flips, with GCC |
-| Bazel | `--experimental_cpp_modules`, feature `cpp_modules`, attribute `module_interfaces` | Both (as of 2026-11) | One interface per `cc_library` in 9.x |
+| Ninja dyndep file header | `ninja_dyndep_version = 1` (CMake writes `1.0`) | Both (as of 2026-11) | Major must be 1 and minor 0; `1.1` is rejected |
+| Ninja dyndep bindings | `restat` only | Both (as of 2026-11) | Anything else is a parse error; any non-empty value, even `0`, enables restat |
+| Ninja issue 2666 fix | On master since 2026-07-19 (commit 88f90e87fd), not in 1.13.2 | Both (as of 2026-11) | False cycle after an import flips; GCC most exposed |
+| CMake BMI compatibility key | SHA3-512 over sorted compile options minus warning and preprocessor flags, plus standard, extensions, and MSVC runtime | Both (as of 2026-11, CMake 4.5 source) | Equal key: share the provider's BMIs; else a synthetic target |
+| CMake `import std` target | `@cmake_cxx_std`, one global `IMPORTED` `INTERFACE` library | Both (as of 2026-11, CMake 4.5 source) | Linked into every target that scans C++ |
+| Bazel | `--experimental_cpp_modules`, feature `cpp_modules`, attribute `module_interfaces` | Both (as of 2026-11) | One interface per `cc_library` in 9.x; one-phase only |
+| Buck2 | `export_header_unit` (`include`, `preload`), `use_header_units` (`True`, `False`, `"stub"`) | Both (as of 2026-11) | Clang header units only; no named modules |
 | ccache | "does currently not support standard C++20 modules" | Both (as of 2026-11) | Only Clang header modules with `sloppiness=modules` |
 
 ## Multi-Language Comparison: C++ / Python / Rust
@@ -344,7 +426,7 @@ Every check can fail: the scan records come from the compiler, the build order i
 
 ### Verified output
 
-Recorded by `python3 -m _harness.verify --record` on darwin-arm64 on 2026-11-14; the file is `code/06-Build-Systems/cpp_modules_ninja/expected/darwin-arm64.txt`, and every block below is copied from it.
+Recorded by `python3 -m _harness.verify --record` on darwin-arm64 on 2026-11-14; the file is `code/06-Build-Systems/cpp_modules_ninja/expected/darwin-arm64.txt`, and every output block in this section is copied from it.
 
 The toolchain line and the scan:
 
@@ -520,7 +602,8 @@ The full expected file also lists the 20 module-related files CMake wrote under 
 - An edit inside an implementation unit costs one compile and a relink, and an edit inside an interface partition costs every downstream compile in A and B; the interface unit is the new header, and function bodies belong in implementation units.
 - Variant C's `main.o` survives the interface edit only because `report.pcm` kept its bytes, and it stops surviving as soon as `report` re-exports `geom`.
 - The `touch` row is the cost of an mtime-only change, which `git checkout`, code generators that rewrite identical files, and formatters produce routinely: CMake 4.5 recompiled all 5 objects, and copy-if-different cut it to 1.
-- The Clang flip succeeds and the GCC flip fails on the same Ninja 1.13.2 because only GCC's depfile put `b.gcm` into `.ninja_deps`; deleting `.ninja_deps` is the workaround until a Ninja release carries pull request 2680.
+- Ninja names a cycle starting from whichever node it reaches first, and a rerun of the lab on 2026-11-15 printed `bmi/b.pcm -> bmi/a.pcm -> bmi/b.pcm` for section 9; the lab rotates each reported cycle to start at its smallest node, so the block above is stable and proves that the cycle is reported, not where Ninja's message starts.
+- In this lab the Clang flip succeeds and the GCC flip fails on the same Ninja 1.13.2 because only GCC's depfile put `b.gcm` into `.ninja_deps`; the issue thread shows CMake with Clang can still hit it, and deleting `.ninja_deps` is the workaround until a Ninja release carries pull request 2680.
 
 ## Pitfalls
 
@@ -557,6 +640,14 @@ The full expected file also lists the 20 module-related files CMake wrote under 
 > With GCC and Ninja 1.13.2, flipping which module imports which can produce a false cycle from stale `.ninja_deps` entries (issue 2666).
 > Check the cycle against the current sources; if they are acyclic, delete `.ninja_deps` in the build directory (or rebuild from clean) and rebuild.
 
+> [!warning] Pitfall: writing `restat = 0` in a hand-written dyndep file
+> Ninja's dyndep parser sets restat whenever the binding's value is non-empty (`dyndeps->restat_ = !value.empty()` in `src/dyndep_parser.cc`), so `restat = 0` enables it.
+> Omit the binding to disable restat; a custom collator that emits `restat = 0` gets the opposite of what it asked for.
+
+> [!warning] Pitfall: installing from a partial build
+> CMake includes the collator-written `install-cxx-module-bmi-<CONFIG>.cmake` scripts with `OPTIONAL`, because BMI names are only known after the build.
+> If the build stopped early, `cmake --install` succeeds with missing BMIs; build the full configuration before installing.
+
 > [!warning] Pitfall: expecting ccache to cache module builds
 > The ccache manual says it "does currently not support standard C++20 modules"; its `modules` sloppiness covers only Clang header modules (`-fmodules`).
 > Measure cache hit rates before and after migrating, and see [[Compiler-Caches-ccache-and-sccache]] for alternatives.
@@ -584,9 +675,10 @@ Decision rules:
 - Adopt named modules leaf-first: convert libraries with few dependents, keep a header interface for external consumers, and measure clean-build and incremental-build time per target before and after, because fewer re-parses can be outweighed by serialization at higher optimization levels, as Clang's docs explain for IPO.
 - Turn scanning off (`CMAKE_CXX_SCAN_FOR_MODULES 0`) in every C++20 target that does not use modules; scan edges are pure overhead there.
 - Treat header units as unsupported in CMake, Bazel, and Meson; Buck2's header-unit mode is an internal PCH replacement, not a portable model.
-- For Bazel monorepos, treat `--experimental_cpp_modules` as a pilot (one interface per `cc_library` in 9.x) and gate it on 10.x for multi-interface libraries.
+- For Bazel monorepos, treat `--experimental_cpp_modules` as a pilot (one interface per `cc_library` in 9.x) and gate it on 10.x for multi-interface libraries, with an incremental-build test that flips an import between two interfaces, because Bazel's action-cache fix for that case (cb9bd86152) was rolled back.
 - If touch-only rebuilds dominate CI cost, a copy-if-different BMI wrapper with `restat` is the measured fix (5 compiles to 1 in the lab), but it is not in CMake 4.5 and must be owned as a toolchain change.
-- Keep `.ninja_deps` deletion in the runbook for GCC builds until a Ninja release contains the issue 2666 fix.
+- Set `CXX_STANDARD` explicitly and identically on every target that shares module libraries, and keep non-preprocessor, non-warning flags uniform across them: each distinct digest in CMake 4.5's compatibility hash is one more full set of BMI compiles for every module those targets import.
+- Keep `.ninja_deps` deletion in the runbook for GCC builds, and for Clang builds that report a cycle the sources do not contain, until a Ninja release contains the issue 2666 fix (commit 88f90e87fd).
 
 ## Practice Drill
 
@@ -642,7 +734,8 @@ Decision rules:
 > > GCC's compile depfile lists the CMIs the compile read, and Ninja stores depfiles in `.ninja_deps`; the previous build recorded that `a.o` read `b.gcm`.
 > > The new dyndep file says `b.o` reads `a.gcm`, and Ninja combines the stale deps-log edge with the new dyndep edge before `a.o` is rebuilt, so it sees a cycle; this is Ninja issue 2666.
 > > Confirm with `ninja -t deps <a.o>`, which shows the stale `.gcm`, then delete `.ninja_deps` (or the build directory) and rebuild.
-> > The fix (pull request 2680, "Only load depsfile if not dirty") is on Ninja's master branch since 2026-07-19 but not in 1.13.2; Clang builds do not hit it because Clang's depfile does not list BMIs.
+> > The fix (pull request 2680, "Only load depsfile if not dirty") is on Ninja's master branch since 2026-07-19 but not in 1.13.2.
+> > GCC is the most exposed because its depfiles list the CMIs a compile read; a hand-written Clang manifest whose depfiles list no BMI flips cleanly, but the issue thread reproduces the cycle with CMake and Clang `.pcm` files, so do not treat Clang as immune.
 
 > [!question] L7: A team ships a prebuilt static library plus its `.pcm` files so consumers can `import` it without building anything; what breaks, and what should they ship instead?
 >
@@ -655,9 +748,26 @@ Decision rules:
 >
 > > [!success]- Answer
 > > CMake: non-experimental since 3.28; per-source scanning to P1689R5, a collator per target, Ninja dyndep or Visual Studio, one-phase compilation, `import std` since 4.5, and no header units.
-> > Bazel: experimental behind `--experimental_cpp_modules` and the `cpp_modules` feature, with a `module_interfaces` attribute; it reuses CMake's artifact vocabulary (`.ddi`, `.CXXModules.json`, `.modmap`), runs one-phase compiles, and uses Skyframe restarts when a needed BMI is not ready; 9.x allows one interface per `cc_library`, and multiple interfaces arrive in 10.x.
-> > Buck2: the prelude builds Clang header units from library headers (`export_header_unit`, `use_header_units`, a `"stub"` mode for cost modeling) and requires a two-phase-capable Clang toolchain; I found no named-module scanning in the prelude files I read.
-> > The deciding difference is where the dynamic edge lives: in the build tool's file format (Ninja dyndep) or in the evaluator (Skyframe restarts); in Buck2 a scan-then-compile rule would use rule-level dynamic outputs (`dynamic_output`), which the prelude does not do for named modules in the files I read.
+> > Bazel: experimental behind `--experimental_cpp_modules` and the `cpp_modules` feature, with a `module_interfaces` attribute; it reuses CMake's artifact vocabulary (`.ddi`, `.CXXModules.json`, `.modmap`), runs one-phase compiles, and uses Skyframe restarts when a needed BMI is not ready; 9.x allows one interface per `cc_library`, and 10.0.0rc3 drops that check, although the matching action-cache fix was rolled back.
+> > Buck2: the prelude builds Clang header units from library headers (`export_header_unit`, `use_header_units`, a `"stub"` mode for cost modeling) and requires a Clang toolchain that sets `supports_two_phase_compilation`; the prelude at commit 5b3b13d3ea contains no P1689 scanning and no named-module rule attribute.
+> > The deciding difference is where the dynamic edge lives: in the build tool's file format (Ninja dyndep) or in the evaluator (Skyframe restarts); in Buck2 a scan-then-compile rule would use rule-level dynamic outputs (`dynamic_output`), which the prelude does not do for named modules.
+
+> [!question] L7: Dyndep exists since Ninja 1.10 and CMake accepts 1.10 for Fortran modules; why does it refuse 1.10 for C++ modules?
+>
+> > [!success]- Answer
+> > CMake commit 7abddcab08 (2023-01-20) split the floor into `RequiredNinjaVersionForDyndepsFortran` (1.10) and `RequiredNinjaVersionForDyndepsCxx` (1.11), citing Ninja pull request 1937, which shipped in 1.11.0.
+> > GCC's compile depfile lists the CMIs the compile read, so after one build the deps log says an importer's object read `b.gcm`; loading that entry made Ninja create the `b.gcm` node with a placeholder phony producer.
+> > When the dyndep file then declared `b.gcm` an implicit output of the compile of `b`, `DyndepLoader::UpdateEdge` found an existing producer and failed with "multiple rules generate b.gcm"; pull request 1937 let the real producer replace a placeholder.
+> > Ninja 1.12.0 removed placeholder edges entirely (commit a744eea2b6) without changing behavior, so on 1.11 and newer the conflict cannot happen; the residual deps-log hazard is the different, still-unreleased issue 2666 fix.
+
+> [!question] L6: In CMake 4.5 with Clang, library `geom` provides modules; `geom` and consumer `app1` set `CXX_STANDARD 20`, `app1` also adds `-DNDEBUG` and `-Wall` with `target_compile_options`, and consumer `app2` sets `CXX_STANDARD 23`; how many sets of `geom` BMIs are built, and why?
+>
+> > [!success]- Answer
+> > Two: one shared by `geom` and `app1`, and one synthetic set for `app2`.
+> > `cmCxxModuleUsageEffects` hashes the sorted compile options with warning flags dropped and preprocessor flags (`-D`, `-I`, `-U`, and friends) set aside, plus `CXX_STANDARD`, `CXX_EXTENSIONS`, and `CXX_STANDARD_REQUIRED`, so `app1` produces the same SHA3-512 digest as `geom` and `GetTargetForCxxModules` hands it `geom`'s own BMIs.
+> > `app2` differs in `CXX_STANDARD`, so it gets a synthetic target whose `COMPILE_FEATURES` and `COMPILE_OPTIONS` come from `app2`, which is what Clang needs: the lab shows Clang rejecting a `-std=c++23` consumer of a C++20 BMI with "C++23 was disabled in precompiled file".
+> > Before CMake 4.4 both consumers would have been handed the one C++20 set, and `app2` would have hit that error.
+> > The trap in this question: had `app1` left `CXX_STANDARD` unset, the hash would use `CMAKE_CXX_STANDARD_DEFAULT`, the compiler's default dialect, and `app1` would get a synthetic set too if that default is not 20.
 
 > [!question] L8+: Your 5,000-engineer C++ monorepo uses CMake, Ninja, ccache, and a remote cache; design a module migration and say what you would measure.
 >
@@ -683,6 +793,10 @@ Decision rules:
 - `Modules/Compiler/*-CXX.cmake` in CMake 4.5: the exact scan, module-map, and BMI-only command templates for each compiler.
 - Ninja manual, "Dynamic Dependencies," and `src/dyndep.cc` at v1.13.2: what a dyndep file may add and the errors it raises.
 - Ninja issue 2666 and pull request 2680: a concrete case of deps-log state interacting badly with dyndep.
+- Ninja pull request 1937 and CMake commit 7abddcab08: the depfile-placeholder conflict that set CMake's Ninja 1.11 floor for C++ modules.
+- `Source/cmCxxModuleUsageEffects.cxx` and `cmGeneratorTarget::ApplyCXXStdTarget` in CMake 4.5: exactly which flags split BMI sets, and how the `import std` target is wired in.
+- rules_cc `cc/private/compile/compile.bzl` and Bazel `CppCompileAction.computeUsedCpp20Modules`: the scan, aggregate, modmap, and compile actions and how used BMIs are discovered.
+- Buck2 prelude `cxx/compile.bzl` and `cxx/attrs.bzl`: a production header-unit design with a cost-modeling stub mode.
 - Clang 23 "Standard C++ Modules": one-phase and two-phase models, Reduced BMI, consistency rules, and non-cascading changes.
 - GCC 16 manual, "C++ Modules" and its subsections: `-fdeps-*`, the module mapper, CMI format and lifetime, and `--compile-std-module`.
 - Microsoft `/scanDependencies`: MSVC's P1689 output and how it differs from `/sourceDependencies`.

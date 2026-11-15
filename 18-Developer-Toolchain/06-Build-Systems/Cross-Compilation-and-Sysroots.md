@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Free Software Foundation, Autoconf manual 2.72: Specifying Target Triplets, GNU Project, 2023, https://www.gnu.org/software/autoconf/manual/autoconf-2.72/html_node/Specifying-Target-Triplets.html"
@@ -59,6 +59,28 @@ sources:
   - "Docker Inc., Multi-platform builds, Docker Docs, 2026, https://docs.docker.com/build/building/multi-platform/"
   - "Uber and contributors, hermetic_cc_toolchain README, GitHub uber/hermetic_cc_toolchain, 2026, https://github.com/uber/hermetic_cc_toolchain"
   - "bazel-contrib, toolchains_llvm README, GitHub bazel-contrib/toolchains_llvm, 2026, https://github.com/bazel-contrib/toolchains_llvm"
+  - "Zig contributors, lib/std/Target/Query.zig (parse, ParseOptions.arch_os_abi, glibc_version), Zig source, Codeberg ziglang/zig master, 2026, https://codeberg.org/ziglang/zig/src/branch/master/lib/std/Target/Query.zig"
+  - "Linux kernel developers, fs/binfmt_misc.c (current_binfmt_misc, bm_fill_super, bm_fs_type FS_USERNS_MOUNT), torvalds/linux master, 2026, https://github.com/torvalds/linux/blob/master/fs/binfmt_misc.c"
+  - "Linux kernel developers, fs/binfmt_misc.c at v6.6 (bm_fs_type without fs_flags, get_tree_single), torvalds/linux v6.6, 2023, https://github.com/torvalds/linux/blob/v6.6/fs/binfmt_misc.c"
+  - "Christian Brauner, binfmt_misc: enable sandboxed mounts (commit 21ca59b365c0), Linux kernel git, 2023, https://git.kernel.org/linus/21ca59b365c091d583f36ac753eaa8baf947be6f"
+  - "Kees Cook, [GIT PULL] execve updates for v6.7-rc1, Linux kernel mailing list, 2023, https://lkml.iu.edu/2310.3/07188.html"
+  - "KernelNewbies contributors, Linux 6.7, KernelNewbies, 2024, https://kernelnewbies.org/Linux_6.7"
+  - "Linux kernel developers, Exporting kernel headers for use by userspace (headers_install), The Linux Kernel documentation, 2026, https://docs.kernel.org/kbuild/headers_install.html"
+  - "Kitware, find_library (CMAKE_FIND_ROOT_PATH re-rooting and search order), CMake 4.5.0 Documentation, 2026, https://cmake.org/cmake/help/latest/command/find_library.html"
+  - "Kitware, CMAKE_STAGING_PREFIX, CMake 4.5.0 Documentation, 2026, https://cmake.org/cmake/help/latest/variable/CMAKE_STAGING_PREFIX.html"
+  - "The Rust Project, The rustc book: Print Options (cfg, target-list, sysroot, host-tuple, target-libdir), Rust documentation, 2026, https://doc.rust-lang.org/rustc/command-line-arguments/print-options.html"
+  - "QEMU Project, QEMU home page (11.1.3 latest stable, 2026-10-28), qemu.org, 2026, https://www.qemu.org/"
+  - "The Bazel Authors, Bazel 9.3.2 release, GitHub bazelbuild/bazel, 2026, https://github.com/bazelbuild/bazel/releases"
+  - "LLVM Project, clang/lib/Driver/ToolChains/Gnu.cpp (GCC installation prefixes with --sysroot), llvm-project main, 2026, https://github.com/llvm/llvm-project/blob/main/clang/lib/Driver/ToolChains/Gnu.cpp"
+  - "LLVM Project, clang/lib/Driver/ToolChains/Clang.cpp (isSignedCharDefault), llvm-project main, 2026, https://github.com/llvm/llvm-project/blob/main/clang/lib/Driver/ToolChains/Clang.cpp"
+  - "The Cargo Project, The Cargo Book: Glossary (Target tuple), Rust documentation, 2026, https://doc.rust-lang.org/cargo/appendix/glossary.html"
+  - "The Chromium Authors, build/linux/sysroot_scripts/reversion_glibc.py (MAX_ALLOWED_GLIBC_VERSION_ARCH), Chromium source, 2026, https://chromium.googlesource.com/chromium/src/+/main/build/linux/sysroot_scripts/reversion_glibc.py"
+  - "Linux kernel developers, Documentation/admin-guide/binfmt-misc.rst (flags P, O, C, F, T, L, D), torvalds/linux master, 2026, https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/binfmt-misc.rst"
+  - "The Go Authors, src/cmd/cgo/doc.go (CC_FOR_TARGET, CC_FOR_${GOOS}_${GOARCH}, make.bash), golang/go master, 2026, https://github.com/golang/go/blob/master/src/cmd/cgo/doc.go"
+  - "GNU C Library developers, sysdeps/aarch64/start.S and sysdeps/unix/sysv/linux/*/shlib-versions, glibc master (GitHub mirror bminor/glibc), 2026, https://github.com/bminor/glibc/blob/master/sysdeps/aarch64/start.S"
+  - "Kitware, Help/command/include/FIND_XXX_ROOT.rst and Help/variable/*.rst (version-added notes), CMake master, 2026, https://github.com/Kitware/CMake/tree/master/Help"
+  - "Andrew Kelley, zig cc: a Powerful Drop-In Replacement for GCC/Clang, andrewkelley.me, 2020, https://andrewkelley.me/post/zig-cc-powerful-drop-in-replacement-gcc-clang.html"
+  - "Zig contributors, Overview (ships with 97 libcs), ziglang.org, 2026, https://ziglang.org/learn/overview/"
 ---
 
 # Cross-Compilation, Triples, and Hermetic Sysroots
@@ -128,7 +150,7 @@ Autoconf's canonical form is `cpu-vendor-os`, where os "can be 'system' or 'kern
 LLVM's `Triple.h` admits that the name is historical ("they used to contain exactly three fields") and defines the canonical form `ARCHITECTURE-VENDOR-OPERATING_SYSTEM-ENVIRONMENT`.
 The `Triple` constructor stores the string as given; `Triple::normalize` reorders misplaced components and fills omitted ones with `unknown`.
 Clang's cross-compilation page warns that an unrecognized value is silently treated as `unknown`, "which is not always desired".
-Rust's documentation now says "target tuple" with the shape `<arch><sub>-<vendor>-<sys>-<abi>`.
+Cargo's glossary says "target tuple" with "the general format" `<arch><sub>-<vendor>-<sys>-<abi>`, and rustc names its option `--print host-tuple`, while the rustc book's Platform Support page still says "target triple" (as of 2026-11).
 
 Two canonicalizers disagree in small ways (as of 2026-11):
 - GNU `config.sub` (timestamp 2026-05-17) maps `amd64-linux` to `x86_64-pc-linux-gnu`, `aarch64-linux-gnu` to `aarch64-unknown-linux-gnu`, `arm64-apple-darwin` to `aarch64-apple-darwin`, `riscv64-linux` to `riscv64-unknown-linux-gnu`, and `i686-linux` to `i686-pc-linux-gnu`.
@@ -168,16 +190,23 @@ Clang without a sysroot fills the gaps from the host.
 In lab section 2, `clang --target=x86_64-linux-gnu` on the aarch64 host searches `/usr/lib/llvm-18/lib/clang/18/include`, `/usr/local/include`, and `/usr/include`; it lists no `/usr/include/x86_64-linux-gnu` because that directory does not exist.
 `#include <stdio.h>` therefore finds the host's architecture-independent `/usr/include/stdio.h`, and fails on its first architecture-specific include, `bits/libc-header-start.h`.
 That failure is the lucky case: a header with no architecture-specific includes would have compiled silently against the host's version of the library.
-The link fails too, because the host's binutils only know aarch64 and 32-bit Arm emulations: `/usr/bin/ld: unrecognised emulation mode: elf_x86_64`.
+The link fails too, because the host's native binutils were not built with the x86_64 emulation: `/usr/bin/ld: unrecognised emulation mode: elf_x86_64`.
 
 Clang's Linux driver keys system directories on the multiarch tuple, not on the triple.
 Lab section 3 builds one sysroot holding a `target_abi.h` under five tuple directories and shows the driver choosing `usr/include/i386-linux-gnu` for `i686-linux-gnu` and `usr/include/arm-linux-gnueabihf` for `armv7a-linux-gnueabihf`; `powerpc64le-linux-gnu` finds no directory and fails.
 That is why one Debian multiarch sysroot can serve several targets: the architecture-independent headers are shared and the `bits/` headers sit under each tuple.
 
+GCC solves a neighboring problem with a different mechanism, multilib: one compiler build carries several runtime variants, each selected by compiler flags rather than by a separate target.
+`-print-multi-lib` prints "the mapping from multilib directory names to compiler switches that enable them", with each switch written with `@` instead of `-`.
+`-print-multi-directory` names the variant selected by the other flags on the command line, a directory that "is supposed to exist in `GCC_EXEC_PREFIX`", and `-print-multi-os-directory` prints "the path to OS libraries for the selected multilib, relative to some lib subdirectory".
+`-print-multiarch` is the multiarch counterpart, and `-print-sysroot` prints the configured sysroot, or nothing when "no target sysroot is specified", which is what Ubuntu's native gcc prints.
+Multilib keys library directories on flags, multiarch keys them on the tuple, and a sysroot for a given GCC must use the layout that GCC expects, so ask the driver with these options instead of guessing the directory names.
+
 A native gcc with `--sysroot` is not a cross compiler.
 Its header list is re-rooted correctly (`<SYSROOT>/usr/include/aarch64-linux-gnu`, `<SYSROOT>/usr/include`, plus its private `/usr/lib/gcc/aarch64-linux-gnu/13/include`), and lab section 5 shows `app.c` pulling 25 headers from the sysroot and 2 from GCC's private directory.
 Its library list is not.
-`gcc --sysroot=S -print-search-dirs` in the lab image starts with `/usr/lib/gcc/aarch64-linux-gnu/13/` and `/usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/`, which is the host's `/usr/lib/aarch64-linux-gnu/`, ahead of `S/lib/aarch64-linux-gnu/` (checked by hand in the same image).
+The lab's `ld --trace` for this driver opens `Scrt1.o` as `/usr/lib/gcc/aarch64-linux-gnu/13/../../../aarch64-linux-gnu/Scrt1.o`, which is the host's `/usr/lib/aarch64-linux-gnu/`, so that install-relative directory is searched ahead of anything under the sysroot.
+`gcc -print-search-dirs` prints "the name of the configured installation directory and a list of program and library directories" in search order, so the same ordering can be read without linking anything.
 Those directories come from GCC's install location (`GCC_EXEC_PREFIX` defaults to `prefix/lib/gcc/` and "is also used for finding files such as crt0.o"), and Ubuntu's gcc has `--prefix=/usr`, so "relative to the compiler" means "the host system".
 Lab section 5's `ld --trace` shows the consequence: of 20 inputs, only the sysroot-only `libfoo.so` came from the sysroot, and `Scrt1.o`, `crti.o`, `libc.so`, `libc.so.6`, `libc_nonshared.a`, the loader, and libgcc all came from the host.
 A real cross GCC is configured with `--with-sysroot=dir` (GCC treats `dir` "as the root of a tree that contains (a subset of) the root filesystem") and a separate prefix, so its install-relative directories hold only its own runtime.
@@ -185,6 +214,7 @@ A real cross GCC is configured with `--with-sysroot=dir` (GCC treats `dir` "as t
 Clang finds a GCC installation for `crtbegin*.o`, `libgcc`, and libstdc++ headers, and with `--sysroot` it looks inside the sysroot first.
 In lab section 6 the sysroot contains `usr/lib/gcc/aarch64-linux-gnu/13`, and every one of the 20 inputs `ld --trace` printed is under the sysroot; the driver's `-L` list is five sysroot directories and nothing else.
 With a sysroot that lacks `usr/lib/gcc`, clang 18 in the same image printed `Selected GCC installation: /usr/bin/../lib/gcc/aarch64-linux-gnu/13`, the host's runtime (checked by hand with `-v`, not part of the golden file).
+That matches the driver source: `clang/lib/Driver/ToolChains/Gnu.cpp` searches the sysroot's prefixes first, then "gcc installed alongside clang" (`D.Dir + "/.."`, here `/usr/bin/..`), and adds the distribution prefixes such as `/usr` only when no sysroot is set.
 Pin the runtime explicitly with `--gcc-install-dir=<dir>` ("Use GCC installation in the specified directory"), or put it in the sysroot, which on Debian and Ubuntu means including the `libgcc-<version>-dev` package that owns `usr/lib/gcc/<multiarch>/<version>` (the directory the lab copies).
 
 Clang configuration files remove the need to repeat these flags: a driver invoked as `x86_64-pc-linux-gnu-clang++` loads `x86_64-pc-linux-gnu-clang++.cfg`, and options such as `--target=` affect which file is searched, so a toolchain can ship `--sysroot` and `--gcc-install-dir` in a `.cfg` beside the binary.
@@ -196,7 +226,12 @@ For a dynamically linked C program on glibc the sysroot needs, as lab section 4 
 - Start files: `Scrt1.o` (PIE) or `crt1.o`, `crti.o`, `crtn.o` from the C library.
 - `libc.so`, which is not a library but a GNU ld script, `libc.so.6`, `libc_nonshared.a`, and the loader at the path `PT_INTERP` names.
 - The compiler runtime: `crtbegin*.o`, `crtend*.o`, `libgcc.a`, `libgcc_s.so` (itself a script), and `libgcc_s.so.1`; for C++ also libstdc++ headers and libraries.
+- Kernel UAPI headers, which glibc's headers include: on Debian the `linux-libc-dev` package ships `usr/include/linux`, `usr/include/asm-generic`, and the architecture's `asm` directory under the multiarch tuple, such as `usr/include/aarch64-linux-gnu/asm/auxvec.h` in bookworm's arm64 package.
 - Every third-party dependency's headers, libraries, and `.pc` files, installed with the sysroot as their root.
+
+The kernel headers set a second floor, separate from glibc's.
+They are produced by `make headers_install ARCH=<arch> INSTALL_HDR_PATH=<dir>`, where ARCH "defaults to the current architecture", and the kernel documentation states that "Kernel headers are backwards compatible, but not forwards compatible": a program built against newer headers can name a system call, flag, or structure field that an older target kernel rejects at run time.
+A sysroot assembled from a newer distribution than the fleet's oldest kernel therefore compiles code paths that fail with `ENOSYS` or `EINVAL` in production, and no link-time check catches it; pick the headers for the oldest supported kernel, or guard new interfaces with run-time fallbacks.
 
 The `libc.so` script names its members with absolute paths:
 
@@ -218,15 +253,17 @@ Sysroot builders rewrite such links as relative links; the lab's sysroot uses `l
 A hermetic sysroot is an input artifact with a content hash, built from pinned package versions, never a directory someone copied from a board.
 The common sources (as of 2026-11):
 - Debian and Ubuntu: `mmdebstrap` (1.7.0) creates a root from a package list.
-  `--variant` ranges from `extract` and `custom` (only the `--include` packages) through `essential`, `apt`, `buildd`, `required` (alias `minbase`), `important` (alias `debootstrap`), and `standard`.
+  `--variant` ranges from `extract` and `custom` (only the `--include` packages) through `essential`, `apt`, `required` (alias `minbase`), `buildd`, `important` (aliases `debootstrap` and `-`), and `standard`.
   `--architectures` takes a list whose first entry is the native architecture inside the chroot.
   Its manual promises "Reproducible output by default if $SOURCE_DATE_EPOCH is set", and its `unshare` mode needs no root.
   `debootstrap --foreign` does only "the initial unpack phase", for the case where "the target architecture does not match the host architecture", and `--second-stage` finishes on the target or under emulation.
 - Chromium's `build/linux/sysroot_scripts/sysroot_creator.py` pins a Debian snapshot (`ARCHIVE_TIMESTAMP = "20250129T203412Z"` on `snapshot.debian.org`), builds bullseye sysroots for amd64, i386, armhf, arm64, mipsel, mips64el, ppc64el, and s390x and trixie for riscv64, and `sysroots.json` records each tarball's `Sha256Sum`.
-  Its `reversion_glibc.py` rewrites default symbol versions down to `MAX_ALLOWED_GLIBC_VERSION = [2, 26]`, so binaries built against the sysroot load on glibc 2.26 and newer.
+  Its `reversion_glibc.py` rewrites default symbol versions down to `MAX_ALLOWED_GLIBC_VERSION = [2, 26]`, with a per-architecture override `MAX_ALLOWED_GLIBC_VERSION_ARCH = {"riscv64": [2, 33]}`, so binaries built against the sysroot load on glibc 2.26 and newer (2.33 on riscv64).
 - Yocto gives every recipe two sysroots: `RECIPE_SYSROOT` holds the target files from `DEPENDS`, and `RECIPE_SYSROOT_NATIVE` holds build-machine tools, which is the build and host split made physical.
-- Bazel: `toolchains_llvm` takes a `sysroot` attribute (a path or a label, so it can be a hashed download), and `hermetic_cc_toolchain` builds on `zig cc`, whose overview says Zig "ships with 97 libcs"; the README aliases `linux_amd64_gnu.2.28` to the target `x86_64-linux-gnu.2.28`.
-  The glibc-version suffix is documented in that README and in secondary sources, not on ziglang.org (UNVERIFIED against Zig's own documentation as of 2026-11).
+- Bazel: `toolchains_llvm` takes a `sysroot` attribute (a path or a label, so it can be a hashed download), and `hermetic_cc_toolchain` builds on `zig cc`, whose overview says Zig "ships with 97 libcs"; the README covers "glibc 2.17-2.38" and aliases the toolchain `linux_amd64_gnu.2.28` to the target `x86_64-linux-gnu.2.28`, selected with `--platforms @zig_sdk//libc_aware/platform:linux_amd64_gnu.2.28`.
+  The suffix is part of Zig's own target grammar: in `lib/std/Target/Query.zig`, `ParseOptions.arch_os_abi` documents the last component as "C ABI (optional, with optional glibc version or Android API level)", `parse` splits the ABI text on `.` and stores the rest in `glibc_version` when the ABI is a GNU one, and the file's tests parse `aarch64-linux.3.10...4.4.1-gnu.2.27`, which also carries an OS version range (as of 2026-11).
+  Andrew Kelley's 2020 description of `zig cc` explains the mechanism: Zig reduces glibc's `.abilist` files to compact symbol tables and uses them to "create dummy `.so` files to link against", building only the start files from bundled sources, so there is no target sysroot and the version floor is a target-string suffix rather than a directory.
+  That post also said `zig cc` then had no way to choose a glibc version; the `.2.28`-style suffix in `Query.zig` is the later answer.
 
 The sysroot's glibc version is the binary's floor.
 glibc keeps old symbol versions so that an old program "will continue to work against newer versions of glibc", but "You can't run a new program on an old glibc."
@@ -256,7 +293,10 @@ Setting `CMAKE_SYSTEM_NAME` in a toolchain file makes `CMAKE_CROSSCOMPILING` tru
 For clang, `CMAKE_<LANG>_COMPILER_TARGET` passes the triple, because "Clang [is] inherently [a] cross compiler".
 `CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY` (added in 3.6) stops the compiler checks from linking, for toolchains "that cannot link without custom flags or linker scripts".
 `CMAKE_FIND_ROOT_PATH_MODE_PROGRAM`, `_LIBRARY`, `_INCLUDE`, and `_PACKAGE` take `NEVER`, `ONLY`, or `BOTH`, and the documented example sets `PROGRAM NEVER` and the other three `ONLY`, because "executables which must be run as part of the build should be found only on the host".
-Leave them unset and CMake searches the host too: with CMake 4.5.0 on macOS, a Linux toolchain file with an empty `CMAKE_SYSROOT` and `CMAKE_PREFIX_PATH` pointing at a host directory found the host's `libbar.a` and `bar.h`; with `_LIBRARY` and `_INCLUDE` set to `ONLY` both were `NOTFOUND`, and `ONLY` found a copy only at `<sysroot>/<prefix>/lib/libbar.a` (checked by hand on 2026-11-14, not part of the lab).
+Leave them unset and CMake searches the host too: the `find_library` documentation gives the default order as the directories in `CMAKE_FIND_ROOT_PATH` first, then "the CMAKE_SYSROOT directory is searched, and then the non-rooted directories will be searched", which is the `BOTH` behavior, and `BOTH` means "the host system paths and the paths in CMAKE_FIND_ROOT_PATH will be searched".
+A dependency missing from the sysroot is therefore found on the build machine without an error.
+Each `find_*` call can override the mode with `CMAKE_FIND_ROOT_PATH_BOTH`, `ONLY_CMAKE_FIND_ROOT_PATH`, or `NO_CMAKE_FIND_ROOT_PATH`.
+`CMAKE_STAGING_PREFIX` is the install destination "when cross-compiling", for the common case of a read-only sysroot: `find_*` also searches it, it is excluded from re-rooting because it "is always a path on the host system", and RPATH or RUNPATH entries that contain it are rewritten to `CMAKE_INSTALL_PREFIX`.
 `try_run` does not run its executable when cross-compiling unless `CMAKE_CROSSCOMPILING_EMULATOR` (added in 3.3) is set; otherwise it leaves cache entries `<runResultVar>` and `<runResultVar>__TRYRUN_OUTPUT` for you to fill in.
 The emulator also prefixes `add_test()`, `add_custom_command()`, and `add_custom_target()` commands that run target executables, through the `CROSSCOMPILING_EMULATOR` target property.
 
@@ -322,6 +362,7 @@ A user-defined transition maps a configured target to another configuration, whi
 `--target <tuple>` or `build.target` selects the target, and the standard library for it comes from the toolchain distribution (`rustup target add <tuple>`).
 Rust needs an external linker for `-gnu` targets, set with `target.<tuple>.linker`, which Cargo passes "via `-C linker`"; `target.<tuple>.runner` wraps `cargo run`, `cargo test`, and `cargo bench`, and each key has an environment form such as `CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER`.
 Build scripts and proc macros are compiled for the host: a build script sees `HOST` and `TARGET`, `cfg!` inside it describes the host, and the target's configuration arrives as `CARGO_CFG_TARGET_ARCH` and friends.
+`rustc --print cfg --target <tuple>` lists the target's cfg values, the same facts a build script receives as `CARGO_CFG_*`, `--print target-list` lists the known targets, and `--print host-tuple` prints "the target-tuple string of the host compiler", which is the value `HOST` carries.
 With `--target` given, `build.rustflags` does not reach "build scripts or proc macros"; a separate `[host]` table exists only behind `-Zhost-config` and `-Ztarget-applies-to-host` (unstable, as of 2026-11).
 Tier 1 tuples, such as `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, are "guaranteed to work"; tier 2, such as `aarch64-unknown-linux-musl` and `riscv64gc-unknown-linux-gnu`, are "guaranteed to build"; tier 3 "may or may not work".
 
@@ -331,7 +372,7 @@ Tier 1 tuples, such as `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu
 Point the search at the sysroot with `PKG_CONFIG_LIBDIR`, which "Replaces the default pkg-config search directory"; `PKG_CONFIG_PATH` is the wrong knob, because "The default directory will always be searched after searching the path", so a missing target `.pc` silently falls back to the host's.
 
 **Go, for contrast.**
-Go cross-compiles pure Go code with `GOOS` and `GOARCH` and no sysroot, and cgo "is disabled by default when cross-compiling"; enabling it means supplying a C cross compiler through `CC` or `CC_FOR_${GOOS}_${GOARCH}`, at which point everything in this note applies.
+Go cross-compiles pure Go code with `GOOS` and `GOARCH` and no sysroot, and cgo "is disabled by default when cross-compiling"; enabling it means supplying a C cross compiler through `CC` when running the go tool, or through `CC_FOR_TARGET` or `CC_FOR_${GOOS}_${GOARCH}` when building the Go toolchain with `make.bash`, at which point everything in this note applies.
 
 **CPython** is the hard case for the build-or-host split: "Cross compiling requires a Python interpreter for the build platform", whose version "must match the version of the cross compiled host Python", passed with `--with-build-python` (added in 3.11), with `HOSTRUNNER` (also 3.11) naming an emulator for host binaries.
 
@@ -382,7 +423,12 @@ The flags decide whether this works inside containers:
 - `O` hands the interpreter an open descriptor of the binary.
 - `C` computes credentials from the binary (setuid), and implies `O`; the script's `--credential` sets `OC`.
 - `F` opens the interpreter at registration time, because lazy lookup "doesn't work very well in the face of mount namespaces and changeroots"; the script's `--persistent` sets it, and it is what lets a statically linked `qemu-aarch64` registered on the host serve every container and chroot.
-Linux 6.7's execve pull request says binfmt_misc can now be used with mount namespaces ("binfmt_misc: enable sandboxed mounts"); the exact per-namespace semantics are UNVERIFIED here.
+- Linux 7.3 (released 2026-10-18) added three more flags: `T` (transparent: the binary arrives through `AT_EXECFD`, `argv` is untouched, and `/proc/pid/exe` names the binary), `L` (load the binary natively and substitute the interpreter for the loader its `PT_INTERP` names), and `D` (register disabled, enable later).
+  The commits `75e536852f9a` (`T`), `83cd3989ba09` (`L`), and `d5ae8a7c4ddc` (`D` documentation) are ancestors of `v7.3-rc1` and `v7.3` but not of `v7.2`, and `Documentation/admin-guide/binfmt-misc.rst` at `v7.2` mentions none of the three (as of 2026-11, Linux); a QEMU registration for an older kernel must not rely on them.
+Until Linux 6.7 there was one global handler table, so registering an emulator was a host-wide, root-only change.
+Christian Brauner's commit "binfmt_misc: enable sandboxed mounts" (21ca59b365c0), merged through Kees Cook's execve pull request for v6.7-rc1, made the table per user namespace; the pull request says some "traditionally root-only interfaces (for adding/removing formats) are now more exposed (but believed to be safe)".
+In current `fs/binfmt_misc.c`, the filesystem type carries `FS_USERNS_MOUNT`, `bm_fill_super` lazily allocates an instance for the mounting user namespace, and `current_binfmt_misc` walks `user_ns->parent` upward so that a namespace without its own mount "uses the handlers of its closest ancestor with one", ending at the initial namespace.
+The consequence for CI: on 6.7 and later a rootless container can mount its own binfmt_misc and register `qemu-*` handlers that the rest of the host never sees, while on older kernels, and in any namespace that has not mounted its own instance, the host's registrations apply (as of 2026-11, Linux).
 Docker lists three ways to build multi-platform images: "Using emulation, via QEMU", "a builder with multiple native nodes", and "cross-compilation with multi-stage builds", where `BUILDPLATFORM`, `TARGETPLATFORM`, `TARGETOS`, and `TARGETARCH` let a build stage run natively and emit target binaries.
 `mmdebstrap`'s manual relies on the same qemu binfmt_misc support to check that a foreign architecture "can be executed" when the chroot is not the host's architecture.
 
@@ -403,7 +449,13 @@ Docker lists three ways to build multi-platform images: "Using emulation, via QE
 | Oldest glibc version set | x86_64 GLIBC_2.2.5, aarch64 GLIBC_2.17, riscv64 GLIBC_2.27 (as of 2026-11) | Linux | glibc `shlib-versions`. |
 | `__libc_start_main@GLIBC_2.34` | needed by any binary linked against glibc 2.34 or newer start files (as of 2026-11) | Linux | Lab section 8, glibc 2.39 sysroot. |
 | glibc releases | 2.44 current (2026-07-25), a release every 6 months (as of 2026-11) | Linux | sourceware.org/glibc. |
-| `CMAKE_FIND_ROOT_PATH_MODE_*` | `NEVER`, `ONLY`, `BOTH`; unset behaved as searching the host too (as of 2026-11) | Both | CMake 4.5.0, checked by hand. |
+| `CMAKE_FIND_ROOT_PATH_MODE_*` | `NEVER`, `ONLY`, `BOTH`; unset searches re-rooted paths, then `CMAKE_SYSROOT`, then the host (as of 2026-11) | Both | CMake 4.5.0 `find_library` documentation. |
+| `CMAKE_STAGING_PREFIX` | host-side install prefix for cross builds; RPATHs containing it are rewritten to `CMAKE_INSTALL_PREFIX` (as of 2026-11) | Both | Use when the sysroot is read-only. |
+| `gcc -print-multi-lib`, `-print-multi-directory`, `-print-multi-os-directory` | multilib variants and the selected one's library directory (as of 2026-11) | Linux | GCC developer options. |
+| `make headers_install ARCH=<arch> INSTALL_HDR_PATH=<dir>` | kernel UAPI headers for a sysroot; "backwards compatible, but not forwards compatible" (as of 2026-11) | Linux | Default path `./usr`. |
+| `rustc --print cfg --target <tuple>`, `--print target-list`, `--print host-tuple` | target cfg values, known targets, the compiler's own tuple (as of 2026-11) | Both | rustc book print options. |
+| `zig cc -target x86_64-linux-gnu.2.28` | glibc version floor as a target suffix (as of 2026-11) | Both | `std.Target.Query.parse`; used by hermetic_cc_toolchain. |
+| binfmt_misc per user namespace | Linux 6.7 and later; `FS_USERNS_MOUNT`, falls back to the closest ancestor's handlers (as of 2026-11) | Linux | Commit 21ca59b365c0. |
 | `CMAKE_CROSSCOMPILING_EMULATOR` | added 3.3, list form 3.15, env initialization 3.28 (as of 2026-11) | Both | Used by `try_run`, `add_test`, custom commands. |
 | `CMAKE_TRY_COMPILE_TARGET_TYPE` | `EXECUTABLE` default, `STATIC_LIBRARY` skips linking (as of 2026-11) | Both | Added in 3.6. |
 | Meson `[properties]` | `sys_root` (0.52.0), `pkg_config_libdir` (0.54.0), `needs_exe_wrapper` (as of 2026-11) | Both | Meson 1.12.1. |
@@ -587,12 +639,12 @@ The link failure names the other missing half of a cross toolchain, binutils for
 Section 3 shows the multiarch tuple, not the triple, choosing directories: `i686` maps to `i386-linux-gnu` and `armv7a-...-gnueabihf` to `arm-linux-gnueabihf`.
 
 Sections 5 to 7 are the central result.
-Both drivers built the same program against the same sysroot, and both outputs run, but gcc's link read 19 of 20 inputs from the host, including `libc.so`, `libc.so.6`, and the loader.
+Both drivers built the same program against the same sysroot and both links succeed (the lab runs only clang's binary), but gcc's link read 19 of 20 inputs from the host, including `libc.so`, `libc.so.6`, and the loader.
 That only looks harmless because the host and the sysroot hold the same glibc; with a bullseye sysroot on a newer host, the binary would silently get the host's newer version needs.
 The subtraction test in section 7 is the one that tells them apart, and it is cheap enough to run in CI on every sysroot change.
 The lab's `libgcc_s.so` lines also show a second linker script at work: GCC's `libgcc_s.so` names `libgcc_s.so.1` and `-lgcc`, which is why both appear twice.
 
-Section 8 shows the artifact's view: the loader path from the triple, sonames, no `RUNPATH`, and a version floor of GLIBC_2.34 set by the sysroot's start files; `app.c` calls only `printf`, and `__libc_start_main`, `abort`, and `__cxa_finalize` come from `Scrt1.o` and `crtbeginS.o` (`nm` in the same image lists them as undefined there).
+Section 8 shows the artifact's view: the loader path from the triple, sonames, no `RUNPATH`, and a version floor of GLIBC_2.34 set by the sysroot's start files; `app.c` calls only `printf`, and `__libc_start_main`, `abort`, and `__cxa_finalize` come from `Scrt1.o` and `crtbeginS.o` (`nm` in the same image lists them as undefined there, and glibc's `sysdeps/aarch64/start.S` branches to `__libc_start_main` and then to `abort`).
 
 Section 9 is the run-time half: the plain run fails because the loader looks in the real root, the sysroot loader succeeds and `LD_DEBUG` shows every object coming from the sysroot, and the two `-rpath` variants both run here while only `$ORIGIN/../lib` is correct on a target.
 
@@ -613,7 +665,7 @@ Section 9 is the run-time half: the plain run fails because the loader looks in 
 > Set `PKG_CONFIG_LIBDIR` to the sysroot's `pkgconfig` directories and `PKG_CONFIG_SYSROOT_DIR` to the sysroot; Meson's `pkg_config_libdir` and `sys_root` do the same.
 
 > [!warning] Pitfall 4: CMake `find_*` modes left unset
-> With `CMAKE_FIND_ROOT_PATH_MODE_LIBRARY` and `_INCLUDE` unset, CMake 4.5.0 found a host library and header for a Linux-on-macOS toolchain.
+> With `CMAKE_FIND_ROOT_PATH_MODE_LIBRARY` and `_INCLUDE` unset, CMake searches the re-rooted directories, then `CMAKE_SYSROOT`, and then the non-rooted host directories, so a library missing from the sysroot is silently found on the build machine.
 > Set `PROGRAM` to `NEVER` and the other three to `ONLY` in every cross toolchain file, and make generators that must run on the build machine separate host builds.
 
 > [!warning] Pitfall 5: Baking the sysroot into `RUNPATH`
@@ -642,6 +694,11 @@ Section 9 is the run-time half: the plain run fails because the loader looks in 
 > QEMU translates syscalls on the build host's kernel, runs guest threads under the host's memory ordering, and implements no guest ptrace and no namespace flags in `clone`.
 > Lock-free code missing a barrier, code that depends on the target kernel's version, and anything timing-sensitive can pass under emulation and fail on hardware.
 > Keep a native-hardware test stage for concurrency and performance, and treat emulation as a smoke test.
+
+> [!warning] Pitfall 11: Kernel headers newer than the oldest target kernel
+> The kernel documentation states that its exported headers are "backwards compatible, but not forwards compatible".
+> A sysroot taken from a current distribution exposes system calls and flags that an older production kernel answers with `ENOSYS` or `EINVAL`, and nothing at compile or link time reports it.
+> Take `linux-libc-dev` (or `make headers_install` output) for the oldest supported kernel, or detect the interface at run time and fall back; QEMU user mode will not catch this either, because it runs on the build host's kernel.
 
 ## At Scale
 
@@ -685,7 +742,7 @@ Decision rules:
 > > [!success]- Answer
 > > It prints `armv7-unknown-linux-gnueabihf`: the vendor is filled in as `unknown` and the `a` profile letter is dropped.
 > > It includes from `<sysroot>/usr/include/arm-linux-gnueabihf`, because Debian's multiarch tuple for armhf is not the triple.
-> > `char` is unsigned, as on every Arm ABI, `long` and pointers are 4 bytes, `long double` is 8 bytes, and the loader is `/lib/ld-linux-armhf.so.3`.
+> > `char` is unsigned, as on Arm Linux targets generally (clang's `isSignedCharDefault` makes plain `char` signed on Arm only for Darwin and Windows), `long` and pointers are 4 bytes, `long double` is 8 bytes, and the loader is `/lib/ld-linux-armhf.so.3`.
 
 > [!question] L6: Debug this: a cross build for an older aarch64 fleet links fine, but you suspect it is using the build machine's libraries. How do you prove or disprove it in five minutes?
 > > [!success]- Answer
@@ -705,6 +762,13 @@ Decision rules:
 > > The find modes were left unset, so CMake searched host prefixes as well as the re-rooted ones.
 > > `PROGRAM` should be `NEVER`, because build-time tools must run on the build machine, and `LIBRARY`, `INCLUDE`, and `PACKAGE` should be `ONLY`, so libraries, headers, and package configs come only from `CMAKE_SYSROOT` and `CMAKE_FIND_ROOT_PATH`.
 > > Also check pkg-config's environment, because pkg-config has its own search path: set `PKG_CONFIG_LIBDIR` and `PKG_CONFIG_SYSROOT_DIR` to the sysroot.
+
+> [!question] L6: A rootless CI job registers `qemu-aarch64` with binfmt_misc and its emulated tests run, but another job on the same host never sees the handler, and on an older host the registration fails. Explain.
+> > [!success]- Answer
+> > Since Linux 6.7 (commit 21ca59b365c0, "binfmt_misc: enable sandboxed mounts") the filesystem is `FS_USERNS_MOUNT` and each user namespace that mounts it gets its own handler table, so the job's registration lives only in its own namespace.
+> > A namespace without its own mount uses "the handlers of its closest ancestor with one", which is why jobs normally see the host's handlers and why this job's handler is invisible to its neighbors.
+> > Before 6.7 binfmt_misc could be mounted only from the initial user namespace, so a rootless registration fails there.
+> > For a shared fleet, register a statically linked emulator once on the host with the `F` flag so every container and chroot can use it, and use per-namespace registration only where a job needs a private emulator.
 
 > [!question] L7: Design a reproducible, hermetic sysroot pipeline for three architectures with a glibc 2.31 floor.
 > > [!success]- Answer

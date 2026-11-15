@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "The Bazel Authors, Sandboxing, Bazel Documentation, 2026, https://bazel.build/docs/sandboxing"
@@ -10,6 +10,12 @@ sources:
   - "The Bazel Authors, src/main/tools/linux-sandbox.cc, linux-sandbox-pid1.cc, linux-sandbox-options.cc, process-wrapper-legacy.cc, bazelbuild/bazel at tag 9.3.2, 2026, https://github.com/bazelbuild/bazel/tree/9.3.2/src/main/tools"
   - "The Bazel Authors, LinuxSandboxedSpawnRunner.java, DarwinSandboxedSpawnRunner.java, SymlinkedSandboxedSpawn.java, HardlinkedSandboxedSpawn.java, AbstractContainerizingSandboxedSpawn.java, SandboxStash.java, SandboxModule.java, SandboxHelpers.java, LinuxSandboxUtil.java, bazelbuild/bazel at tag 9.3.2, 2026, https://github.com/bazelbuild/bazel/tree/9.3.2/src/main/java/com/google/devtools/build/lib/sandbox"
   - "The Bazel Authors, Spawns.java and ExecutionRequirements.java, bazelbuild/bazel at tag 9.3.2, 2026, https://github.com/bazelbuild/bazel/tree/9.3.2/src/main/java/com/google/devtools/build/lib/actions"
+  - "The Bazel Authors, WorkerOptions.java, BazelRuleClassProvider.java, LocalExecutionOptions.java, WindowsSandboxedSpawnRunner.java, WindowsSandboxUtil.java, CopyingSandboxedSpawn.java, DockerSandboxedSpawnRunner.java, bazelbuild/bazel at tag 9.3.2, 2026, https://github.com/bazelbuild/bazel/tree/9.3.2/src/main/java/com/google/devtools/build/lib"
+  - "The Bazel Authors, Fix read-only enforcement for hermetic sandbox mounts, commit 5cce7794834a1531ee5fad131f11a9d4d8e66781, 2026, https://github.com/bazelbuild/bazel/commit/5cce7794834a1531ee5fad131f11a9d4d8e66781"
+  - "The Bazel Authors, Remount sandbox_root read-only in hermetic sandbox mode, commit 3a1589cf434521fa4a319db58e19ae5f4412ac34, 2026, https://github.com/bazelbuild/bazel/commit/3a1589cf434521fa4a319db58e19ae5f4412ac34"
+  - "The Bazel Authors, src/main/tools/linux-sandbox-pid1.cc at tags 10.0.0rc3 and 8.9.0rc2, 2026, https://github.com/bazelbuild/bazel/blob/10.0.0rc3/src/main/tools/linux-sandbox-pid1.cc"
+  - "Linux kernel contributors, fs/namespace.c (path_mount, do_loopback), torvalds/linux master, 2026, https://github.com/torvalds/linux/blob/master/fs/namespace.c"
+  - "Free Software Foundation, The C Preprocessor: Search Path, GCC online documentation, 2026, https://gcc.gnu.org/onlinedocs/cpp/Search-Path.html"
   - "The Bazel Authors, Release 7.0.0 notes, GitHub, 2023, https://github.com/bazelbuild/bazel/releases/tag/7.0.0"
   - "The Bazel Authors, Release 8.0.0rc7 notes, 2024, https://releases.bazel.build/8.0.0/rc7/index.html"
   - "The Bazel Authors, Release 9.0.0 notes, GitHub, 2026, https://github.com/bazelbuild/bazel/releases/tag/9.0.0"
@@ -38,6 +44,12 @@ sources:
   - "Bazel Remote APIs Working Group, remote_execution.proto and platform.md, bazelbuild/remote-apis main branch, 2026, https://github.com/bazelbuild/remote-apis/blob/main/build/bazel/remote/execution/v2/remote_execution.proto"
   - "Meta Open Source, Buck2 README (hermeticity footnote), facebook/buck2 main branch, 2026, https://github.com/facebook/buck2/blob/main/README.md"
   - "Mike Shal, tup manual, 2026, https://gittup.org/tup/manual.html"
+  - "The Bazel Authors, Fail when --experimental_use_hermetic_linux_sandbox is set but linux-sandbox is unsupported, commit fd7af9ef1, 2026, https://github.com/bazelbuild/bazel/commit/fd7af9ef1"
+  - "The Bazel Authors, Enable --experimental_inmemory_sandbox_stashes by default, commit 423976449, 2026, https://github.com/bazelbuild/bazel/commit/423976449"
+  - "The Bazel Authors, ExecutionOptions.java (spawn_strategy help text), SandboxOptions.java, bazelbuild/bazel at tag 9.3.2, 2026, https://github.com/bazelbuild/bazel/blob/9.3.2/src/main/java/com/google/devtools/build/lib/exec/ExecutionOptions.java"
+  - "The Bazel Authors, Preliminary sandboxfs support and performance results, Bazel Blog, 2018, https://blog.bazel.build/2018/04/13/preliminary-sandboxfs-support.html"
+  - "Buildbarn contributors, pkg/cas/hardlinking_file_fetcher.go, bb-remote-execution main branch, 2026, https://github.com/buildbarn/bb-remote-execution/blob/main/pkg/cas/hardlinking_file_fetcher.go"
+  - "Buildbarn contributors, virtual.proto (FUSE and NFSv4 mount configuration), bb-remote-execution main branch, 2026, https://github.com/buildbarn/bb-remote-execution/blob/main/pkg/proto/configuration/filesystem/virtual/virtual.proto"
 ---
 
 # Sandboxing and Hermetic Execution Internals
@@ -45,7 +57,7 @@ sources:
 > [!summary] Claim:
 > A build sandbox does two separate jobs: it stages a private execroot that contains only the action's declared inputs, and it restricts what the action can reach beyond that execroot.
 > Staging is a per-input cost (one `symlink`, `link`, or copy per file, plus `mkdir` per directory), or a constant cost when a FUSE or NFSv4 server materializes the tree lazily; restriction is a namespace view (Linux), a policy that denies operations (Seatbelt, seccomp, Landlock), or a separate kernel (gVisor, a microVM).
-> Bazel's default local sandboxes stage symlinks back into the source tree and leave the network open (`--sandbox_default_allow_network=true` in Bazel 9.3.2), so they catch undeclared inputs that are named by relative path and miss absolute paths, `realpath` escapes, writes through symlinks, and downloads.
+> Bazel's default local sandboxes stage symlinks back into the source tree and leave the network open (`--sandbox_default_allow_network=true` in Bazel 9.3.2), so they catch undeclared inputs that are named by relative path and miss absolute paths, `realpath` escapes, and downloads; writes through staged symlinks are stopped by linux-sandbox's read-only remounts and darwin-sandbox's `(deny file-write*)`, but not by processwrapper-sandbox.
 > Remote workers are stricter mainly because they build the input root from the CAS on a different machine, which is why "works locally, fails remotely" is the normal way an undeclared input is discovered.
 
 ```mermaid
@@ -99,7 +111,7 @@ Hiding and denying make the build fail; tracing turns a leak into a dependency o
 
 ### 2. Staging the execroot
 
-Bazel gives every sandboxed spawn its own directory, `<sandbox_base>/<strategy>/<id>/execroot/<workspace>`, where `<sandbox_base>` is `--sandbox_base` or `<output_base>/sandbox` by default (`SandboxModule.java`, `LinuxSandboxedSpawnRunner.prepareSpawn()`).
+Bazel gives every sandboxed spawn its own directory, `<sandbox_base>/<strategy>/<id>/execroot/<workspace>`, where `<sandbox_base>` is `<output_base>/sandbox` by default, or `<--sandbox_base>/bazel-sandbox.<hash of the output base>` when the flag is set, so several output bases can share one tmpfs (`SandboxModule.computeSandboxBase()`, `LinuxSandboxedSpawnRunner.prepareSpawn()`).
 The execroot must end in the workspace name, "just like the normal execroot does" (comment `b/64689608` in the runner).
 `AbstractContainerizingSandboxedSpawn.createFileSystem()` computes the set of directories and inputs to create without I/O, creates the directories, then calls `copyFile()` once per input; subclasses decide what "copy" means.
 
@@ -121,12 +133,15 @@ Path resolution follows at most 40 symlinks per pathname on Linux (`path_resolut
 `--experimental_use_hermetic_linux_sandbox` (default false) switches to `HardlinkedSandboxedSpawn`, whose `copyFile()` calls `hardLinkRecursive()`: it resolves symlinks first, hard-links regular files, recurses into directories, and copies a file when `link(2)` fails.
 `link(2)` fails with `EXDEV` across mounts, "even if the same filesystem is mounted on both," so inputs on a different mount than the sandbox base, such as a `/dev/shm` sandbox base with sources on disk, are copied.
 A hard link has no path back to the source, so the `realpath` escape disappears, but it is the same inode: an action that opens an input for writing changes the source file's bytes through any name.
+Mode bits live on the inode too, so a read-only source file does not save it: an action running as the file's owner can `chmod` the link and then write, which is the hole Bazel commit `3a1589c` closed by remounting the hermetic sandbox root read-only (in the 10.0.0 release candidates, not in 9.3.2).
+The damage is detected, not silent: in hermetic mode `LinuxSandboxedSpawnRunner.verifyPostCondition()` calls `checkForConcurrentModifications()`, which compares each input with the metadata recorded when it was digested and fails the action with "input dependency <path> was modified during execution."
 Each link also increments `st_nlink`, and `link(2)` returns `EMLINK` at the filesystem's limit (65,000 on ext4 without `dir_index`, 65,535 on btrfs, per the man page), which a busy worker cache that hard-links one hot header into thousands of sandboxes can reach.
 
 #### Copies
 
 A copy shares nothing with the source, so neither escapes nor writes reach it, and its cost is proportional to input bytes instead of input count.
-Bazel's Docker strategy and Buildbarn's native build directories materialize real files; Buildbarn's native mode hard-links from a local cache of CAS files (`NativeBuildDirectoryConfiguration`, `cache_directory_path`).
+Bazel's Docker strategy stages with `CopyingSandboxedSpawn`, whose `copyFile()` copies regular files and the targets of symlinks and copies directory trees below a directory input (`DockerSandboxedSpawnRunner.prepareSpawn()` returns one).
+Buildbarn's native build directories also materialize real files, by hard-linking from a local cache of CAS files: `bb_worker.proto` describes `cache_directory_path` only as the "Directory where build input files are cached," and the linking is done by `pkg/cas/hardlinking_file_fetcher.go`.
 One subtlety is inode identity: Buildbarn's configuration notes that Clang's `#pragma once` "requires that identical source files exposed under different paths have identical inode numbers," which its `LEAST_RECENTLY_USED` cache policy can guarantee and `RANDOM_REPLACEMENT` cannot.
 
 #### Bind mounts and overlayfs
@@ -143,13 +158,16 @@ A FUSE or NFSv4 server can expose an execroot from an in-memory manifest without
 Buildbarn's `VirtualBuildDirectoryConfiguration` says the mount "instantiates build input roots lazily and loads input files on demand," so actions "can be started instantaneously," and warns that it "may impose a larger performance overhead for build actions that are I/O intensive."
 Buildbarn supports FUSE on Linux and FreeBSD, and an in-process NFSv4 server on macOS "starting with Sequoia 15.0 (24A335)," because the macFUSE kernel extension "contains various bugs that cause system lockups under high load" (`virtual.proto`).
 Bazel's own FUSE sandbox, sandboxfs (announced April 2018), was deleted in October 2023 (commit `217fafe`, "RELNOTES[INC]: The sandboxfs sandboxing strategy is removed"), and the Bazel 7.0.0 notes list the removal; only a no-op `--experimental_sandboxfs_map_symlink_targets` remains in 9.3.2.
-Its author reports, for one iOS app, a 55% penalty with sandboxfs against 270% with symlink forests, and names the closed-sourcing of OSXFUSE in 2019 and Apple's kernel extension deprecation as the reasons it stalled.
+Its author reports, for one iOS app, a 55% penalty with sandboxfs against 270% with symlink forests, and lists several reasons it stalled: wrong assumptions (forest creation "may not have been the biggest problem," the Objective-C and Swift compilers' on-disk caches were), performance problems in the Go FUSE library and the JSON RPC interface, OSXFUSE kernel bugs that blocked an optimization, the closed-sourcing of OSXFUSE in 2019, and Apple's kernel extension deprecation.
 
 #### Reuse and teardown
 
 `--reuse_sandbox_directories` (default true; on by default since Bazel 7.0.0, per its release notes) stashes a finished sandbox per mnemonic in `SandboxStash`, and the next action of that mnemonic takes the stash and edits it: entries it also needs are kept, the rest are deleted, and only missing ones are created (`SandboxHelpers.cleanExisting()`).
-The edit cost is proportional to the difference between the two input sets, not to their size, and `--experimental_inmemory_sandbox_stashes` (default false) keeps the stash contents in memory to avoid re-reading the directory tree.
+The edit cost is proportional to the difference between the two input sets, not to their size, and `--experimental_inmemory_sandbox_stashes` (default false in 9.3.2) keeps the stash contents in memory to avoid re-reading the directory tree; commit `4239764` (2026-10-23) turns it on by default on master because it "reduces filesystem I/O operations and stat calls during sandbox reuse."
 Deletion is asynchronous by default: `--experimental_sandbox_async_tree_delete_idle_threads` defaults to 4, deletes on one thread while a command runs, and ramps up when the server is idle; `0` makes deletion block action completion.
+Persistent workers break the one-sandbox-per-process model, because one long-lived process serves many actions.
+`--worker_sandboxing` (default false) sandboxes singleplex workers, and `--experimental_worker_multiplex_sandboxing` (default false) gives a multiplex worker tagged `supports-multiplex-sandboxing` "a separate sandbox directory per work request"; both help texts say workers are always sandboxed under the dynamic strategy, and `--experimental_worker_sandbox_hardening` (default false) adds distinct tmp directories per worker (`WorkerOptions.java`, 9.3.2).
+A per-request directory stages the inputs one request is allowed to name, but the worker is still one process that outlives the request, so anything it cached in memory from an earlier request, such as a parsed header or a loaded class, can influence a later one without any file being read.
 `--sandbox_base` exists so the forest can live on tmpfs ("Specify a path on tmpfs (like /run/shm) to possibly improve performance a lot when your build / tests have many input files"), at the price of RAM and of the `EXDEV` copies described above when combined with hard links.
 
 ### 3. Linux isolation: from chroot to namespaces
@@ -157,7 +175,7 @@ Deletion is asynchronous by default: `--experimental_sandbox_async_tree_delete_i
 #### chroot is not a sandbox
 
 `chroot(2)` changes only the root used to resolve absolute paths; the man page says "it is not intended to be used for any kind of security purpose," that it does not change the current directory, that open file descriptors "may allow access to files outside the chroot tree," and that a privileged process escapes with `mkdir foo; chroot foo; cd ..`.
-It also needs `CAP_SYS_CHROOT`, so an unprivileged build tool cannot use it at all.
+It needs `CAP_SYS_CHROOT` "in its user namespace," so an unprivileged tool can call it only after creating a user namespace, which is exactly how Bazel's hermetic mode uses it, as the second half of `pivot_root` plus `chroot(".")`.
 
 #### pivot_root inside a mount namespace
 
@@ -173,7 +191,8 @@ An unprivileged writer may set `uid_map` and `gid_map` only once, to a single li
 
 Mounts copied from a more privileged namespace are locked: they cannot be unmounted individually to reveal what is underneath, and their `MS_RDONLY`, `MS_NOSUID`, `MS_NOEXEC`, and atime flags cannot be changed (`mount_namespaces(7)`).
 That is why a sandbox can make a writable host mount read-only inside its namespace but can never make a read-only host mount writable.
-Because systemd makes mounts shared at boot, a sandbox first calls `mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL)` so that its mounts do not propagate back to the host.
+A mount namespace created together with a user namespace is less privileged than its parent, and `mount_namespaces(7)` says that in that case "shared mounts are reduced to slave mounts," so the sandbox's mounts cannot propagate back to the host.
+linux-sandbox still calls `mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL)` first, for the other direction: its comment says it is "so that mounts in the outside environment do not affect our sandbox" (`SetupMountNamespace()`); systemd makes `/` shared at boot, so without it a mount appearing on the host during an action would appear inside the sandbox too.
 
 #### Bazel's linux-sandbox, step by step
 
@@ -182,22 +201,27 @@ It uses `clone()` rather than `unshare()` "because unshare sometimes fails with 
 The parent adds the child to any cgroup directories (`-C`), then signals it through a pipe.
 `Pid1Main()` in `linux-sandbox-pid1.cc` then runs, in order:
 
-1. Wait for the parent's pipe, so that the child it forks lands in the same cgroup.
+1. Wait for the parent's pipe, so that the child it forks lands in the same cgroup, then clear the signal mask (`ClearSignalMask()`).
 2. `prctl(PR_SET_PDEATHSIG, SIGKILL)` and `setpgid(0, 0)`, so the sandbox dies with Bazel and a stray `kill(0, sig)` cannot hit the outer process group.
 3. `mount(NULL, "/", NULL, MS_REC | MS_PRIVATE, NULL)`.
-4. Write `deny` to `setgroups`, then one-line `uid_map` and `gid_map`: the outer IDs by default, 0 for `requires-fakeroot` (`-R`), `nobody` for `--sandbox_fake_username` (`-U`).
+4. Write `deny` to `setgroups`, then one-line `uid_map` and `gid_map`: the outer IDs by default, 0 for `requires-fakeroot` (`-R`), `nobody` for `--sandbox_fake_username` (`-U`); with `-H` (`--sandbox_fake_hostname`), `SetupUtsNamespace()` then sets the hostname to `localhost` and the domain name to `localdomain`.
 5. In the default (non-hermetic) mode, bind-mount each `-M`/`-m` pair, mount a tmpfs with `MS_NOSUID | MS_NODEV | MS_NOATIME` for each `--sandbox_tmpfs_path`, bind each writable path onto itself, and bind the working directory onto itself.
-6. Walk `/proc/self/mounts` and remount every entry `MS_BIND | MS_REMOUNT | MS_RDONLY` except the working directory, writable paths, and tmpfs paths, carrying over `nodev`, `noexec`, `nosuid`, and atime flags because a remount cannot drop locked flags; it retries `EBUSY` five times at 100 ms and ignores `EACCES`, `EPERM`, `EINVAL`, `ENOENT`, `ESTALE`, and `ENODEV`.
+6. Walk `/proc/self/mounts` and remount every entry `MS_BIND | MS_REMOUNT | MS_RDONLY` except the working directory, writable paths, and tmpfs paths, carrying over `nodev`, `noexec`, `nosuid`, and atime flags because a remount cannot drop locked flags; it makes up to five attempts on `EBUSY`, sleeping 100 ms between them (so at most four retries), and ignores `EACCES`, `EPERM`, `EINVAL`, `ENOENT`, `ESTALE`, and `ENODEV`.
 7. Mount a fresh `/proc`, and a read-only sysfs only when it owns a network namespace.
 8. With `-N`, bring up `lo` with `ioctl(SIOCSIFFLAGS, IFF_UP)`; `--sandbox_enable_loopback_device` (default true, added in Bazel 9.0) selects `-N` over `-n`.
 9. `chdir` to the working directory, fork the action into its own process group, give it the terminal, set `umask(022)`, and `execvp`.
 10. Reap every process that exits, return the action's status (128 plus the signal number on a signal), and exit; the kernel then sends `SIGKILL` to everything left in the PID namespace, which is how leftover daemons die.
 
-So in the default mode the whole host filesystem stays visible read-only, and the only things hidden are the paths the execroot omits and any `--sandbox_block_path` entries, which are covered with bind mounts of an inaccessible helper file or directory whose permission bits are cleared (`LinuxSandboxUtil.java`).
+So in the default mode the whole host filesystem stays visible read-only, and the only things hidden are the paths the execroot omits, the host `/tmp` (replaced by the hermetic `/tmp`), any `--sandbox_tmpfs_path` (replaced by an empty tmpfs), and any `--sandbox_block_path` entries, which are covered with bind mounts of an inaccessible helper file or directory whose permission bits are cleared (`LinuxSandboxUtil.java`).
 
-The hermetic mode (`-h <sandbox-dir>`, from `--experimental_use_hermetic_linux_sandbox`) builds a root from nothing instead: it binds the sandbox directory onto itself, creates `tmp/empty_file`, binds `/dev/null`, `/dev/random`, `/dev/urandom`, `/dev/zero`, and `/dev/full` onto hard links of that file, mounts a mode-1777 tmpfs on `dev/shm`, creates `dev/fd` and `dev/std*` symlinks into `/proc/self/fd`, mounts proc and sys, binds each `--sandbox_add_mount_pair` source, then calls `pivot_root(".", old-root-XXXXXX)`, `chroot(".")`, `umount2(old_root, MNT_DETACH)`, and `rmdir`.
+The hermetic mode (`-h <sandbox-dir>`, from `--experimental_use_hermetic_linux_sandbox`) builds a root from nothing instead: it binds the sandbox directory onto itself, creates `tmp/empty_file`, binds `/dev/null`, `/dev/random`, `/dev/urandom`, `/dev/zero`, and `/dev/full` onto hard links of that file, mounts a mode-1777 tmpfs on `dev/shm`, creates `dev/fd` and `dev/std*` symlinks into `/proc/self/fd`, mounts a fresh proc, mounts a read-only sysfs only when it owns a network namespace and otherwise bind-mounts the host `/sys` (a fresh sysfs fails with `EPERM` in a user namespace that shares the host network), mounts the tmpfs paths, binds the working directory onto itself, binds each `--sandbox_add_mount_pair` source and each writable path, then calls `pivot_root(".", old-root-XXXXXX)`, `chroot(".")`, `umount2(old_root, MNT_DETACH)`, and `rmdir`.
 Only paths given with `--sandbox_add_mount_pair` exist, so an absolute path to an undeclared file fails with `ENOENT`.
-`MountAllMounts()` passes `MS_REC | MS_BIND | MS_RDONLY` in a single `mount()` call, and `mount(2)` says the bits other than `MS_REC` are ignored when a bind mount is created; UNVERIFIED whether those binds end up read-only in practice, because I did not run the hermetic sandbox (no second remount appears in that code path at 9.3.2).
+In 9.3.2 those binds are writable, which is a real bug fixed upstream after that release.
+`MountAllMounts()` passes `MS_REC | MS_BIND | MS_RDONLY` in a single `mount()` call, and the kernel's `path_mount()` in `fs/namespace.c` tests `MS_REMOUNT | MS_BIND` first, then `MS_REMOUNT`, then dispatches a plain bind as `do_loopback(path, dev_name, flags & MS_REC)`, so the per-mount `MNT_READONLY` it computed from `MS_RDONLY` is never applied.
+The hermetic branch of `Pid1Main()` at 9.3.2 runs `MountSandboxAndGoThere()`, `CreateEmptyFile()`, `MountDev()`, `MountProcAndSys()`, `MountAllMounts()`, and `ChangeRoot()`, and never calls the remount pass `MakeFilesystemMostlyReadOnly()` that the default branch runs.
+Bazel commit `5cce779` (2026-07-22, "Fix read-only enforcement for hermetic sandbox mounts") states it directly: "bind mounts specified via -M/-m were writable because MS_RDONLY is ignored on the initial MS_BIND call, and hermetic mode missed the subsequent remount step," and it adds that call after `ChangeRoot()`.
+A second commit, `3a1589c` (2026-08-03, "Remount sandbox_root read-only in hermetic sandbox mode"), says the sandbox root "was previously left read-write," which "allowed sandboxed actions to modify hardlinked inputs on the host if they could chmod them," and adds `RemountReadonly("/")` with only the output directories passed as writable.
+Both fixes are in the `10.0.0rc3` tag and absent from `9.3.2` and `8.9.0rc2` (checked in each tag's `linux-sandbox-pid1.cc`, as of 2026-11, Linux).
 
 #### Network: open by default
 
@@ -209,12 +233,16 @@ So a plain `bazel build` on Linux gives actions the host network, and a network 
 
 Hermetic `/tmp` gives each Linux sandbox a private, initially empty `_hermetic_tmp` directory mounted on `/tmp`, with any Bazel-managed paths under `/tmp` (output base, sandbox base) mounted back in.
 It became the default in Bazel 7.0.0 (`--incompatible_sandbox_hermetic_tmp`), and Bazel 9.0.0 removed the flag; the 9.0.0 notes say to use `--sandbox_add_mount_pair=/tmp` to see the host `/tmp` again.
+`LinuxSandboxedSpawnRunner.useHermeticTmp()` still turns it off in four cases: the hermetic sandbox (which builds its own empty `/tmp`), an explicit mount pair for `/tmp`, `/tmp` being the output base or a package path entry, and `--sandbox_tmpfs_path=/tmp`.
 `--incompatible_strict_action_env`, flipped to true in Bazel 9.0.0, gives actions a static `PATH` and drops `LD_LIBRARY_PATH`; `--action_env=NAME` lets one variable through, at the cost of cache sharing across users.
-`--experimental_sandbox_memory_limit_mb` and `--experimental_sandbox_limits` put each spawn in a cgroup (v1 or v2, if the user may write the cgroups directory), and the runner writes resource usage from `wait4()` to `stats.out`, replacing `ru_maxrss` with the cgroup's memory peak when one exists.
+On every non-Windows host the static value is `/bin:/usr/bin:/usr/local/bin` (`BazelRuleClassProvider.pathOrDefault()`, 9.3.2), chosen so a macOS `python3` under `/usr/local/bin` is found; Homebrew on Apple silicon installs under `/opt/homebrew/bin`, so a genrule that calls a Homebrew tool by name fails on an arm64 Mac and works on an Intel one.
+The source also notes that `--action_env` "does not propagate to the exec config," so it cannot fix a tool built for the exec configuration.
+`--experimental_sandbox_memory_limit_mb` and `--experimental_sandbox_limits` put each spawn in a cgroup (v1 or v2, if the user may write the cgroups directory), and the C++ `linux-sandbox` binary writes resource usage from `wait4()` on its PID 1 (so it covers the whole process tree) to `stats.out`, replacing `ru_maxrss` with the cgroup's memory peak when one exists (`WaitForPid1()` in `linux-sandbox.cc`).
 
 #### When namespaces are unavailable
 
 Bazel probes support by running `/bin/true` under linux-sandbox once per sandbox binary and caching the answer; if it fails, `--spawn_strategy=linux-sandbox` stops the build with "no strategy with that identifier was registered", and `sandboxed` falls back to `processwrapper-sandbox`, which stages the same symlink forest with no isolation at all.
+In 9.3.2 that fallback also silently drops `--experimental_use_hermetic_linux_sandbox`; Bazel commit `fd7af9e` (2026-10-28, after the 9.3.2 branch) makes the command fail instead, and its description gives the reason: "the hermetic flag is silently ignored."
 Three common reasons a CI runner refuses user namespaces:
 
 - Docker's default seccomp profile (moby/profiles `default.json`, default action `EPERM`) allows `unshare`, `mount`, `umount2`, `setns`, and `clone3` only to a container with `CAP_SYS_ADMIN`, returns `ENOSYS` (38) for `clone3` otherwise, allows `clone` without that capability only when none of the namespace flags in mask `0x7E020000` are set, and has no allow rule for `pivot_root` at all.
@@ -241,6 +269,8 @@ Its ABI grows by version, and programs should probe the ABI rather than the kern
 | 5 | 6.10 | `LANDLOCK_ACCESS_FS_IOCTL_DEV` |
 | 6 | 6.12 | Scoping of abstract UNIX sockets and signals |
 | 7 | 6.15 | Audit logging flags |
+| 8 | 7.0 | `LANDLOCK_RESTRICT_SELF_TSYNC` |
+| 9 | 7.1 | `LANDLOCK_ACCESS_FS_RESOLVE_UNIX` (pathname UNIX socket connects) |
 
 Descriptors opened before enforcement keep their rights, and `stat`, `chdir`, `chmod`, `chown`, and `access` cannot be restricted, so Landlock bounds what an action opens, not what it can learn about the tree.
 Docker's default seccomp profile allows the three Landlock syscalls and `seccomp` itself, which makes both usable inside an unprivileged container where namespaces are not (as of 2026-11, moby/profiles main, Linux).
@@ -277,9 +307,10 @@ APFS volumes are case-insensitive by default (this Mac's `/` resolves `foo.h` to
 
 ### 6. Containers, microVMs, and other systems
 
+- Bazel's Windows sandbox (`--experimental_use_windows_sandbox`, a tri-state that defaults to false, with `--experimental_windows_sandbox_path` defaulting to `BazelSandbox.exe` found on `PATH`) stages nothing: `WindowsSandboxedSpawnRunner.prepareSpawn()` runs the action in the real execroot and passes the external binary each declared input with `-r`, each writable directory and declared output with `-w`, and each `--sandbox_block_path` entry with `-b`, so isolation is entirely the helper's policy; it refuses spawns with unresolved symlinks ("Windows sandbox does not support unresolved symlinks yet"), and its help text still says the binary must "correspond to a supported version of sandboxfs," a copy-paste leftover in 9.3.2.
 - Bazel's Docker strategy (`--experimental_enable_docker_sandbox`, default false) runs each spawn with `docker run` in `--experimental_docker_image` or the platform's `container-image` property, injects the user's uid and gid by default (`--experimental_docker_use_customized_images`), and passes `--privileged` only with `--experimental_docker_privileged`, which the help text warns "might also result in reduced hermeticity."
 - bubblewrap creates "a new, completely empty, mount namespace where the root is on a tmpfs that is invisible from the host," uses user namespaces and `PR_SET_NO_NEW_PRIVS`, has dropped its setuid mode, and states that it "is not a complete, ready-made sandbox with a specific security policy": the caller's arguments are the policy.
-- Nix 2.35.6 sandboxes builds by default on Linux (`sandbox = true`, false on other platforms) in private PID, mount, network, IPC, and UTS namespaces, exposing only the input closure, a private `/proc`, `/dev`, `/dev/shm`, and `/dev/pts`, and `sandbox-paths`; the build directory is `/build` (`sandbox-build-dir`), and fixed-output derivations keep the network because their output hash is checked; [[Nix-Store-Derivations-and-Flakes-Internals]] owns the store model.
+- Nix 2.35.6 sandboxes builds by default on Linux (`sandbox = true`, false on other platforms) in private PID, mount, network, IPC, and UTS namespaces, exposing only the input closure, a private `/proc`, `/dev`, `/dev/shm`, and `/dev/pts`, and `sandbox-paths`; the build directory is `/build` (`sandbox-build-dir`), and fixed-output derivations are exempt from the network restriction "to ensure they can access the network"; the manual also says using the sandbox "requires that Nix is run as root," with builds run as build users, so it is a root-owned daemon design, not an unprivileged one; [[Nix-Store-Derivations-and-Flakes-Internals]] owns the store model.
 - gVisor's Sentry implements the Linux system call interface in user space and "does not pass system calls through to the host kernel," with a Gofer mediating file access over 9P; its documentation warns of "poor performance for system call heavy workloads," which describes a compiler farm.
 - Firecracker runs KVM microVMs with five emulated devices and advertises boot in under 125 ms, under 5 MiB overhead per VM, and up to 150 microVMs per second per host.
 - Buck2 does not sandbox local-only build steps; its README says it becomes hermetic "when using Remote Execution," which enforces declared inputs by construction.
@@ -317,14 +348,19 @@ The most common divergence is the second row: an absolute include path, a tool f
 | `--experimental_sandbox_async_tree_delete_idle_threads` | `4` | Both (as of 2026-11, Bazel 9.3.2) | `0` makes deletion block the action |
 | `--sandbox_base` | empty, meaning `<output_base>/sandbox` | Both (as of 2026-11, Bazel 9.3.2) | Put the forest on tmpfs |
 | `--sandbox_debug` | `false` | Both (as of 2026-11, Bazel 9.3.2) | Keep sandbox trees, write `debug.out`, print the command |
-| `--sandbox_add_mount_pair`, `--sandbox_writable_path`, `--sandbox_tmpfs_path`, `--sandbox_block_path` | repeatable | Linux, block path also macOS (as of 2026-11, Bazel 9.3.2) | Extra mounts, writable dirs, empty tmpfs, inaccessible paths |
+| `--sandbox_add_mount_pair`, `--sandbox_writable_path`, `--sandbox_tmpfs_path`, `--sandbox_block_path` | repeatable | Linux; writable and block paths also macOS (as of 2026-11, Bazel 9.3.2) | Extra mounts, writable dirs, empty tmpfs, inaccessible paths |
 | `--sandbox_fake_hostname`, `--sandbox_fake_username` | `false` | Linux (as of 2026-11, Bazel 9.3.2) | `localhost` and `nobody` inside the sandbox |
 | `--incompatible_strict_action_env` | `true` (flipped in 9.0.0) | Both (as of 2026-11, Bazel 9.3.2) | Static `PATH`, no `LD_LIBRARY_PATH` |
-| `--incompatible_sandbox_hermetic_tmp` | removed in 9.0.0 (default true since 7.0.0) | Linux (as of 2026-11) | Private `/tmp` is now unconditional |
+| `--incompatible_sandbox_hermetic_tmp` | removed in 9.0.0 (default true since 7.0.0) | Linux (as of 2026-11) | Private `/tmp` unless hermetic mode, a `/tmp` mount pair, `/tmp` as output base, or a `/tmp` tmpfs path |
+| Static strict `PATH` | `/bin:/usr/bin:/usr/local/bin` | Both, non-Windows (as of 2026-11, Bazel 9.3.2) | No `/opt/homebrew/bin` on arm64 macOS |
+| `--local_termination_grace_seconds` | `15` (old name `--local_sigkill_grace_seconds`) | Both (as of 2026-11, Bazel 9.3.2) | Wait between terminating a timed-out local process and killing it |
+| Hermetic mount pairs read-only | No in 9.3.2; yes from commit `5cce779` (10.0.0rc3) | Linux (as of 2026-11) | Whether `--sandbox_add_mount_pair` binds can be written |
 | `--worker_sandboxing` | `false` | Both (as of 2026-11, Bazel 9.3.2) | Sandboxed singleplex persistent workers |
+| `--experimental_worker_multiplex_sandboxing` | `false` | Both (as of 2026-11, Bazel 9.3.2) | One sandbox directory per work request for `supports-multiplex-sandboxing` workers |
+| `--experimental_use_windows_sandbox` | `false` (tri-state), binary `BazelSandbox.exe` | Windows (as of 2026-11, Bazel 9.3.2) | External helper enforces `-r`, `-w`, `-b` path lists |
 | Execution tags | `no-sandbox`, `requires-network`, `block-network`, `requires-fakeroot` | Both (as of 2026-11, Bazel 9.3.2) | Per-target overrides in `ExecutionRequirements.java` |
 | linux-sandbox `clone()` flags | `NEWUSER, NEWNS, NEWIPC, NEWPID` (+`NEWNET`, +`NEWUTS`) | Linux (as of 2026-11, Bazel 9.3.2) | Namespaces of every sandboxed spawn |
-| Unprivileged user namespaces | since Linux 3.8; nesting limit 32 | Linux (as of 2026-11) | Whether linux-sandbox, bubblewrap, Nix can run unprivileged |
+| Unprivileged user namespaces | since Linux 3.8; nesting limit 32 | Linux (as of 2026-11) | Whether linux-sandbox and bubblewrap can run unprivileged (Nix's sandbox runs as root) |
 | Overlayfs in a user namespace | since Linux 5.11 | Linux (as of 2026-11) | Unprivileged copy-on-write roots |
 | Landlock | ABI 1 in 5.13, TCP rules ABI 4 in 6.7 | Linux (as of 2026-11) | Unprivileged path and port deny rules |
 | Docker default seccomp | `EPERM` for `unshare` and `mount`, `ENOSYS` for `clone3` without `CAP_SYS_ADMIN` | Linux (as of 2026-11, moby/profiles main) | Why linux-sandbox fails inside containers |
@@ -363,8 +399,10 @@ Each toolchain has its own way to read an undeclared input or write outside its 
 | How a sandbox reports it | Missing header error naming the path | `ModuleNotFoundError`, or an `EROFS` warning on `.pyc` writes | Missing file in `build.rs`, or a fetch failure |
 | Usual fix | Declare the header, or use a hermetic sysroot ([[Cross-Compilation-and-Sysroots]]) | Hermetic interpreter and pinned wheels; `PYTHONDONTWRITEBYTECODE=1` | Vendored crates, `--offline`, `build.rs` emitting `rerun-if-changed` |
 
-The realpath escape is not theoretical for C++: a quote include is searched first in the directory of the including file, so a compiler that canonicalizes the path of a symlinked `main.c` searches the real source directory, where an undeclared sibling header exists.
-UNVERIFIED: whether GCC or Clang canonicalize the including file's directory through symlinks by default; I did not test either compiler under a symlink forest, so the lab models the escape with Python's `os.path.realpath()` instead.
+The GCC manual ("Search Path") says quote includes are searched "first relative to the directory of the current file," and the question for a sandbox is which directory that is.
+GCC and Clang do not take the realpath escape for quote includes: they search the directory of the including file as it was named, which in a symlink forest is the execroot directory, not the source directory behind the link.
+On darwin-arm64 (2026-11-15), with `execroot/ws/src/main.c` a symlink to a source `main.c` whose real directory holds an undeclared `secret.h`, both Apple clang 21.0.0 (`'secret.h' file not found`) and Homebrew GCC 16.2.0 (`secret.h: No such file or directory`) failed to compile `src/main.c` from the execroot; that was a hand run, and the lab's `compile_quote_include` probe repeats it with the Linux container's `cc`.
+So for compilers the leak is the absolute path (an absolute `-I`, a sysroot, a default system directory), while tools that call `realpath()` and then look for siblings, such as scripts and code generators, do escape.
 [[Cargo-Build-Graph-and-Rustc-Pipelining]] owns build scripts, and [[Compiler-Caches-ccache-and-sccache]] owns how absolute paths break compiler-cache hits, which is the same leak seen from the cache side.
 
 ## Worked Lab Example
@@ -380,8 +418,8 @@ LINUX_SANDBOX_LAB_USERNS=1 bash 06-Build-Systems/linux_sandbox/run.sh   # by han
 
 What each part does:
 
-1. `stage.py` Part 1 builds a source tree with eight declared inputs and an undeclared `src/secret.h`, stages the declared inputs into a fresh `execroot/ws` three ways (symlink, hard link, copy), and runs `action.py` in each with a minimal environment.
-   The action reads its declared input, reads `src/secret.h` relative and absolute, reads it via `realpath(src/main.c)`, and appends to `src/main.c`; the stager then hashes the source `src/main.c` to see whether the append reached it, and restores it.
+1. `stage.py` Part 1 builds a source tree with nine declared inputs and an undeclared `src/secret.h`, stages the declared inputs into a fresh `execroot/ws` three ways (symlink, hard link, copy), and runs `action.py` in each with a minimal environment.
+   The action reads its declared input, reads `src/secret.h` relative and absolute, reads it via `realpath(src/main.c)`, runs `"${CC:-cc}" -fsyntax-only src/inc.c` on a declared file that quote-includes `secret.h`, and appends to `src/main.c`; the stager then hashes the source `src/main.c` to see whether the append reached it, and restores it.
 2. Part 2 stages 2,000 inputs of 4,096 bytes in 40 directories each way and reports, from `lstat()`, how many entries are symlinks or regular files, how many share the source inode, how many input bytes were duplicated, and the source `st_nlink` while staged; it then hard-links a file from `/dev/shm` into the execroot to show `EXDEV` and the copy fallback that `HardlinkedSandboxedSpawn` uses.
    Timings go to stderr only, because they vary.
 3. Part 3 stashes a 2,000-input symlink tree, edits it for a second action that drops two packages and adds two, counts kept, removed, and created entries, and compares the edited tree with a freshly staged one entry by entry.
@@ -390,11 +428,12 @@ What each part does:
 
 ### Output status
 
-No `expected/` file exists yet: this draft was written on darwin-arm64, where a `linux` lab runs only in the harness container, and container runs were out of scope for this job, so the integrator records `expected/linux-<arch>.txt`.
+No `expected/` file exists yet: this note was written on darwin-arm64, where a `linux` lab runs only in the harness container, and container runs were out of scope for this job, so the integrator records `expected/linux-<arch>.txt`.
 No output block is shown for that reason.
 Each check is built to fail if the mechanism were absent, and the source analysis predicts these results:
 
-- Part 1: relative reads of the undeclared file fail with `ENOENT` in all three modes; the absolute read succeeds in all three, because staging alone hides nothing outside the execroot; the `realpath` read succeeds only for symlinks; and the append modifies the source file for symlinks and hard links but not for copies.
+- Part 1: relative reads of the undeclared file fail with `ENOENT` in all three modes; the absolute read succeeds in all three, because staging alone hides nothing outside the execroot; the `realpath` read succeeds only for symlinks; the compiler reports `not-found` in all three, because it searches the execroot directory as named; and the append modifies the source file for symlinks and hard links but not for copies.
+- A single logic check of Part 1 on darwin-arm64 (2026-11-15, Apple clang 21.0.0 as `cc`) printed exactly that table; it is not a recording, because the lab requires Linux, so no output block is shown here.
 - Part 2: the symlink tree has 2,000 symlinks and duplicates 0 bytes; the hard-link tree has 2,000 regular entries that share the source inode, with source `st_nlink` 2; the copy tree duplicates 8,192,000 bytes; and the `/dev/shm` link fails with `EXDEV` and is copied.
 - Part 3: 1,900 symlinks kept, 100 removed with 2 directories, 2 directories and 100 symlinks created, and the edited tree identical to the fresh one.
 - Part 4: `socket(AF_INET)` and `socket(AF_INET6)` return `EACCES` after the filter in the process and in the exec'd child, `socket(AF_UNIX)` still works, `/proc/self/status` shows `NoNewPrivs` 1 and `Seccomp` 2, and the connection opened before the filter still carries data.
@@ -417,15 +456,18 @@ That check caught a real bug: the macOS Python's `socket.AF_INET6` is 30, not Li
 
 > [!warning] Pitfall: trusting a symlink forest to hide the source tree
 > The forest hides only names the execroot omits.
-> An absolute path, a `realpath` of any input, or a symlink-following write reaches the real source tree, and on macOS the Seatbelt profile allows every read by default.
+> An absolute path or a `realpath` of any input reaches the real source tree, and on macOS the Seatbelt profile allows every read by default.
+> Under processwrapper-sandbox, which has no read-only mounts and no Seatbelt policy, a write through a staged symlink also lands in the source file.
 
 > [!warning] Pitfall: hard-linked inputs are writable aliases
 > The hermetic sandbox hard-links inputs, so an action that opens an input with `O_WRONLY` or `O_TRUNC` rewrites the source file under every name.
-> Make sources read-only for the build user or prefer copies or a copy-on-write layer when tools are known to rewrite inputs.
+> Bazel's post-action check then fails with "input dependency ... was modified during execution," but the source file is already changed.
+> Read-only mode bits are not enough, because the owner can `chmod` the shared inode; prefer copies, a copy-on-write layer, or a read-only mount of the sandbox root (Bazel commit `3a1589c`) when tools are known to rewrite inputs.
 
 > [!warning] Pitfall: `MS_RDONLY` on a fresh bind mount
 > `mount(2)` ignores every flag but `MS_REC` when it creates a bind mount, so `mount(src, dst, NULL, MS_BIND | MS_RDONLY, NULL)` yields a writable bind.
 > A read-only bind is two calls: create the bind, then remount it with `MS_REMOUNT | MS_BIND | MS_RDONLY`.
+> Bazel's own hermetic linux-sandbox shipped this bug through 9.3.2 (fixed by commit `5cce779`, in the 10.0.0 release candidates).
 
 > [!warning] Pitfall: fixing a CI sandbox failure with `--privileged`
 > When linux-sandbox fails inside Docker, `--privileged` or `CAP_SYS_ADMIN` with `seccomp=unconfined` makes it work by handing the build root on the host kernel's terms.
@@ -434,6 +476,10 @@ That check caught a real bug: the macOS Python's `socket.AF_INET6` is 30, not Li
 > [!warning] Pitfall: a seccomp filter without an arch check
 > On x86_64 the same `AUDIT_ARCH_X86_64` covers x32 calls, whose numbers set bit 30, and a 32-bit `int 0x80` call uses a different number table.
 > Check the arch word first and reject x32 numbers, or the filter is bypassed by the other ABI.
+
+> [!warning] Pitfall: a hermetic flag that silently does nothing
+> In Bazel 9.3.2, when linux-sandbox fails its support probe, `sandboxed` resolves to `processwrapper-sandbox` and `--experimental_use_hermetic_linux_sandbox` is ignored without an error (fixed on master by commit `fd7af9e`).
+> Pin `--spawn_strategy=linux-sandbox` in CI so a missing sandbox fails the build instead of downgrading it.
 
 > [!warning] Pitfall: `--sandbox_base=/dev/shm` with hard links
 > Sources on disk cannot be hard-linked onto tmpfs, so every input is copied (`EXDEV`), and the copies consume RAM in proportion to input bytes.
@@ -508,7 +554,7 @@ Decision rules:
 > > [!success]- Answer
 > > Read-only is a per-mount flag, and each mount under `/` has its own, so making `/` read-only says nothing about `/home` or `/tmp` if they are separate mounts.
 > > The mounts were copied from a more privileged namespace, so their `MS_NOSUID`, `MS_NODEV`, `MS_NOEXEC`, and atime flags are locked, and a remount that omits them fails; the code reads them with `hasmntopt()` and passes them back.
-> > It tolerates `EACCES`, `EPERM`, `EINVAL`, `ENOENT`, `ESTALE`, and `ENODEV` for mounts it cannot see or that are broken, and retries `EBUSY`, which a concurrent path walk can cause.
+> > It tolerates `EACCES`, `EPERM`, `EINVAL`, `ENOENT`, `ESTALE`, and `ENODEV` for mounts it cannot see or that are broken, and retries `EBUSY` (up to five attempts), which a concurrent path walk on the host can cause because `touch_atime()` briefly holds a writer count on the mount, per the source comment.
 
 > [!question] L7: Compare symlink forests, hard links, copies, and a FUSE tree for staging a 50,000-input action, on cost and on isolation.
 >
@@ -525,14 +571,16 @@ Decision rules:
 > > A descriptor opened before the filter, or passed in over a UNIX socket with `SCM_RIGHTS`, still works, because seccomp filters system calls, not existing descriptors.
 > > A UNIX socket to a local proxy, a Docker socket, or a D-Bus service gives indirect network access, since `AF_UNIX` was allowed.
 > > On x86_64, a filter that does not check the arch word or the x32 bit can be bypassed through another syscall ABI.
-> > A network namespace closes all three, because the routes and interfaces do not exist, and Landlock ABI 4 adds TCP connect rules for unprivileged processes.
+> > A network namespace closes only the third: a descriptor opened before the namespace, or received with `SCM_RIGHTS`, stays bound to its original network namespace, and a pathname UNIX socket such as `/var/run/docker.sock` is found through the filesystem, which linux-sandbox leaves visible.
+> > Closing all three takes a network namespace plus a filesystem view that hides the socket paths, or Landlock: TCP connect rules arrived in ABI 4, abstract UNIX socket scoping in ABI 6, and pathname UNIX connect control (`LANDLOCK_ACCESS_FS_RESOLVE_UNIX`) in ABI 9 (Linux 7.1).
 
 > [!question] L7: Bazel's hermetic linux-sandbox passes `MS_REC | MS_BIND | MS_RDONLY` in one `mount()` call for each extra mount; what does the kernel do with `MS_RDONLY`, and how would you verify the outcome?
 >
 > > [!success]- Answer
 > > `mount(2)` says that when `MS_BIND` creates a bind mount, the bits other than `MS_REC` are ignored, and making a bind read-only takes a second `MS_REMOUNT | MS_BIND | MS_RDONLY` call.
-> > So the bind inherits the source mount's flags: read-only only if the source mount already was.
-> > Verify by running an action that writes into a mounted path under `--experimental_use_hermetic_linux_sandbox --sandbox_add_mount_pair=<dir>`, and by reading `/proc/self/mountinfo` inside the sandbox for the `ro` flag.
+> > The kernel's `path_mount()` hands a plain bind to `do_loopback(path, dev_name, flags & MS_REC)`, so the bind inherits the source mount's flags: read-only only if the source mount already was.
+> > In Bazel 9.3.2 the hermetic branch never runs the remount pass, so those mounts are writable; commit `5cce779` (2026-07-22) added `MakeFilesystemMostlyReadOnly()` after `ChangeRoot()`, and it ships in the 10.0.0 release candidates.
+> > Verify by running an action that writes into a mounted path under `--experimental_use_hermetic_linux_sandbox --sandbox_add_mount_pair=<dir>`, and by reading `/proc/self/mountinfo` inside the sandbox for the `ro` flag; the general lesson is to assert the mount flags you rely on instead of trusting the call that was meant to set them.
 
 > [!question] L8+: Design local and remote sandboxing for a 20,000-engineer monorepo with Linux and macOS developers and a shared cache.
 >

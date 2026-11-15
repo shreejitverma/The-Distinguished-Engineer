@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Gang Ren, Eric Tune, Tipp Moseley, Yixin Shi, Silvius Rus, and Robert Hundt, Google-Wide Profiling: A Continuous Profiling Infrastructure for Data Centers, IEEE Micro, 2010, pp. 65-79, https://research.google/pubs/google-wide-profiling-a-continuous-profiling-infrastructure-for-data-centers/"
@@ -50,6 +50,29 @@ sources:
   - "MADR contributors, Markdown Architectural Decision Records template, adr/madr develop, 2026, https://github.com/adr/madr/blob/develop/template/adr-template.md"
   - "Michael Nygard, Documenting Architecture Decisions, Cognitect Blog, 2011-11-15, https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions"
   - "The Kubernetes Authors, kubectl rollout and kubectl rollout status reference, kubernetes.io, 2026, https://kubernetes.io/docs/reference/kubectl/generated/kubectl_rollout/kubectl_rollout_status/"
+  - "The Kubernetes Authors, pkg/printers/internalversion/printers.go (daemonSetColumnDefinitions: Desired, Current, Ready, Up-to-date, Available), kubernetes/kubernetes master, 2026, https://github.com/kubernetes/kubernetes/blob/master/pkg/printers/internalversion/printers.go"
+  - "Grafana Labs, pkg/symbolizer/symbolizer.go and pkg/validation/symbolizer.go (symbolizer.enabled, symbolizer.debuginfod-url), grafana/pyroscope v2.4.3, 2026-11-03, https://github.com/grafana/pyroscope/blob/v2.4.3/pkg/symbolizer/symbolizer.go"
+  - "Grafana Labs, pkg/debuginfo/store.go (debug-info.enabled, debug-info.max-upload-size) and api/debuginfo/v1alpha1/debuginfo.proto, grafana/pyroscope main, 2026, https://github.com/grafana/pyroscope/blob/main/pkg/debuginfo/store.go"
+  - "Grafana Labs, pkg/test/integration/unsymbolized_profile_test.go, grafana/pyroscope main, 2026, https://github.com/grafana/pyroscope/blob/main/pkg/test/integration/unsymbolized_profile_test.go"
+  - "Grafana Labs, Version 2.1, 2.2, 2.3, and 2.4 release notes, Grafana Pyroscope documentation, 2026, https://grafana.com/docs/pyroscope/latest/release-notes/"
+  - "Grafana Labs, Write-path sampling (Pyroscope v2 architecture), Grafana Pyroscope documentation, 2026, https://grafana.com/docs/pyroscope/latest/reference-pyroscope-v2-architecture/sampling/"
+  - "Parca Authors, Parca documentation: Observability (--otlp-address self-tracing), parca-dev/docs main, 2026, https://www.parca.dev/docs/observability"
+  - "bpftrace Developers, bpftrace CHANGELOG (0.26.0, dw_ustack), bpftrace master, 2026, https://github.com/bpftrace/bpftrace/blob/master/CHANGELOG.md"
+  - "Parca Authors, pkg/parca/parca.go (modes, OTLP profiles service registration), parca-dev/parca main, 2026, https://github.com/parca-dev/parca/blob/main/pkg/parca/parca.go"
+  - "Grafana Labs, pkg/pyroscope/pyroscope.go (Config.Validate: storage.backend required for v2 storage layers), grafana/pyroscope main, 2026, https://github.com/grafana/pyroscope/blob/main/pkg/pyroscope/pyroscope.go"
+  - "Grafana Labs, Pyroscope v2 metastore component (Raft, 3 and 5 node fault tolerance), Grafana Pyroscope documentation, 2026, https://grafana.com/docs/pyroscope/latest/reference-pyroscope-v2-architecture/components/metastore/"
+  - "Grafana Labs, Pyroscope v2 deployment modes (object storage requirement, single-node not for production), grafana/pyroscope main, 2026, https://github.com/grafana/pyroscope/blob/main/docs/sources/reference-pyroscope-v2-architecture/deployment-modes/index.md"
+  - "Google LLC, Perfetto trace_config.proto (BufferConfig.FillPolicy RING_BUFFER and DISCARD), google/perfetto main, 2026, https://github.com/google/perfetto/blob/main/protos/perfetto/config/trace_config.proto"
+  - "Python Software Foundation, Python support for the Linux perf profiler (HOWTO: perf trampoline, -X perf_jit, frame pointer requirement), cpython main Doc/howto/perf_profiling.rst, 2026, https://docs.python.org/3/howto/perf_profiling.html"
+  - "Python Software Foundation, Command line and environment (-X perf, PYTHONPERFSUPPORT 3.12, PYTHON_PERF_JIT_SUPPORT 3.13), cpython main Doc/using/cmdline.rst, 2026, https://docs.python.org/3/using/cmdline.html"
+  - "OpenTelemetry Authors, collector/config/config_linux.go (Config fields and Validate: kernel 5.10 check, probabilistic and jitter ranges, error_mode), open-telemetry/opentelemetry-ebpf-profiler main, 2026, https://github.com/open-telemetry/opentelemetry-ebpf-profiler/blob/main/collector/config/config_linux.go"
+  - "OpenTelemetry Authors, tracer/tracer.go (ProbabilisticThresholdMax = 100), open-telemetry/opentelemetry-ebpf-profiler main, 2026, https://github.com/open-telemetry/opentelemetry-ebpf-profiler/blob/main/tracer/tracer.go"
+  - "Grafana Labs, Pyroscope OpenTelemetry eBPF profiler client page source (feature gate, samples_per_second 97, labelmap rule, development and testing only), grafana/pyroscope main, 2026, https://github.com/grafana/pyroscope/blob/main/docs/sources/configure-client/opentelemetry/ebpf-profiler.md"
+  - "Grafana Labs, Pyroscope eBPF with Grafana Alloy page source (unsupported profile types), grafana/pyroscope main, 2026, https://github.com/grafana/pyroscope/blob/main/docs/sources/configure-client/grafana-alloy/ebpf/_index.md"
+  - "Grafana Labs, pyroscope.ebpf reference source (capabilities, defaults, metrics), grafana/alloy main, 2026, https://github.com/grafana/alloy/blob/main/docs/sources/reference/components/pyroscope/pyroscope.ebpf.md"
+  - "Python Software Foundation, sys.activate_stack_trampoline (Linux, 3.12, not while the JIT is active), cpython main Doc/library/sys.rst, 2026, https://docs.python.org/3/library/sys.html#sys.activate_stack_trampoline"
+  - "Bartosz Taudul, Tracy CMakeLists.txt (TRACY_ENABLE and TRACY_ON_DEMAND default OFF), wolfpld/tracy master, 2026, https://github.com/wolfpld/tracy/blob/master/CMakeLists.txt"
+  - "Parca Authors, Parca documentation sources: faq.mdx, resource-usage.mdx, parca-agent-design.md, parca-agent-security.md, symbolization.md, storage.md, parca-dev/docs main, 2026, https://github.com/parca-dev/docs/tree/main/docs"
 ---
 
 # Profiling Decision Records
@@ -88,6 +111,15 @@ At 19 Hz and `p` = 1% that is 0.19 samples per second, so a 10-second incident o
 A count of `n` independent samples has a relative standard error near `1 / sqrt(n)`, so 100 samples carry about 10% error and 2 samples carry no usable signal.
 Complaints that "the continuous profiler shows nothing for this incident" are usually this arithmetic, not a broken agent.
 
+The same arithmetic sizes every comparison a record will later rely on, such as a bake-off, a frame pointer cost check, or a before-and-after deploy diff.
+Treat the sample count of one function in each of two windows as Poisson with mean `n`.
+The difference of the two counts has a standard deviation near `sqrt(2n)`, so a relative change `r` equals two standard deviations when `r * n = 2 * sqrt(2n)`, which gives `n = 8 / r^2`.
+At that size a real change crosses the two-sigma line only about half the time.
+Catching it with about 80% power needs `n` near `2 * (1.96 + 0.84)^2 / r^2`, roughly `16 / r^2`.
+So a 10% change in one function is at the noise floor with about 800 samples of it per window and reliably visible with about 1,600, and a 5% change needs about 3,200 and 6,300.
+For the 1% path at 19 Hz, 800 samples per window take about 4,211 host-seconds, so a one-minute window needs about 70 hosts, and 1,600 samples need about 140.
+This is a rule of thumb for planning windows, not a significance test; samples of one function on one host are correlated in time, so real windows should be larger.
+
 ## Decision Tree
 
 ```mermaid
@@ -107,7 +139,7 @@ flowchart TD
     Samp --> Q3{"PROF-003: Backend constraints?"}
     Hyb --> Q3
     Q3 -->|"Object storage available,<br/>multi-tenant retention,<br/>independent read and write scaling"| Pyro["Grafana Pyroscope 2.x<br/>microservices mode on object storage"]
-    Q3 -->|"AGPL-3.0 not acceptable,<br/>or server-side symbolization of stripped binaries,<br/>or a single binary is enough"| Parca["Parca<br/>Apache-2.0, debuginfo upload,<br/>columnar sample store"]
+    Q3 -->|"AGPL-3.0 not acceptable,<br/>or supported server-side symbolization<br/>of stripped binaries,<br/>or a single binary is enough"| Parca["Parca<br/>Apache-2.0, debuginfo upload,<br/>columnar sample store"]
 
     Pyro --> Q4{"PROF-004: Who compiles the code on the stack?"}
     Parca --> Q4
@@ -166,7 +198,9 @@ On macOS the ad hoc tools belong to [[macOS-Instruments-xctrace-and-DTrace]], an
 | :--- | :--- | :--- | :--- |
 | Parca Agent CPU sampling | Linux | 19 Hz per logical CPU (`--profiling-cpu-sampling-frequency=19`) | The design doc picks a prime so samples do not lock onto periodic work; 100 Hz would hit every 10 ms tick. |
 | Alloy `pyroscope.ebpf` `sample_rate` | Linux | 19; `collect_interval` 15s; `off_cpu_threshold` 0 (off-CPU disabled) | Same resolution floor as Parca Agent by default. |
-| OTel `profiling` receiver `samples_per_second` | Linux | 20; `reporter_interval` 5s; `probabilistic_threshold` 100 (always on) | Defaults from `collector/factory_linux.go`. |
+| OTel `profiling` receiver `samples_per_second` | Linux | 20; `reporter_interval` 5s with `reporter_jitter` 0.2; `probabilistic_threshold` 100 (always on); `error_mode` `propagate` | Defaults from `collector/factory_linux.go`. |
+| OTel receiver validation | Linux | `Config.Validate` rejects kernels below 5.10 unless `no_kernel_version_check` is set; `probabilistic_interval` must be 1 to 5 minutes; `reporter_jitter` 0 to 1 | A rejected receiver configuration is a rejected collector configuration (`collector/config/config_linux.go`). |
+| CPython perf support | Linux | `-X perf` or `PYTHONPERFSUPPORT=1` since 3.12 (trampolines with no DWARF, so frame pointers are required); `-X perf_jit` or `PYTHON_PERF_JIT_SUPPORT=1` since 3.13 for builds without them, with `--call-graph dwarf` and `perf inject --jit` | The Python row of PROF-004 for versions before 3.15. |
 | OTel eBPF profiler overhead | Linux | 1% CPU and 250 MB memory are the project's upper limits in testing | A project statement, not a measurement on your workload. |
 | Parca Agent overhead | Linux | "less than 1% in CPU and less than 200 Mb memory", with a reproducible report still pending | From the Parca FAQ. |
 | GWP aggregated overhead | Linux | Less than 0.01%, with profiling active on only a small subset of machines at any moment | Fleet sampling is the scaling knob when always-on everywhere costs too much. |
@@ -174,22 +208,27 @@ On macOS the ad hoc tools belong to [[macOS-Instruments-xctrace-and-DTrace]], an
 | OpenTelemetry Profiles status | Both | Alpha since 2026-03-26; Collector v0.148.0 or newer; feature gate `service.profilesSupport`; proto package `opentelemetry.proto.profiles.v1development` | The announcement says the signal should not be used for critical production workloads. |
 | `perf record --call-graph` default | Linux | `fp` for user space; `dwarf` copies a stack dump of 8192 bytes per sample by default; `lbr` gives user call chains only | Ad hoc tooling walks frame pointers unless told otherwise. |
 | `perf record --off-cpu` | Linux | The man page says BPF can collect stack traces using frame pointers only, as of now; `--off-cpu-thresh` default 500 ms | Off-CPU analysis is where missing frame pointers hurt most. |
+| `perf record --call-graph fp,defer` | Linux | Deferred user callchain, collected when the thread returns to user space; frame pointer mode only | Mainline has the deferral machinery (`kernel/unwind/deferred.c`) but still walks frame pointers. |
 | `kernel.perf_event_paranoid` | Linux | 2 | At 2 and above, kernel profiling needs `CAP_PERFMON`. |
 | `kernel.perf_event_max_stack` | Linux | 127 frames | Deeper stacks are cut; Gregg reports it was added for a workload with stacks over 1000 frames deep. |
 | `kernel.perf_cpu_time_max_percent` | Linux | 25 | Above it the kernel lowers the sampling frequency on its own. |
 | `kernel.perf_event_max_sample_rate` | Linux | 100000 at boot (`DEFAULT_MAX_SAMPLE_RATE`), lowered dynamically | Read it during an incident before trusting a requested `-F`. |
-| bpftrace `ustack` | Linux | Relies on frame pointers; `dw_ustack` unwinds from `.eh_frame`, x86_64 only, in bpftrace master | One-liners inherit the frame pointer policy. |
+| bpftrace `ustack` | Linux | Relies on frame pointers; `dw_ustack` unwinds from `.eh_frame` since 0.26.0 (2026-05-26), x86_64 only, needs bpftrace built against LLVM 21 or newer, marked unstable, and needs target PIDs at startup (`-p`, `-c`, or `--dwarf-pid`) | One-liners inherit the frame pointer policy, and the escape hatch is not available on arm64. |
 | Tracy zone cost | Both | 2.25 ns per zone (begin plus end) in the manual's benchmark | Markup cost scales with events per second, not with wall time. |
 | Tracy sampling | Linux | 10 kHz by default on Linux and Android (8 kHz on Windows), capped by `perf_event_max_sample_rate` | Tracy is also a sampler, at a rate no fleet agent uses. |
 | Tracy limits | Both | Port 8086; a session cannot exceed 1.6 days; without `TRACY_ON_DEMAND` events are buffered in memory until a server connects | It is a session tool, not fleet infrastructure. |
 | Parca server storage | Linux | `--storage-active-memory` 536870912 bytes (512 MB); persistence only with `--enable-persistence`; HTTP on `:7070` | Default deployment keeps samples in memory. |
 | Parca sizing rule | Linux | 60 bytes of memory per sample; 100 cores at 19 Hz is 114000 bytes per second | Parca's rule of thumb for the active store. |
 | Pyroscope retention | Linux | `-retention-period` default 31d; `0` never deletes | Sets the size of the history you can diff against. |
-| Pyroscope v2 | Linux | 2.0 makes the v2 write path (`segment-writer`) the default, while `-architecture.storage` defaults to `v1-v2-dual`; metastore runs as 3 or 5 Raft replicas; microservices mode requires object storage; server on port 4040 | The metastore is the only stateful component. |
+| Pyroscope v2 | Linux | 2.0 makes the v2 write path (`segment-writer`) the default, while `-architecture.storage` still defaults to `v1-v2-dual` on main; metastore runs as 3 or 5 Raft replicas; microservices mode requires object storage; server on port 4040; latest release 2.4.3 (2026-11-03) | The metastore is the only stateful component. |
+| Pyroscope symbolizer | Linux | In v2.4.3, `-symbolizer.enabled` defaults to `false` and is marked experimental and hidden; when on, it reads uploaded debug info by GNU build ID, then `-symbolizer.debuginfod-url` (default `https://debuginfod.elfutils.org`, 10 concurrent requests); `pkg/symbolizer` is absent on main after 2.4.3 | Server-side native symbolization in Pyroscope is not a stable feature to build a record on. |
+| Pyroscope debug info store | Linux | `-debug-info.enabled` default `true`, `-debug-info.max-upload-size` 1073741824 bytes (1 GiB), objects at `debug-info/<tenant>/<build-id>/` in the bucket; `profilecli debuginfo upload` since 2.0, list and delete since 2.1 | The upload path exists even where the server does not use it. |
+| Pyroscope write-path sampling | Linux | Per-tenant probabilistic drop in the distributor; `keep_stripped_profiles` and `include_stripped_profiles` default `false`; totals of sampled-out profiles kept since 2.2, collapsed to a single totals sample since 2.3 | A third cost knob, after agent frequency and agent interval sampling. |
 | Frame pointer cost, Netflix | Linux | Usually less than 1%, one case of 10% with stacks over 1000 frames deep | Gregg's production measurements. |
 | Frame pointer cost, Fedora 37 test builds | Linux | Kernel compile 2.4% slower, Blender render 2% slower, CPython benchmarks 1% to 10% slower | The numbers behind the Fedora 38 change. |
 | Frame pointer cost, Ubuntu | Linux | 1% to 2% in most cases on 64-bit; not enabled on 32-bit | Canonical's analysis for 24.04. |
-| Frame pointer cost, CPython 3.15 | Both | Under 2% geometric mean; 3.3% wall time on a C-call-heavy workload | PEP 831, Final; frame pointers are the default build. |
+| Frame pointer cost, CPython 3.15 | Both | Geometric mean slowdown 0.1% (M3 Pro) to 2.3% (Graviton c7g) across 8 machines and 80 pyperformance benchmarks; +5.5% instructions and +3.3% wall time on C-call-heavy workloads | PEP 831, Final; frame pointers are the default build, `--without-frame-pointers` opts out. |
+| Unwind cost, PEP 831 benchmark | Linux | 64-frame frame-pointer walk 116 ns, on average 210 times faster than the DWARF unwinders tested; at 10,000 Hz about 1.2 ms of CPU per second against over 240 ms for the slowest DWARF unwinder | The benefit side of PROF-004, measured on x86-64 by the PEP authors. |
 | Go frame pointers | Both | On since Go 1.7 for x86-64 (about 2% average cost reported then) and Go 1.12 for linux/arm64 | Go services need no policy action. |
 | Rust standard library | Both | Compiled with frame pointers since Rust 1.79.0 (2024-06-13) | Your crates still need `-C force-frame-pointers=yes`. |
 | SFrame | Linux | Format version 3 is marked under development; mainline at v7.4-rc2 has `kernel/unwind/deferred.c` and `user.c` and no SFrame reader | The v15 kernel patch series was posted on 2026-05-20. |
@@ -273,9 +312,17 @@ Always-on profiling answers "what changed" after the fact, at a resolution set b
 
 **Decision.**
 B is the default on every Linux host that can run the agent.
-C is added for profile types B does not produce and for platforms where B cannot run; Grafana's eBPF documentation lists memory and lock contention profiles as unsupported by eBPF collection.
+C is added for profile types B does not produce and for platforms where B cannot run; Pyroscope's "Set up profiling with eBPF with Grafana Alloy" page says eBPF collection does not support all profile types, "such as memory and contention/lock profiling".
 A is kept as the documented escalation path, with privileges approved in advance.
-D is the cost control: the OpenTelemetry profiler's `probabilistic_threshold` (1 to 99) turns collection on for a random share of `probabilistic_interval` periods.
+D is the cost control: the OpenTelemetry profiler's `probabilistic_threshold` accepts 1 to 100 (`tracer.ProbabilisticThresholdMax`), where the default 100 is always on and a value from 1 to 99 turns collection on for a random share of `probabilistic_interval` periods.
+
+**Three sampling layers, and what each one costs.**
+Cost can be cut at three points, and they lose different information, so the record must say which one it uses.
+1. Agent frequency (`sample_rate` in Alloy, `samples_per_second` in the OpenTelemetry receiver) cuts samples per CPU-second everywhere, so agent CPU falls with it, but resolution drops on every host for every question.
+2. Agent interval sampling (`probabilistic_threshold` with `probabilistic_interval`, which the receiver accepts from 1 to 5 minutes and defaults to 1 minute) stops sample collection for whole periods while the agent keeps running, so agent CPU falls in proportion as with layer 1, but a profiled period keeps full resolution and an unprofiled one has nothing.
+3. Pyroscope write-path sampling drops a probabilistic share of ingested profiles in the distributor, per tenant and usage group, so it cuts storage and query cost but not agent CPU or network cost; no Parca equivalent is documented.
+   Dropped profiles leave gaps in time series by default; with `keep_stripped_profiles` the distributor keeps a totals-only copy labeled `__sampled__="true"`, whose flame graphs are empty and whose sample labels, and therefore span breakdowns, are removed.
+Prefer layer 2 when the budget is agent CPU, layer 3 when it is backend storage, and layer 1 only when per-sample unwinding cost itself is the problem.
 
 **Why B and not A alone.**
 With A, the profile that explains a regression is the one nobody took before the regression.
@@ -290,6 +337,7 @@ Ad hoc `perf record -F 999` on the affected process for 30 seconds collects abou
 - No root agent is permitted, or the platform has no host (serverless): C becomes the default.
 - The fleet's oldest supported kernel is below the agent's minimum: C on those hosts until they are upgraded.
 - Agent cost exceeds the written budget: lower the share of profiled intervals with D before lowering the frequency, because D keeps per-host resolution during the intervals it covers.
+- Backend storage, not agent CPU, exceeds the budget and PROF-003 selected Pyroscope: use write-path sampling for low-value tenants before touching the agents.
 - A host class cannot tolerate any sampling interrupt (pinned, isolated cores): exempt it by name and profile it in a staging replica.
 
 **Enact with Grafana Alloy**, using the Kubernetes example from the `pyroscope.ebpf` reference, shortened to the two components that matter:
@@ -332,6 +380,12 @@ Start it with `--feature-gates=service.profilesSupport`.
 The Pyroscope page shows `samples_per_second: 97`; the receiver's own default is 20, and the value you choose belongs in the record.
 The profiler does not set `service_name`, so Pyroscope needs an ingestion relabeling rule that maps `process.executable.name` to it.
 
+Run the `profiling` receiver in a collector of its own, not in the collector that already carries logs and metrics on the node.
+The receiver checks the kernel inside `Config.Validate` in `collector/config/config_linux.go`, so on a host older than 5.10 the configuration itself is invalid, and a collector does not start with an invalid configuration.
+Startup errors after validation are returned to the collector by default as well (`error_mode: propagate`); `error_mode: ignore` logs them instead.
+Folding profiling into the existing telemetry collector therefore turns "profiling is unsupported on this host" into "this host has no logs or metrics", which is a worse failure than the one PROF-001 is trying to prevent.
+Any non-default receiver option belongs in the record, for example `filter_min_process_age`, a minimum process age filter that the validation code says 0 disables.
+
 **Escalation commands**, kept in the runbook next to the record:
 
 ```bash
@@ -349,7 +403,7 @@ kubectl rollout status daemonset/alloy -n profiling
 kubectl get daemonset alloy -n profiling
 ```
 
-- `kubectl rollout status` watches the latest rollout until it is done, and `kubectl get daemonset` shows the desired and ready counts side by side; they must be equal and match the node count you expect.
+- `kubectl rollout status` watches the latest rollout until it is done, and `kubectl get daemonset` shows the `DESIRED` and `READY` columns side by side (the column set is defined in the Kubernetes printers source); they must be equal and match the node count you expect.
 - On the agent's own metrics endpoint, `pyroscope_ebpf_active_targets` is above zero and `pyroscope_ebpf_profiling_sessions_failing_total` is not increasing.
 - `pyroscope_ebpf_pprofs_total` increases for the `service_name` of a canary service.
 - The component reports itself unhealthy when the session cannot start, "for example because of missing privileges or an unsupported kernel".
@@ -423,6 +477,7 @@ Tracy checks only whether a macro is defined, so `TRACY_ENABLE=0` still enables 
 The agents have converged, so the backend is the real decision (as of 2026-11).
 Parca Agent's `go.mod` replaces `go.opentelemetry.io/ebpf-profiler` with a Parca fork, Alloy's `pyroscope.ebpf` embeds Grafana's fork of the same profiler, and the OpenTelemetry Collector distribution ships the upstream.
 The upstream README describes native unwinding from `.eh_frame` data without frame pointers and unwinders for HotSpot, Python, Ruby, PHP, Node.js, Perl, Erlang, and .NET; each fork documents its own supported list.
+The wire format has converged too: Parca Agent can export OTLP profiles with `--remote-store-format=otlp`, next to its own Arrow format, and in that mode it emits OpenTelemetry semantic convention names for process, container, host, and Kubernetes identity.
 
 | Property `(as of 2026-11)` | Parca | Grafana Pyroscope |
 | :--- | :--- | :--- |
@@ -430,14 +485,20 @@ The upstream README describes native unwinding from `.eh_frame` data without fra
 | Storage | Badger key-value meta store plus FrostDB columnar sample store; in memory by default, `--enable-persistence` to keep data | v2 writes segments and blocks to object storage; no ingester disks |
 | Deployment shape | One binary; modes `all`, scraper-only, forwarder, and `otlp-forwarder` | Six components; only the metastore is stateful (Raft, 3 or 5 replicas) |
 | Scaling | Sized by `--storage-active-memory` (512 MB default) and 60 bytes per sample | Write and read paths scale independently; microservices mode requires S3, GCS, Azure Blob, or Swift |
-| Native symbolization | Agent uploads debug information; server symbolizes asynchronously (every 10 seconds by default) and has upstream debuginfod servers configured | For OTLP ingestion, shows only the symbols included in the received profile; Alloy symbolizes locally and no longer uploads debug information |
+| Native symbolization | Agent uploads debug information; server symbolizes asynchronously (every 10 seconds by default) and has upstream debuginfod servers configured | Supported path: the agent symbolizes on the host (Alloy symbolizes locally and no longer uploads debug information), and for OTLP ingestion Pyroscope shows only the symbols in the received profile; a query-time symbolizer exists in v2.4.3 but is experimental and off by default |
 | Default retention | No retention flag appears in the `parca` help text in the README | `-retention-period` 31d |
-| Ingestion | pprof scrape of HTTP endpoints and writes from Parca Agent | Language SDK push, Alloy pull or push, and OTLP profiles |
-| Trace correlation | UNVERIFIED: not established from the Parca sources read for this note | Span profiles: `span_id` and `trace_id` labels per sample, linked from Grafana trace view |
+| Ingestion | pprof scrape of HTTP endpoints and writes from Parca Agent; in the default `all` mode the server also registers the OTLP profiles gRPC service (`pkg/parca/parca.go`), so an agent exporting with `--remote-store-format=otlp` or any OTLP profiles source can write to it | Language SDK push, Alloy pull or push, and OTLP profiles |
+| Trace correlation | No span-to-profile link is documented in the Parca or Parca Agent READMEs or the parca.dev documentation tree; the agent attaches Go goroutine labels and native custom labels as sample labels (`--tracers=labels`), and `--otlp-address` exports Parca's own traces, not span profiles | Span profiles: `span_id` and `trace_id` labels per sample, linked from Grafana trace view; `trace_id_selector` filtering in the v2 read path since 2.2; Alloy correlates with OpenTelemetry eBPF Instrumentation traces (`obi_process_context_enabled`, default `true`) |
 | Query surface | Built-in web UI, Prometheus-style label selectors such as `cpu{node="..."}` | Grafana Profiles Drilldown |
 
-Pyroscope's 2.0.0 release notes add a `profilecli debuginfo upload` subcommand.
-UNVERIFIED: whether the Pyroscope server symbolizes native frames from uploaded debug information, because no server documentation page for it was found in the documentation tree on 2026-11-10.
+**Server-side symbolization in Pyroscope, read from source (as of 2026-11, Linux).**
+The symbol gap between the two backends is the decision's most volatile input, so the record should cite the code, not a feature list.
+- Upload exists and is on: `pkg/debuginfo/store.go` registers `-debug-info.enabled` with default `true` and a 1 GiB `-debug-info.max-upload-size`, and stores each file in the object store at `debug-info/<tenant>/<gnu-build-id>/exe` next to a `metadata` object.
+  `profilecli debuginfo upload` arrived in 2.0.0, and list and delete APIs in 2.1.0.
+- Use at query time is experimental: in v2.4.3, `pkg/validation/symbolizer.go` registers `-symbolizer.enabled` with default `false`, tagged `category:"experimental"` and hidden from the documentation.
+  When a tenant enables it, `Symbolizer.fetch` in `pkg/symbolizer/symbolizer.go` reads the uploaded file for the build ID first and falls back to the debuginfod server in `-symbolizer.debuginfod-url` (default `https://debuginfod.elfutils.org`), converts the ELF to its Lidia symbol format, and caches that under `symbolizer/<tenant>/<build-id>` in the bucket.
+- On main after v2.4.3 the `pkg/symbolizer` package is gone, and the integration test `unsymbolized_profile_test.go` says address-only native profiles must keep their addresses and build IDs through ingestion and compaction "so they can still be symbolized outside Pyroscope".
+So a record that needs server-side symbolization of stripped binaries cannot rest on Pyroscope today, and the review should recheck this before every upgrade.
 
 **Decision.**
 Run exactly one backend.
@@ -452,8 +513,11 @@ Collection stays portable: agents emit pprof or OTLP profiles, and no service li
 
 **Flip conditions, any one of which selects Parca.**
 - AGPL-3.0 is not acceptable.
-- Most hot code is stripped C, C++, or Rust, and symbols must come from debug files uploaded at build time or from debuginfod, keyed by build ID; the symbol pipeline itself is owned by [[Symbol-Servers-and-debuginfod]].
+- Most hot code is stripped C, C++, or Rust, and symbols must come from debug files uploaded at build time or from debuginfod, keyed by build ID, as a supported feature rather than an experimental flag; the symbol pipeline itself is owned by [[Symbol-Servers-and-debuginfod]].
 - The deployment is small enough that one binary with persistent storage is cheaper to run than six components.
+
+**Flip condition that strengthens the default.**
+If Pyroscope ships server-side symbolization from uploaded debug information as a documented, non-experimental feature, the stripped-binary condition no longer selects Parca, and the record should be re-run through the bake-off.
 
 **Flip condition for a hosted service.**
 If nobody is funded to operate a profiling backend, buy one, and write the data residency and retention terms into the record.
@@ -476,7 +540,8 @@ Pyroscope listens on port 4040, and the Parca binary serves its UI on `http://lo
 **Verification:**
 - Exactly one backend receives production profiles: the agent configuration in the repository has one production receiver.
 - A query for a canary `service_name` over the last hour returns a flame graph with named functions for native frames, not addresses.
-- For Pyroscope 2.x run from the binary, the startup configuration sets `-architecture.storage=v2` with an object storage backend; the default is `v1-v2-dual`, and startup fails when v2 is included without object storage.
+- For Pyroscope 2.x run from the binary, the startup configuration sets `-architecture.storage=v2` with an object storage backend; the default is `v1-v2-dual`.
+  Startup validation in `pkg/pyroscope/pyroscope.go` fails only when a v2 layer is enabled and `storage.backend` is unset, and since 2.0 the default backend is `filesystem`, so a single binary starts on local disk; set the object storage backend explicitly, because microservices mode does not support the local filesystem (as of 2026-11, Linux).
 
 ### Step 6: Enact PROF-004 - Frame pointers on, with a recorded exemption process
 
@@ -484,8 +549,15 @@ Pyroscope listens on port 4040, and the Parca binary serves its UI on `http://lo
 The OpenTelemetry-lineage agents do not need frame pointers for native code, which makes it tempting to drop the policy.
 Three facts keep it.
 1. The escalation tools of PROF-001 walk frame pointers: `perf record` defaults to `fp`, `perf record --off-cpu` supports frame pointers only, and bpftrace's `ustack` relies on them.
+   bpftrace's DWARF `.eh_frame`-based `dw_ustack` (0.26.0 and later) is x86_64 only, marked unstable, requires bpftrace built against LLVM 21 or newer, and needs the target PIDs at startup, so it is not a fleet-wide escape hatch.
 2. `.eh_frame` tables describe compiled code; JIT output and hand-written assembly often have none, and a single frame without unwind information ends the stack.
 3. The next format is not deployable yet: SFrame version 3 is marked under development, and mainline Linux at v7.4-rc2 has no SFrame reader in `kernel/unwind/` (as of 2026-11, Linux).
+   What mainline does have is the deferral half: `kernel/unwind/deferred.c` and `user.c`, behind `UNWIND_USER` and `HAVE_UNWIND_USER_FP` in `arch/Kconfig`, which `perf record --call-graph fp,defer` uses to take the user callchain when the thread returns to user space; that path still walks frame pointers.
+
+**The benefit side, in numbers.**
+PEP 831 measured a 64-frame unwind on x86-64 Linux: the frame pointer walk took 116 ns, on average 210 times faster than libunwind, glibc `backtrace()`, and framehop, and recovered zero usable frames on the build without frame pointers.
+At 10,000 Hz that is about 1.2 ms of CPU per second for the frame pointer walk against over 240 ms per second for the slowest DWARF unwinder tested.
+The eBPF agents avoid most of that cost differently, by converting `.eh_frame` into stack delta tables ahead of time, which is why the agent alone is not an argument against the policy: its tables do not help the in-kernel walkers used by `perf --off-cpu` and bpftrace.
 
 **Decision, by code class.**
 
@@ -494,7 +566,7 @@ Three facts keep it.
 | C and C++ compiled in-house | On | `-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer` | Fedora 38 default flags; flag behavior in [[Program-Execution-Decision-Records\|Program Execution Decision Records]] |
 | Rust | On | `-C force-frame-pointers=yes`; the standard library has them since 1.79.0 | rustc book, release notes |
 | Go | Already on | x86-64 since Go 1.7, linux/arm64 since Go 1.12 | Go release notes |
-| CPython | On | Use 3.15 or newer, or a distribution build with frame pointers; never configure `--without-frame-pointers` | PEP 831 |
+| CPython | On | Use 3.15 or newer, or a distribution build with frame pointers; never configure `--without-frame-pointers`; on 3.12 to 3.14, a frame-pointer interpreter plus `-X perf` for perf-based investigations | PEP 831; CPython perf HOWTO |
 | JVM | On where a frame-pointer walker must see Java frames | `-XX:+PreserveFramePointer` (JDK 8u60 and later) | Gregg; the eBPF agents unwind HotSpot without it |
 | Distribution libraries | On | Base images from Fedora 38 or newer, or Ubuntu 24.04 or newer on 64-bit | Fedora change, Ubuntu announcement |
 | Vendor binaries and hand-written assembly | Cannot change | Agent `.eh_frame` tables; list each as a known gap | OpenTelemetry profiler README |
@@ -503,11 +575,23 @@ The leaf flag matters.
 GCC's manual says `-fno-omit-frame-pointer` "doesn't guarantee the frame pointer is used in all functions" and that several targets always omit it in leaf functions, and the AArch64 options page says omitting the leaf frame pointer is the default.
 The lab in [[Program-Execution-Decision-Records]] records that behavior for GCC 13.3 on linux-aarch64.
 
+**The interpreter row needs its own reasoning.**
+For CPython the question is not only whether C frames have frame pointers but whether `perf` can name Python functions at all (as of 2026-11, Linux).
+- Since 3.12, `-X perf` or `PYTHONPERFSUPPORT=1` makes the interpreter put a small trampoline, compiled at run time, in front of every Python function call and describe it in a perf map file, so `perf report` shows Python function names.
+- `sys.activate_stack_trampoline("perf")` (3.12, Linux only) turns the same mode on from inside a running program, and the documentation says it cannot be activated while the JIT is active.
+- The CPython HOWTO says the trampolines have no DWARF information, so `perf` must unwind them by frame pointer, and it gives the check: `python -m sysconfig | grep 'no-omit-frame-pointer'` prints nothing on an interpreter built without frame pointers, which then "may not be able to show Python functions".
+- For such an interpreter, 3.13 added `-X perf_jit` (`PYTHON_PERF_JIT_SUPPORT=1`), for which, in the HOWTO's words, "Python needs to generate unwinding information for every Python function call on the fly", and which requires `perf record --call-graph dwarf` followed by `perf inject --jit`; the HOWTO warns that only `perf` newer than 6.8, or the 6.7.2 backport, works with it, and that the DWARF stack dump can be raised to its 65528-byte maximum.
+- So on 3.12 to 3.14 the cheap path (`-X perf` with frame-pointer walking) exists only if the interpreter binary has frame pointers, and the fallback costs more at both record and report time; 3.15 makes the cheap path the default build under PEP 831.
+The always-on eBPF agents do not use any of this: they unwind CPython with their own interpreter unwinder, which is why the Python row is about the escalation path, not the fleet agent.
+The internals of the trampoline are owned by [[Python-CPython-perf-Trampoline-and-Tachyon-Internals]].
+
 **Cost, from the sources.**
 - Netflix production: usually less than 1%, with one 10% outlier.
 - Fedora 37 test builds: 2.4% on a kernel compile, 2% on a Blender render, 1% to 10% on CPython benchmarks.
 - Ubuntu: 1% to 2% in most cases on 64-bit.
-- CPython 3.15: under 2% geometric mean, 3.3% wall time on a C-call-heavy workload.
+- CPython 3.15: geometric mean slowdown from 0.1% to 2.3% across eight machines, and 3.3% wall time on C-call-heavy workloads.
+  PEP 831 attributes it to about 6,000 small C helper functions gaining prologues and losing one general-purpose register, with no cache, TLB, or branch-prediction pathology; the eval loop already used a frame pointer in both builds.
+- The spread matters for the record: the same flag cost 0.5% on an Apple M2 and 2.3% on AWS Graviton c7g in PEP 831's table, so a cost measured on a developer laptop says little about the fleet.
 - None of these is your workload; the record must contain your own measurement for at least one tier-1 service.
 
 **Exemption process.**
@@ -560,9 +644,65 @@ readelf -n "$BIN" | grep 'Build ID'
 3. Put the review date on the platform team's calendar, and list the external events that reopen a record early.
 
 External events to watch (as of 2026-11):
-- The OpenTelemetry profiles signal moving from Alpha toward Stable, which removes the protocol-skew risk recorded in PROF-003.
+- The OpenTelemetry profiles signal moving from Alpha to Beta, which reduces the protocol-skew risk recorded in PROF-003, and reaching Stable, which removes it.
 - An SFrame unwinder merged into mainline and shipped by your distribution, which reopens PROF-004.
+- Pyroscope's server symbolizer becoming a documented, non-experimental feature, or being dropped for good, which changes a PROF-003 flip condition.
+- bpftrace `dw_ustack` losing its unstable mark or gaining arm64 support, which narrows the PROF-004 argument for bpftrace users.
 - A new language runtime in production, which needs a row in PROF-004 and a check that the agent has an unwinder for it.
+
+### A complete record, as it would be merged
+
+The values below are illustrative placeholders that show the shape and the level of precision a record needs; they are not measurements.
+
+```markdown
+# PROF-004: Frame pointers on for in-house native code, with expiring exemptions
+
+- Status: accepted
+- Owner: Build Platform
+- Review date: 2027-05-15
+
+## Context and Problem Statement
+Step 1 audit: 38 of 52 tier-1 services show frame-pointer stacks that stop
+in the lowest depth bucket; all 14 complete ones are Go.
+perf --off-cpu during incident INC-1234 returned bogus addresses for the
+C++ gateway.
+
+## Decision Drivers
+- Every incident tool in PROF-001 walks frame pointers.
+- Cost budget: at most 1.5% CPU per request on any tier-1 service.
+
+## Considered Options
+1. Status quo (compiler default, frame pointers omitted).
+2. Frame pointers everywhere, no exemptions.
+3. Frame pointers by default, per-unit exemptions with expiry.
+
+## Decision Outcome
+Option 3. Flags -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer in the
+shared C and C++ toolchain; -C force-frame-pointers=yes in the shared Rust
+profile; base image moved to a distribution built with frame pointers.
+
+### Consequences
+- Measured on the gateway canary: +0.9% CPU per request (14-day window).
+- One general-purpose register less in hot loops; see the exemption registry.
+
+### Confirmation
+CI job fp-audit runs has_frame on 200 sampled non-leaf functions per release
+binary and fails the release when fewer than 95% have a frame record.
+
+## Flip Conditions
+- An in-kernel SFrame user unwinder ships in the fleet kernel and perf,
+  bpftrace, and the agent all use it for on-CPU and off-CPU stacks.
+- Any tier-1 service exceeds the 1.5% budget after one exemption cycle.
+
+## More Information
+Exemption registry: build/fp-exemptions.tsv (unit, owner, benchmark, expiry).
+```
+
+Four properties make this record useful two years later.
+- Context quotes the Step 1 audit, so the reader knows what "before" looked like.
+- The cost driver is a number, and Consequences reports a measurement against it with its window.
+- Confirmation is a check a machine runs, with a threshold.
+- Each flip condition names an observable event, not an opinion.
 
 **Verification:** a deliberately wrong change (a release build with `TRACY_ENABLE` defined, or a second production receiver) fails the check that cites the record number.
 
@@ -598,7 +738,12 @@ Each record is reversible on its own; none requires reverting the others.
 | Requested frequency not honored | Fewer samples than `-F` implies | The kernel lowered the rate after exceeding `perf_cpu_time_max_percent`; read `perf_event_max_sample_rate`, or use `--strict-freq` to fail instead of throttling. |
 | Empty span profiles | A span links to a profile with no samples | The span is shorter than the sampling period, or only root spans are labeled, which is the integrations' default. |
 | Collector and backend disagree on OTLP profiles | Export errors after an upgrade of one side | The proto package is `v1development`; upgrade profiler, collector, and backend together and pin all three versions in the record. |
+| Node collector fails to start after adding profiling | Logs and metrics stop on a subset of nodes, all on kernels older than 5.10 | The receiver's `Config.Validate` rejects the kernel; move the `profiling` receiver to its own collector DaemonSet and exclude those nodes from it, or set `no_kernel_version_check` only for kernels with backported eBPF features. |
+| No Python function names in an ad hoc `perf` profile of CPython 3.12 to 3.14 | Stacks show `_PyEval_EvalFrameDefault` and C frames only | Start with `-X perf` (or call `sys.activate_stack_trampoline("perf")`); if `python -m sysconfig` shows no `no-omit-frame-pointer`, use `-X perf_jit` (3.13 and later) with `--call-graph dwarf` and `perf inject --jit`. |
 | Missing `service_name` | Profiles arrive but are unlabeled in Pyroscope | Add the `labelmap` ingestion relabeling rule from `process.executable.name`. |
+| Stripped binaries show addresses in Pyroscope although debug files were uploaded | `profilecli debuginfo` lists the build ID, yet frames stay hexadecimal | Uploading does not symbolize: the v2.4.3 query-time symbolizer is off by default (`-symbolizer.enabled=false`) and experimental, and main has removed it; rely on the agent's local symbolization, or apply the Parca flip condition. |
+| Flame graph totals far below time-series totals, or time series with gaps | Write-path sampling is active for the tenant: gaps with the default `keep_stripped_profiles: false`, a full time series with thin flame graphs when both `keep_stripped_profiles` and `include_stripped_profiles` are enabled | Stack queries always exclude `__sampled__="true"` totals-only series; lower the drop probability for that usage group or exclude the service from the rule. |
+| `dw_ustack` prints a warning, fails, or returns short stacks | Unstable-feature warning; no support on the host's architecture; no target PID given at startup; or a runtime warning that unwind information was not found for a process | It is x86_64 only and unstable, and needs `-p`, `-c`, or `--dwarf-pid`; on arm64 use `perf record --call-graph dwarf` for the investigation and fix frame pointers for the next one. |
 | Tracy client memory growth | Resident memory of a marked binary climbs with no viewer attached | Build with `TRACY_ON_DEMAND`; without it events are kept until a server connects. |
 | Parca server memory higher than planned | Resident memory tracks the ingested sample rate | Size from the documented 60 bytes per sample, then adjust `--storage-active-memory`, which the documentation calls the easiest way to change the footprint. |
 
@@ -710,7 +855,7 @@ flowchart LR
 > 2. For a function that uses 0.5% of one CPU, compute how long one host must be observed at 19 Hz to collect 100 samples, and how many hosts give 100 samples in one minute.
 > 3. Decide what the 40 hosts on kernel 5.4 run, and write the flip condition that retires the exception.
 > 4. Decide whether the matching engine gets markup; write its event budget in zones per second for 0.5% of a core at 2.25 ns per zone.
-> 5. Write the Python row of PROF-004 for 3.12, given that PEP 831's default starts with 3.15, and name the unwinder each tool in your escalation path uses.
+> 5. Write the Python row of PROF-004 for 3.12, given that PEP 831's default starts with 3.15, and name the unwinder each tool in your escalation path uses, including whether `-X perf` or `-X perf_jit` applies to your interpreter build.
 > 6. On any Linux host with GCC, compile a three-function program (a leaf, a caller, and `main`) with `-O2 -fno-omit-frame-pointer`, then again adding `-mno-omit-leaf-frame-pointer`, and run the Step 6 `has_frame` function on the leaf each time; predict both results before running, and explain them from the GCC manual.
 > 7. Write one flip condition per record that a script could evaluate.
 > Reference answers for the arithmetic: step 1 is 42,024,960,000 and 214,548,480,000 samples per day; step 2 is about 1,053 seconds on one host and 18 hosts for one minute; step 4 is about 2.2 million zones per second.
@@ -781,6 +926,32 @@ flowchart LR
 > > So a binary without frame pointers gives usable on-CPU stacks through the slow path and bogus off-CPU stacks.
 > > Blocked time is where latency problems usually are, which is the practical argument for the frame pointer policy.
 
+> [!question] L6 (debug this)
+> A Python 3.12 service is slow, and the always-on profiler shows Python function names for it.
+> An engineer runs `perf record -F 999 -g -p PID` on the host, and `perf report` shows only `_PyEval_EvalFrameDefault` and other C frames, with no Python function anywhere.
+> Why do the two tools disagree, and what does the engineer run next?
+>
+> > [!success]- Answer
+> > The eBPF agent has its own CPython unwinder that reads interpreter state, so it names Python functions without any help from the process.
+> > `perf` sees only native code, and on 3.12 to 3.14 Python names appear only when perf support was enabled with `-X perf`, `PYTHONPERFSUPPORT=1`, or `sys.activate_stack_trampoline("perf")`, which writes trampolines into a perf map file.
+> > Next, check the interpreter: `python -m sysconfig | grep 'no-omit-frame-pointer'`.
+> > If it prints the flag, enable the trampoline and record again with `-g`, because the trampolines have no DWARF and are unwound by frame pointer.
+> > If it prints nothing, use `-X perf_jit` with `perf record --call-graph dwarf`, then `perf inject --jit` before `perf report`, with `perf` newer than 6.8 or the 6.7.2 backport.
+> > The finding goes into PROF-004: the Python row should name an interpreter build with frame pointers, so the cheap path exists before the next incident.
+
+> [!question] L6 (debug this)
+> After a storage cost review, the Pyroscope CPU time series for a batch service still shows a smooth line at its usual level, but the flame graph for the same week sums to about a tenth of that CPU, and span-level breakdowns for the service are sparse.
+> The agents were not changed.
+> What happened, and what do you do?
+>
+> > [!success]- Answer
+> > The cost review turned on write-path sampling for the usage group that contains this service, at a drop probability near 0.9, with `keep_stripped_profiles` enabled for the tenant and `include_stripped_profiles` enabled for the querying tenant.
+> > The distributor reduces each sampled-out profile to one totals sample labeled `__sampled__="true"`, removing stack traces, symbols, and sample labels; kept profiles pass through unchanged.
+> > Time-series queries include those totals, so the line keeps its level, while flame graph, tree, pprof, and heatmap queries always exclude `__sampled__` series, so only the kept tenth contributes stacks and span labels.
+> > With the default `keep_stripped_profiles: false` the symptom would differ: the time series would show gaps instead of a smooth line.
+> > The agents are unchanged because this sampling happens on the server, after ingestion, independently of the profiler's sample rate.
+> > Fix: lower the drop probability for that usage group, or move the service out of it, and write the chosen layer into PROF-001 so the next cost cut is made deliberately.
+
 > [!question] L7
 > You must choose between Parca and Pyroscope for 20,000 hosts.
 > What do you ask, and what would decide it?
@@ -788,6 +959,7 @@ flowchart LR
 > > [!success]- Answer
 > > First, the non-negotiables: is AGPL-3.0 acceptable for a network service, and is there an object store the team already operates.
 > > Second, the workload: what share of hot code is stripped native binaries, because Parca symbolizes on the server from uploaded debug information or debuginfod while Pyroscope shows the symbols it receives.
+> > Pyroscope does accept debug file uploads, but in v2.4.3 the query-time symbolizer that reads them is experimental and off by default, and main has removed it, so I would not count it.
 > > Third, scale and shape: Pyroscope 2.x separates stateless write and read paths around object storage with a Raft metastore, while Parca is one binary whose default store is in memory.
 > > Fourth, what must link to it: Pyroscope's span profiles tie samples to trace spans in Grafana.
 > > I would not decide on the agent, because Parca Agent, Alloy, and the OpenTelemetry Collector distribution all build on the same eBPF profiler lineage.
@@ -856,6 +1028,10 @@ flowchart LR
   Why v1 was replaced and what each v2 component does.
 - Grafana Alloy `pyroscope.ebpf` reference, https://grafana.com/docs/alloy/latest/reference/components/pyroscope/pyroscope.ebpf/.
   Required capabilities, defaults, and the unwinder metrics used for auditing.
+- Grafana Pyroscope write-path sampling, https://grafana.com/docs/pyroscope/latest/reference-pyroscope-v2-architecture/sampling/.
+  How server-side sampling differs from profiler sample rate and what totals-only series keep.
+- Grafana Pyroscope `pkg/symbolizer` at v2.4.3, https://github.com/grafana/pyroscope/tree/v2.4.3/pkg/symbolizer.
+  The code that decides whether uploaded debug files are used, which the documentation does not describe.
 - perf-record(1), https://man7.org/linux/man-pages/man1/perf-record.1.html.
   Callchain modes, the dwarf stack dump size, and the off-CPU limitation.
 - Kernel perf security documentation, https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/perf-security.rst.
@@ -866,6 +1042,8 @@ flowchart LR
   Track events, buffer fill policies, and callstack sampling through `linux.perf`.
 - The SFrame Format, https://sourceware.org/binutils/docs/sframe-spec.html.
   The format that may eventually replace the frame pointer policy.
+- CPython, "Python support for the Linux perf profiler", https://docs.python.org/3/howto/perf_profiling.html.
+  The trampoline, why it needs frame pointers, and the `-X perf_jit` fallback with its `perf` version limits.
 - MADR template, https://github.com/adr/madr, and Michael Nygard, "Documenting Architecture Decisions", https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions.
   The record formats this playbook extends with flip conditions and review dates.
 
@@ -873,4 +1051,4 @@ flowchart LR
 
 - Prerequisites: [[Linux-perf-in-Depth-and-perf-c2c]], [[Continuous-Profiling-GWP-Parca-Pyroscope-and-OTel-Profiles]]
 - Next: [[Rebuild-Lab-Sampling-Profiler-to-Folded-Stacks]]
-- See also: [[Program-Execution-Decision-Records]], [[Tracy-and-Perfetto-Hybrid-Profilers]], [[Playbook-Diagnose-a-Production-Tail-Latency-Spike-with-eBPF-and-perf]], [[Measurement-Methodology-Decision-Records]]
+- See also: [[Program-Execution-Decision-Records]], [[Tracy-and-Perfetto-Hybrid-Profilers]], [[Playbook-Diagnose-a-Production-Tail-Latency-Spike-with-eBPF-and-perf]], [[Measurement-Methodology-Decision-Records]], [[Python-CPython-perf-Trampoline-and-Tachyon-Internals]]
