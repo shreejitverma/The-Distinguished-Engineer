@@ -1,0 +1,73 @@
+cargo 1.99, jobs=4, heavy has 6000 functions
+
+== 1. Pipelining: lib -> lib edges wait for .rmeta, linking waits for .rlib ==
+  heavy kind=lib crate-types=lib        --emit=dep-info,metadata,link   outputs=.rlib,.rmeta
+  mid   kind=lib crate-types=lib        --emit=dep-info,metadata,link   outputs=.rlib,.rmeta
+  app   kind=bin crate-types=bin        --emit=dep-info,link            outputs=(executable)
+  [rlib mid] facts from target/cargo-timings/cargo-timing.html UNIT_DATA:
+  heavy wrote its .rmeta before it finished:      yes
+  mid started no earlier than heavy's .rmeta:     yes
+  mid started before heavy finished:             yes
+  app started no earlier than heavy finished:    yes
+  units heavy unblocked at its .rmeta:           mid
+  units heavy unblocked when it finished:        app
+  app prints: 11487562932646742369
+
+== 2. Same graph, mid gains crate-type cdylib (a Python-extension shape) ==
+  heavy kind=lib crate-types=lib        --emit=dep-info,metadata,link   outputs=.rlib,.rmeta
+  mid   kind=rlib crate-types=rlib,cdylib --emit=dep-info,link            outputs=.dylib,.rlib
+  app   kind=bin crate-types=bin        --emit=dep-info,link            outputs=(executable)
+  [rlib+cdylib mid] facts from target/cargo-timings/cargo-timing.html UNIT_DATA:
+  heavy wrote its .rmeta before it finished:      yes
+  mid started no earlier than heavy's .rmeta:     yes
+  mid started before heavy finished:             no
+  app started no earlier than heavy finished:    yes
+  units heavy unblocked at its .rmeta:           (none)
+  units heavy unblocked when it finished:        mid
+
+== 3. Freshness: a no-op rebuild, then one edited source file ==
+  no-op rebuild compiled: (nothing); fresh: ['app/bin[-]', 'heavy/lib[-]', 'mid/lib[-]']
+  after touching heavy/src/lib.rs compiled: ['app/bin[-]', 'heavy/lib[-]', 'mid/lib[-]']
+    Dirty heavy: the file `heavy/src/lib.rs` has changed
+    Dirty mid: the dependency `heavy` was rebuilt
+    Dirty app: the dependency `mid` was rebuilt
+
+== 4. Feature unification: what `-p` selects decides what gets built ==
+  build -p fa       compiled: ['common/lib[alpha]', 'common/lib[beta]', 'fa/bin[-]', 'fa/custom-build[-]']
+    fa prints: runtime common=alpha build-script common=beta
+  build -p fb       compiled: ['common/lib[beta]', 'fb/bin[-]']
+  build -p fa again compiled: (nothing)
+  build -p fa -p fb compiled: ['common/lib[alpha,beta]', 'fa/bin[-]', 'fb/bin[-]']
+                    fresh:    ['common/lib[beta]', 'fa/custom-build[-]']
+    fa prints: runtime common=alpha+beta build-script common=beta
+    fb prints: runtime common=alpha+beta
+  distinct libcommon-<hash>.rlib files in target/debug/deps: 4
+
+== 5. Artifacts without a filename hash rebuild on every flip ==
+  features=[fast] ext compiled: yes; (fresh)
+  features=[    ] ext compiled: yes; ext: the list of features changed
+  features=[fast] ext compiled: yes; ext: the list of features changed
+  features=[    ] ext compiled: yes; ext: the list of features changed
+  ext output names carry a -<hash> suffix: no (libext.dylib, libext.rlib)
+  RUSTFLAGS=-Cdebug-assertions=off compiled: ['common/lib[beta]', 'ext/cdylib[-]', 'fb/bin[-]']
+  RUSTFLAGS=(unset)                compiled: ['ext/cdylib[-]']
+  RUSTFLAGS=-Cdebug-assertions=off compiled: ['ext/cdylib[-]']
+  RUSTFLAGS=(unset)                compiled: ['ext/cdylib[-]']
+
+== 6. Build script rerun rules ==
+  touched notes.txt in both: build scripts run: ['script_old']
+    compiled: ['script_old/lib[-]']
+    Dirty script_old: the precalculated components changed
+  LAB_FLAVOR=spicy:          build scripts run: ['script_new']
+    Dirty script_new: the env variable LAB_FLAVOR changed
+  LAB_FLAVOR=spicy again:    build scripts run: (none)
+
+== 7. Handoff to the C toolchain: links, DEP_<links>_<key>, static archives ==
+  build scripts run: ['cshim', 'cuser']
+  cshim rustc line has -L native=<OUT_DIR>: yes
+  cshim rustc line has -l static=shim:      yes
+  shim.o bundled into the cshim .rlib:      yes
+  cuser prints: shim_add(2, 3) = 5, header seen by build script: yes
+  -- Rust staticlib consumed by a C++ link --
+  rustc --print native-static-libs: -lSystem -lc -lm
+  C++ program prints: rs_mul_len(6, 7) from C++ = 242

@@ -1,0 +1,42 @@
+# Five genrules, each a known cache-key behavior.
+# Only shell builtins and coreutils are used, so no language toolchain is fetched.
+
+# A code generator that embeds a fresh nonce on every execution.
+# The no-cache tag models any reason a generator re-runs on a second machine:
+# a no-cache tag, an evicted cache entry, or an uncacheable stamped action.
+genrule(
+    name = "nonce_gen",
+    outs = ["nonce.h"],
+    cmd = "echo \"#define BUILD_NONCE $$RANDOM$$RANDOM$$RANDOM\" > $@",
+    tags = ["no-cache"],
+)
+
+# A deterministic consumer of the generated header: its key depends on the header digest.
+genrule(
+    name = "consumer",
+    srcs = [":nonce_gen"],
+    outs = ["consumer.txt"],
+    cmd = "cat $(location :nonce_gen) > $@ && echo consumer >> $@",
+)
+
+# Reads a client environment variable passed through --action_env=LAB_FLAVOR.
+genrule(
+    name = "flavored",
+    outs = ["flavor.txt"],
+    cmd = "echo flavor=$$LAB_FLAVOR > $@",
+)
+
+# Writes the absolute working directory into its output.
+genrule(
+    name = "path_leak",
+    outs = ["where.txt"],
+    cmd = "echo built-in=$$PWD > $@",
+)
+
+# A hermetic action: output is a pure function of a source file.
+genrule(
+    name = "stable",
+    srcs = ["input.txt"],
+    outs = ["stable.txt"],
+    cmd = "tr a-z A-Z < $< > $@",
+)

@@ -1,0 +1,54 @@
+=== Build A: cold cache, LAB_FLAVOR=alpha ===
+spawns: 5, cache hits: 0, executed: 5
+  consumer   Genrule  cacheable     executed
+  flavored   Genrule  cacheable     executed
+  nonce_gen  Genrule  NOT cacheable executed
+  path_leak  Genrule  cacheable     executed
+  stable     Genrule  cacheable     executed
+
+=== Build B: other output base, shared cache, LAB_FLAVOR=alpha ===
+spawns: 5, cache hits: 3, executed: 2
+  consumer   Genrule  cacheable     executed
+  flavored   Genrule  cacheable     disk cache hit
+  nonce_gen  Genrule  NOT cacheable executed
+  path_leak  Genrule  cacheable     disk cache hit
+  stable     Genrule  cacheable     disk cache hit
+
+=== Why B missed: A vs B, matched by first output ===
+  consumer: KEY CHANGED, executed
+      input digest changed: bazel-out/<cfg>/bin/nonce.h
+  flavored: same action digest, disk cache hit
+  nonce_gen: same logged inputs, executed
+  path_leak: same action digest, disk cache hit
+  stable: same action digest, disk cache hit
+
+=== Disk cache cross-check for B ===
+cache hits whose action digest is a file under ac/<first 2 hex>/: 3 of 3
+spawns logged without an action digest: nonce_gen
+action digest length in hex digits: 64
+
+=== Build D: shared cache, LAB_FLAVOR=beta; why D missed: A vs D ===
+spawns: 5, cache hits: 0, executed: 5
+  consumer   Genrule  cacheable     executed
+  flavored   Genrule  cacheable     executed
+  nonce_gen  Genrule  NOT cacheable executed
+  path_leak  Genrule  cacheable     executed
+  stable     Genrule  cacheable     executed
+  consumer: KEY CHANGED, executed
+      env LAB_FLAVOR: alpha -> beta
+      input digest changed: bazel-out/<cfg>/bin/nonce.h
+  flavored: KEY CHANGED, executed
+      env LAB_FLAVOR: alpha -> beta
+  nonce_gen: KEY CHANGED, executed
+      env LAB_FLAVOR: alpha -> beta
+  path_leak: KEY CHANGED, executed
+      env LAB_FLAVOR: alpha -> beta
+  stable: KEY CHANGED, executed
+      env LAB_FLAVOR: alpha -> beta
+
+=== Determinism: A vs C, both executed with a fresh cache ===
+  consumer   key changed only because of: nonce_gen
+  flavored   deterministic
+  nonce_gen  NON-DETERMINISTIC (same inputs, different output)
+  path_leak  NON-DETERMINISTIC (same inputs, different output)
+  stable     deterministic

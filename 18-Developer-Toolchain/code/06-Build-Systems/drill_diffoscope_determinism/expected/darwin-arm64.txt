@@ -1,0 +1,154 @@
+=== Toolchain (Ubuntu 24.04 lab image) ===
+binutils 2.42-4ubuntu2.10
+diffoscope-minimal 259
+g++ 4:13.2.0-7ubuntu1
+gzip 1.12-1ubuntu3.2
+rustc 1.75.0+dfsg0ubuntu1-0ubuntu7.4
+tar 1.35+dfsg-3ubuntu0.4
+ar default mode is deterministic (D): yes
+gcc -dumpfullversion: 13.3.0
+rustc --version: rustc 1.75.0
+
+=== Compiler probes ===
+SOURCE_DATE_EPOCH=1767225600 gives __DATE__ __TIME__: "Jan  1 2026" " " "00:00:00"
+  and __TIMESTAMP__ (source mtime 2001-02-03 04:05:06 UTC): "Sat Feb  3 04:05:06 2001"
+SOURCE_DATE_EPOCH=yesterday: exit 1, error names the variable: yes
+two -ffile-prefix-map for the same prefix, __FILE__: "/second/probe.c"
+source named by a relative path, __FILE__: "probe.c"
+DW_AT_producer records -O2: yes, -ffile-prefix-map: no, -D: no
+DW_AT_comp_dir after -ffile-prefix-map=<cwd>=.: .
+
+=== Stage 0: as first written (fixes: none) ===
+diffoscope exit status: 1
+Differing members: 9
+  member                             clock  path 
+  (gzip header)                      yes    -    
+  (tar listing)                      yes    -    
+  pkg/BUILDINFO                      yes    -    
+  pkg/bin/engine                     yes    yes  
+  pkg/include/opcodes.h              -      -    
+  pkg/lib/libengine.a (listing)      -      -    
+  pkg/lib/libengine.a > engine.o     -      yes  
+  pkg/lib/libengine.a > version.o    yes    yes  
+  pkg/lib/routing.o                  -      yes  
+Evidence (first changed line per member and cause):
+  [clock] (gzip header)
+    - gzip compressed data, was "engine.tar", last modified: <time-A>, from Unix
+    + gzip compressed data, was "engine.tar", last modified: <time-B>, from Unix
+  [clock] (tar listing)
+    - drwxr-xr-x 0 lab (1001) lab (1001) 0 <time-A> pkg/
+    + drwxr-xr-x 0 lab (1001) lab (1001) 0 <time-B> pkg/
+  [clock] pkg/BUILDINFO
+    - built_at=<time-A>
+    + built_at=<time-B>
+  [clock] pkg/bin/engine
+    - engine built <time-A>
+    + engine built <time-B>
+  [path] pkg/bin/engine
+    - $ROOT_A/src/version.cpp
+    + $ROOT_B/src/version.cpp
+  [path] pkg/lib/libengine.a > engine.o
+    - $ROOT_A/src/engine.cpp
+    + $ROOT_B/src/engine.cpp
+  [clock] pkg/lib/libengine.a > version.o
+    - engine built <time-A>
+    + engine built <time-B>
+  [path] pkg/lib/libengine.a > version.o
+    - $ROOT_A/src/version.cpp
+    + $ROOT_B/src/version.cpp
+  [path] pkg/lib/routing.o
+    - $ROOT_A/target/out/routes.rs
+    + $ROOT_B/target/out/routes.rs
+Generated sources:
+  gen/opcodes.h          same names, different order
+  target/out/routes.rs   same lines, different order
+Toy action cache, agent B looking up agent A's results:
+  action           key=argv+env+inputs  same key, root-normalized  output bytes equal
+  compile-version  miss                 hit                        no
+  gen-opcodes      hit                  hit                        no
+  compile-engine   miss                 miss                       no
+  compile-main     miss                 miss                       no
+  link-engine      miss                 miss                       no
+  gen-routes       hit                  hit                        no
+  compile-routing  miss                 miss                       no
+Release tarball sha256 equal: no
+
+=== Stage 1: pin clocks to SOURCE_DATE_EPOCH (fixes: epoch) ===
+diffoscope exit status: 1
+Differing members: 7
+  member                             clock  path 
+  (tar listing)                      -      -    
+  pkg/bin/engine                     -      yes  
+  pkg/include/opcodes.h              -      -    
+  pkg/lib/libengine.a (listing)      -      -    
+  pkg/lib/libengine.a > engine.o     -      yes  
+  pkg/lib/libengine.a > version.o    -      yes  
+  pkg/lib/routing.o                  -      yes  
+Evidence (first changed line per member and cause):
+  [path] pkg/bin/engine
+    - $ROOT_A/src/version.cpp
+    + $ROOT_B/src/version.cpp
+  [path] pkg/lib/libengine.a > engine.o
+    - $ROOT_A/src/engine.cpp
+    + $ROOT_B/src/engine.cpp
+  [path] pkg/lib/libengine.a > version.o
+    - $ROOT_A/src/version.cpp
+    + $ROOT_B/src/version.cpp
+  [path] pkg/lib/routing.o
+    - $ROOT_A/target/out/routes.rs
+    + $ROOT_B/target/out/routes.rs
+Generated sources:
+  gen/opcodes.h          same names, different order
+  target/out/routes.rs   same lines, different order
+Toy action cache, agent B looking up agent A's results:
+  action           key=argv+env+inputs  same key, root-normalized  output bytes equal
+  compile-version  miss                 hit                        no
+  gen-opcodes      hit                  hit                        no
+  compile-engine   miss                 miss                       no
+  compile-main     miss                 miss                       no
+  link-engine      miss                 miss                       no
+  gen-routes       hit                  hit                        no
+  compile-routing  miss                 miss                       no
+Release tarball sha256 equal: no
+
+=== Stage 2: map build paths out (fixes: epoch,prefix) ===
+diffoscope exit status: 1
+Differing members: 6
+  member                             clock  path 
+  (tar listing)                      -      -    
+  pkg/bin/engine                     -      -    
+  pkg/include/opcodes.h              -      -    
+  pkg/lib/libengine.a (listing)      -      -    
+  pkg/lib/libengine.a > engine.o     -      -    
+  pkg/lib/routing.o                  -      -    
+Generated sources:
+  gen/opcodes.h          same names, different order
+  target/out/routes.rs   same lines, different order
+Toy action cache, agent B looking up agent A's results:
+  action           key=argv+env+inputs  same key, root-normalized  output bytes equal
+  compile-version  miss                 hit                        yes
+  gen-opcodes      hit                  hit                        no
+  compile-engine   miss                 miss                       no
+  compile-main     miss                 miss                       no
+  link-engine      miss                 miss                       no
+  gen-routes       hit                  hit                        no
+  compile-routing  miss                 miss                       no
+Release tarball sha256 equal: no
+
+=== Stage 3: sort generator and archive order (fixes: epoch,prefix,sort) ===
+diffoscope exit status: 0
+Differing members: 0
+Generated sources:
+  gen/opcodes.h          identical
+  target/out/routes.rs   identical
+Toy action cache, agent B looking up agent A's results:
+  action           key=argv+env+inputs  same key, root-normalized  output bytes equal
+  compile-version  miss                 hit                        yes
+  gen-opcodes      hit                  hit                        yes
+  compile-engine   miss                 hit                        yes
+  compile-main     miss                 hit                        yes
+  link-engine      hit                  hit                        yes
+  gen-routes       hit                  hit                        yes
+  compile-routing  miss                 hit                        yes
+Release tarball sha256 equal: yes
+

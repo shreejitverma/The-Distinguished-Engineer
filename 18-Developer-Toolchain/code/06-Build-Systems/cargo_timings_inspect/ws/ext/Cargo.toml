@@ -1,0 +1,12 @@
+[package]
+name = "ext"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# A Python-extension-shaped library: cdylib for the loader, rlib for Rust tests.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+fast = []

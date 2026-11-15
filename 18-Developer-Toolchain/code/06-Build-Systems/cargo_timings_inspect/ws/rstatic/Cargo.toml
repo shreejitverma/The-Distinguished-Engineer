@@ -1,0 +1,9 @@
+[package]
+name = "rstatic"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# A Rust library consumed by a C++ program through the C ABI.
+[lib]
+crate-type = ["staticlib"]

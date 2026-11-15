@@ -1,0 +1,146 @@
+== 1. Clean build ==
+executed: out/app out/main.o out/util.o
+verified: -
+restored: -
+files hashed: 9
+out/app digest: 7dbefe17ac0e
+matches clean build: yes
+
+== 2. The constructive trace recorded for out/main.o ==
+group 0: rule:cc=ac05f9adca9e
+group 1: src/main.c=30cfd0bedfd1, tool:toycc=2a33db3d6e3a, env:TOYCC_OPT=missing
+group 2: src/main.c=30cfd0bedfd1, include/util.h=e8165d5507e1, include/build config.h=5cdf4d1c7256, include/legacy.h=9990e02cad27
+result: ab7a5fd3818c
+
+== 3. No-op build ==
+executed: -
+verified: out/app out/main.o out/util.o
+restored: -
+files hashed: 0
+out/app digest: 7dbefe17ac0e
+matches clean build: yes
+
+(make -q mk/util.o after the touch: needs rebuild)
+== 4. touch src/util.c (bytes unchanged) ==
+executed: -
+verified: out/app out/main.o out/util.o
+restored: -
+files hashed: 1
+out/app digest: 7dbefe17ac0e
+matches clean build: yes
+
+== 5. Comment-only edit in src/main.c ==
+executed: out/main.o
+verified: out/app out/util.o
+restored: -
+executed but result unchanged (early cutoff point): out/main.o
+files hashed: 2
+out/app digest: 7dbefe17ac0e
+matches clean build: yes
+
+== 6. Edit 'include/build config.h' (reached only through the depfile) ==
+executed: out/app out/main.o out/util.o
+verified: -
+restored: -
+files hashed: 4
+out/app digest: ef6689b8ffc9
+matches clean build: yes
+
+== 7. Add out/extra.o to app.list (a dependency read from a file) ==
+executed: out/app out/extra.o
+verified: out/main.o out/util.o
+restored: -
+files hashed: 4
+out/app digest: 2844b6e65537
+matches clean build: yes
+
+== 8. Same-size edit of src/util.c with its old mtime restored ==
+make -q mk/util.o: up to date
+stat cache keyed on (size, mtime): files hashed 0, executed: -
+  matches clean build: NO (stale output)
+stat cache keyed on (size, mtime, ctime, inode, dev, mode): files hashed 3, executed: out/app out/util.o
+  matches clean build: yes
+
+== 9. rm -rf out/ (constructive traces restore from the CAS) ==
+executed: -
+verified: -
+restored: out/app out/extra.o out/main.o out/util.o
+files hashed: 4
+out/app digest: c963ca7463b9
+matches clean build: yes
+
+== 10. Second workspace at another path, same shared cache ==
+executed: -
+verified: -
+restored: out/app out/extra.o out/main.o out/util.o
+files hashed: 11
+out/app digest: c963ca7463b9
+matches clean build: yes
+
+== 11. Corrupt the CAS blob of out/main.o, then delete out/main.o ==
+executed: out/main.o
+verified: out/app out/extra.o out/util.o
+restored: -
+executed but result unchanged (early cutoff point): out/main.o
+corrupt CAS blobs detected: 1
+files hashed: 1
+out/app digest: c963ca7463b9
+matches clean build: yes
+
+== 12. Change the compile recipe (add -I src); outputs stay identical ==
+executed: out/extra.o out/main.o out/util.o
+verified: out/app
+restored: -
+executed but result unchanged (early cutoff point): out/extra.o out/main.o out/util.o
+files hashed: 3
+out/app digest: c963ca7463b9
+matches clean build: yes
+
+== 13. Untracked environment variable ==
+leaky rule, TOYCC_OPT -O0 then -O3, executed: -
+  matches clean build: NO (stale output)
+declared rule (needs env:TOYCC_OPT), executed: out/app out/main.o out/util.o
+  matches clean build: yes
+
+== 14. A non-deterministic task defeats early cutoff ==
+wall-clock stamp, stamp.txt edited, executed: out/app out/stamp.o
+  unchanged results: -
+SOURCE_DATE_EPOCH set, stamp.txt edited, executed: out/stamp.o
+  unchanged results: out/stamp.o
+
+== 15. A header changes while the compile that read it is running ==
+build result: failed: out/util.o: action failed: input include/util.h changed while the action ran; not recording
+== 15b. Rebuild after the race ==
+executed: out/app out/main.o out/util.o
+verified: -
+restored: -
+files hashed: 9
+out/app digest: 7dbefe17ac0e
+matches clean build: yes
+
+== 16. Remove an #include and delete legacy.h in the same change ==
+executed: out/app out/main.o
+verified: out/extra.o out/util.o
+restored: -
+files hashed: 3
+out/app digest: 028c7fff94a4
+matches clean build: yes
+
+== 17. A dependency cycle ==
+build result: cycle: out/b.txt -> out/a.txt -> out/b.txt
+
+== 18. Suspending versus restarting scheduler, clean build of 3 objects ==
+suspending: task starts 4, actions 4
+restarting: task starts 9, actions 4
+same out/app: yes
+
+== 19. Depfile parsing (GCC escaping, as Ninja documents it) ==
+'out/a.o: src/a.c include/build\\ config.h\n' -> [(['out/a.o'], ['src/a.c', 'include/build config.h'])]
+'out/a.o: src/a.c \\\n  x$$y.h c\\#d.h\n' -> [(['out/a.o'], ['src/a.c', 'x$y.h', 'c#d.h'])]
+'out/a.o: back\\\\\\ slash.h two\\\\ next.h\n' -> [(['out/a.o'], ['back\\ slash.h', 'two\\\\', 'next.h'])]
+'out/a.o: a.h\na.h:\n' -> [(['out/a.o'], ['a.h']), (['a.h'], [])]
+'no colon here\n' -> error: expected ':' in depfile after ['no', 'colon', 'here']
+round trip 'build config.h': ok
+round trip 'x$y.h': ok
+round trip 'c#d.h': ok
+round trip 'back\\ slash.h': ok

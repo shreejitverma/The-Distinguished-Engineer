@@ -1,0 +1,9 @@
+# Lab workspace: path dependencies only, so it builds offline.
+[workspace]
+resolver = "3"
+members = [
+    "heavy", "mid", "app",
+    "common", "fa", "fb", "ext",
+    "script_old", "script_new",
+    "cshim", "cuser", "rstatic",
+]
