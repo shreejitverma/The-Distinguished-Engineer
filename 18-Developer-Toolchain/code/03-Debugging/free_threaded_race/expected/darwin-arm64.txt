@@ -1,0 +1,70 @@
+== Interpreter ==
+CPython 3.14 free-threading build, Py_GIL_DISABLED=1, extension suffix .cpython-314t-darwin.so
+sys.getswitchinterval() = 0.005
+
+== 1. Lost updates: same binary, GIL forced on (1 us switch interval), then forced off ==
+Opcodes between the read and the write of box.n (dis, unspecialized names):
+  A  LOAD_ATTR LOAD_SMALL_INT BINARY_OP SWAP STORE_ATTR
+  B  LOAD_ATTR STORE_FAST LOAD_GLOBAL CALL POP_TOP LOAD_FAST_BORROW LOAD_SMALL_INT BINARY_OP LOAD_FAST_BORROW STORE_ATTR
+PYTHON_GIL=1: sys._is_gil_enabled() = True, switch interval 1e-06 s, 8 threads x 200000 iterations
+  A  box.n += 1                         lost updates: none in 5 trials
+  B  v = box.n; touch(); box.n = v + 1  lost updates: yes
+  C  with lock: box.n += 1              lost updates: none in 5 trials
+  D  items.append(i)                    items kept: 1600000 of 1600000
+PYTHON_GIL=0: sys._is_gil_enabled() = False, switch interval 0.005 s, 8 threads x 200000 iterations
+  A  box.n += 1                         lost updates: yes
+  B  v = box.n; touch(); box.n = v + 1  lost updates: yes
+  C  with lock: box.n += 1              lost updates: none in 5 trials
+  D  items.append(i)                    items kept: 1600000 of 1600000
+
+== 2. One import re-enables the GIL ==
+PYTHON_GIL=(unset): GIL at startup disabled
+  import ready  (declares Py_MOD_GIL_NOT_USED): GIL disabled, warnings: 0
+  import legacy (no Py_mod_gil slot): GIL enabled, warnings: 1
+    RuntimeWarning: The global interpreter lock (GIL) has been enabled to load module 'legacy', which has not declared that it can run safely without the GIL. To override this behavior and keep the GIL disabled (at your own risk), run with PYTHON_GIL=0 or -Xgil=0.
+  workload A after both imports, lost updates: none in 5 trials
+PYTHON_GIL=0: GIL at startup disabled
+  import ready  (declares Py_MOD_GIL_NOT_USED): GIL disabled, warnings: 0
+  import legacy (no Py_mod_gil slot): GIL disabled, warnings: 0
+  workload A after both imports, lost updates: yes
+-W error::RuntimeWarning -c 'import legacy': exit 1, RuntimeWarning: The global interpreter lock (GIL) has been enabled to load module 'legacy'
+
+== 3. ThreadSanitizer on a C extension (interpreter not instrumented) ==
+TSan runtime defaults on this host: halt_on_error=false exitcode=66 abort_on_error=true
+Parking-lot semaphore in this interpreter: pthread mutex and condition variable (HAVE_SEM_TIMEDWAIT=0)
+Threads released together by a barrier, so the counter is contended:
+racy.bump_plain: exit 66, data race reports 1, data race racy.c:27 in bump_plain
+  final counter exact: not checked (racy by design)
+racy.bump_atomic: exit 0, data race reports 0
+  final counter exact: yes (1000000)
+racy.bump_mutex: exit 66, data race reports 1, data race racy.c:50 in bump_mutex
+  final counter exact: yes (1000000)
+Two threads in strict turns, so the increments never overlap and a PyMutex is never contended:
+racy.bump_turns, plain counter: exit 66, data race reports 1, data race racy.c:90 in bump_turns
+  final counter exact: not checked (racy by design)
+racy.bump_turns, PyMutex: exit 0, data race reports 0
+  final counter exact: yes (4000)
+One thread holds the PyMutex until the other has parked on it, then unlocks:
+racy.hold_then_bump and racy.block_then_bump: exit 0, data race reports 0
+  final counter exact: yes (2); waiter had parked before the unlock: yes
+
+== 4. asyncio: production mode, then debug mode ==
+PYTHONASYNCIODEBUG=(unset): loop.get_debug() = False, slow_callback_duration = 0.1
+  1 blocking time.sleep(0.25): slow-callback warnings = 0
+  2 call_soon from another thread: accepted silently
+  3 never-awaited coroutine: coroutine 'never_awaited' was never awaited
+    creation traceback attached: False
+PYTHONASYNCIODEBUG=1: loop.get_debug() = True, slow_callback_duration = 0.1
+  1 blocking time.sleep(0.25): slow-callback warnings = 1
+    Executing <Task ... coro=<blocker()> ...> took >= 0.25 s: True
+  2 call_soon from another thread: RuntimeError: Non-thread-safe operation invoked on an event loop other than the current one
+  3 never-awaited coroutine: coroutine 'never_awaited' was never awaited
+    creation traceback attached: True
+
+== 5. fork() while another thread holds a lock ==
+parent: 2 threads, LOCK held by thread 'holder'; default start method = spawn
+  os.fork():              child lock.acquire timed out after 2.0 s (exit 3)
+                          parent saw DeprecationWarning: This process (pid=N) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  multiprocessing spawn:      child lock.acquire acquired; parent saw no DeprecationWarning
+  multiprocessing forkserver: child lock.acquire acquired; parent saw no DeprecationWarning
+  multiprocessing fork:       child lock.acquire timed out after 2.0 s; parent saw DeprecationWarning: This process (pid=N) is multi-threaded, use of fork() may lead to deadlocks in the child.
