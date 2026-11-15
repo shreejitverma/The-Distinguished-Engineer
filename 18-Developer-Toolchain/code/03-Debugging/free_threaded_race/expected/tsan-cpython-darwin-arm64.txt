@@ -1,0 +1,11 @@
+== TSan-instrumented CPython ==
+CPython 3.14.6 free-threading build, configured --disable-gil --with-thread-sanitizer
+box.n += 1 from 4 threads (upstream suppressions: no): exit 0, data race reports 0
+  gil=False lost updates: yes
+d["k"] += 1 from 4 threads (upstream suppressions: no): exit 0, data race reports 0
+  gil=False lost updates: yes
+4 threads share one range iterator (upstream suppressions: no): exit 66, data race reports 3
+  gil=False items consumed vs 400000: duplicates
+  data race rangeobject.c:834 in rangeiter_next;data race rangeobject.c:836 in rangeiter_next;data race rangeobject.c:837 in rangeiter_next
+4 threads share one range iterator (upstream suppressions: yes): exit 0, data race reports 0
+  gil=False items consumed vs 400000: duplicates

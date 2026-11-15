@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "GNU C Library contributors, nptl/pthread_mutex_lock.c (___pthread_mutex_lock, __pthread_mutex_lock_full), glibc master via the bminor/glibc mirror, 2026, https://github.com/bminor/glibc/blob/master/nptl/pthread_mutex_lock.c"
@@ -36,8 +36,22 @@ sources:
   - "Valgrind Developers, Helgrind: a thread error detector, section 7.3 Detected errors: Inconsistent Lock Orderings, Valgrind User Manual, 2026, https://valgrind.org/docs/manual/hg-manual.html"
   - "Abseil authors, absl/synchronization/mutex.h (OnDeadlockCycle, SetMutexDeadlockDetectionMode), abseil-cpp master, 2026, https://github.com/abseil/abseil-cpp/blob/master/absl/synchronization/mutex.h"
   - "Abseil authors, Synchronization Library guide (deadlock detection), abseil.io, 2026, https://abseil.io/docs/cpp/guides/synchronization"
+  - "E. G. Coffman, M. Elphick, and A. Shoshani, System Deadlocks, ACM Computing Surveys 3(2):67-78, June 1971, https://doi.org/10.1145/356586.356588"
+  - "Mike Jones, What really happened on Mars Rover Pathfinder (account of David Wilner's IEEE RTSS 1997 keynote), 1997, https://www.cs.cornell.edu/courses/cs614/1999sp/papers/pathfinder.html"
+  - "The Open Group, pthread_mutexattr_setprotocol and fork, The Open Group Base Specifications Issue 8 (POSIX.1-2024), 2024, https://pubs.opengroup.org/onlinepubs/9799919799/functions/pthread_mutexattr_setprotocol.html"
+  - "Michael Kerrisk et al., fork(2), pthread_atfork(3), signal-safety(7), and pthread_rwlockattr_setkind_np(3), Linux man-pages project, 2026, https://man7.org/linux/man-pages/man2/fork.2.html"
+  - "GCC project, libstdc++-v3/libsupc++/guard.cc (__cxa_guard_acquire) and config/cpu/generic/cxxabi_tweaks.h (_GLIBCXX_GUARD_PENDING_BIT), tag releases/gcc-13.3.0 via the gcc-mirror/gcc mirror, 2024, https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc"
+  - "ISO/IEC JTC1/SC22/WG21, Working Draft, Programming Languages - C++, [stmt.dcl] paragraph 3, eel.is, 2026, https://eel.is/c++draft/stmt.dcl"
+  - "GNU C Library contributors, posix/fork.c (__libc_fork) and elf/dl-open.c (_dl_open, dl_open_worker), tag glibc-2.39 via the bminor/glibc mirror, 2024, https://github.com/bminor/glibc/blob/glibc-2.39/posix/fork.c"
   - "Apple Inc., sample(1) manual page, macOS 27.2, 2026, man sample"
   - "Apple Inc., spindump usage text (spindump -h), macOS 27.2, 2026, spindump -h"
+  - "Linux kernel contributors, include/uapi/linux/futex.h (FUTEX_CMD_MASK, FUTEX_TID_MASK), torvalds/linux master, 2026, https://github.com/torvalds/linux/blob/master/include/uapi/linux/futex.h"
+  - "Michael Kerrisk et al., proc_pid_mem(5), Linux man-pages project, 2026, https://man7.org/linux/man-pages/man5/proc_pid_mem.5.html"
+  - "LLVM Project, clang/lib/Analysis/ThreadSafety.cpp on release/21.x (checkBeforeAfter guarded by issueBetaWarnings) and release/22.x (unguarded), 2026, https://github.com/llvm/llvm-project/blob/release/21.x/clang/lib/Analysis/ThreadSafety.cpp"
+  - "LLVM Project, compiler-rt/lib/tsan/rtl/tsan_flags.cpp (exitcode = 66 override), llvm-project main, 2026, https://github.com/llvm/llvm-project/blob/main/compiler-rt/lib/tsan/rtl/tsan_flags.cpp"
+  - "GNU C Library contributors, sysdeps/nptl/pthread.h (PTHREAD_MUTEX_TIMED_NP to PTHREAD_MUTEX_ADAPTIVE_NP, PTHREAD_RWLOCK_DEFAULT_NP), glibc master via the bminor/glibc mirror, 2026, https://github.com/bminor/glibc/blob/master/sysdeps/nptl/pthread.h"
+  - "ISO/IEC JTC1/SC22/WG21, Working Draft, Programming Languages - C++, [thread.mutex.requirements.mutex.general] and [thread.sharedmutex.requirements.general], eel.is, 2026, https://eel.is/c++draft/thread.sharedmutex.requirements.general"
+  - "Apple Inc., sample(1) manual page, macOS 27.3, 2026, man sample"
 ---
 
 # C++ Playbook: Deadlocks and Livelocks
@@ -47,6 +61,7 @@ sources:
 > On Linux, `/proc/PID/task/TID/syscall` names the futex address each thread sleeps on and `pthread_mutex_t.__data.__owner` names the holder, so the wait-for graph and its cycle can be read without stopping the process.
 > A deadlock is a cycle of sleeping threads; a livelock is a set of runnable threads whose stacks change while a progress counter does not.
 > Capture the evidence first, restart second, and fix the lock order third, because the restart destroys the only proof of which acquisitions formed the cycle.
+> Hangs with no mutex cycle (static-init guards, signal handlers, fork children, pool starvation) hide behind waits that look idle, so read the frame above every wait.
 
 How ThreadSanitizer builds its lock graph is owned by [[Cpp-ThreadSanitizer-and-MemorySanitizer-Internals]].
 Helgrind and DRD lock-order checking are owned by [[Cpp-Valgrind-Memcheck-Helgrind-and-DRD]].
@@ -75,6 +90,17 @@ The three states mean different things, and the decision tree branches on them f
 | Threads runnable, stacks change, progress counter flat | Livelock | Symmetric try-lock and back-off, retry loops on a shared CAS, "after you" protocols |
 | Some threads progress, one never does | Starvation | Unfair lock handoff, priority inversion under `SCHED_FIFO` without priority inheritance |
 
+### The four conditions, and what each fix removes
+
+Coffman, Elphick, and Shoshani (ACM Computing Surveys, 1971, section 2) list the conditions that together define a deadlock: tasks claim exclusive control of resources ("mutual exclusion"), hold what they have while waiting for more ("wait for"), cannot have resources forcibly removed ("no preemption"), and form a chain in which each holds a resource the next one requests ("circular wait").
+Mutual exclusion is the point of a mutex and cannot be denied, so every C++ deadlock fix in this playbook removes one of the other three; the paper's section 3 gives Havender's three prevention approaches, one per remaining condition:
+- Request everything together, which denies "wait for": `std::scoped_lock lk(a, b)` and `std::lock` (Step 8).
+- Release on a refused request and ask again for the whole set, which denies "no preemption": `try_lock` and back-off, which is exactly the shape that livelocks when every thread backs off in step (Step 5).
+- Impose a linear order on resource types, which makes a circuit in the request graph impossible: a lock hierarchy, `acquired_after`, lockdep (Step 8 and At Scale).
+Section 4 of the paper, detection and recovery, is what Steps 1 to 7 do by hand.
+With one unit per resource and the first three conditions in force, the paper cites a circuit in the request graph as a necessary and sufficient condition for deadlock; once a resource type has several interchangeable units (a pool of N workers, a semaphore, a bounded queue), a cycle in the state graph is "necessary, but no longer a sufficient, condition" for deadlock.
+That is why a wait-for graph over mutexes, which are single-unit resources, proves a deadlock from one cycle, while thread-pool starvation (Step 6, item 11) has no mutex cycle at all and must be argued from the pool's capacity.
+
 ## Decision Tree
 
 ```mermaid
@@ -91,7 +117,7 @@ flowchart TD
     Graph --> Cycle{"Cycle found?"}
     Cycle -->|"yes, length 1"| Self["Self-deadlock: relock of<br/>a non-recursive mutex"]
     Cycle -->|"yes, length 2 or more"| Abba["Lock-order inversion<br/>map each edge to source"]
-    Cycle -->|no| NoCycle["Step 6: non-mutex waits<br/>condvar, join, rwlock, PI park, dead owner"]
+    Cycle -->|no| NoCycle["Step 6: non-mutex waits<br/>condvar, join, rwlock, PI park, dead owner,<br/>static-init guard, signal handler, fork child,<br/>loader lock, pool starvation, priority inversion"]
 
     Self --> Capture["Step 2: capture before restart<br/>gcore plus thread apply all bt"]
     Abba --> Capture
@@ -122,7 +148,7 @@ On Ubuntu 24.04 these come from `gdb` (which ships `gcore`), `elfutils` (`eu-sta
 `gstack` was not present in the Ubuntu 24.04 `gdb` package used for this playbook; `gdb -batch -ex 'thread apply all bt'` does the same job.
 
 Permissions:
-- `/proc/PID/task/TID/syscall` and `/proc/PID/mem` need a ptrace access mode `PTRACE_MODE_ATTACH_FSCREDS` check, per proc_pid_syscall(5); `wchan` needs only `PTRACE_MODE_READ_FSCREDS`, per proc_pid_wchan(5).
+- `/proc/PID/task/TID/syscall` and `/proc/PID/mem` need a ptrace access mode `PTRACE_MODE_ATTACH_FSCREDS` check, per proc_pid_syscall(5) and proc_pid_mem(5) (in `fs/proc/base.c`, `lock_trace` and `mem_open` request that mode); `wchan` needs only `PTRACE_MODE_READ_FSCREDS`, per proc_pid_wchan(5).
 - `/proc/PID/task/TID/stack` is root only: proc_pid_stack(5) names the same ptrace check, but `proc_pid_stack` in the kernel's `fs/proc/base.c` returns `EACCES` unless the opener has `CAP_SYS_ADMIN` in the initial user namespace ("this interface is restricted to root").
 - With Yama `ptrace_scope` 1 an unprivileged user can attach only to descendants, so run as the service user with `CAP_SYS_PTRACE` or as root; in a container add `--cap-add SYS_PTRACE` or use `nsenter` from the host.
   In the lab container (`ptrace_scope` 0, no added capabilities) the unprivileged `lab` user could read `syscall` and `mem` of, and attach `gdb` to, its own processes.
@@ -156,7 +182,7 @@ Distribution builds are commonly signed with the hardened runtime and without th
 | Item | Platform | Value (as of 2026-11) | Why it matters |
 | :--- | :--- | :--- | :--- |
 | `futex` syscall number | Linux | 202 on x86-64 (`syscall_64.tbl`), 98 on arm64 (`asm-generic/unistd.h`) | First field of `/proc/TID/syscall` for a thread sleeping in a lock. |
-| `FUTEX_WAIT`, `FUTEX_LOCK_PI`, `FUTEX_WAIT_BITSET` | Linux | 0, 6, 9 (`linux/futex.h`) | Low 7 bits of the op argument after masking. |
+| `FUTEX_WAIT`, `FUTEX_LOCK_PI`, `FUTEX_WAIT_BITSET` | Linux | 0, 6, 9 (`linux/futex.h`) | The command left after the kernel's `FUTEX_CMD_MASK`, `~(FUTEX_PRIVATE_FLAG \| FUTEX_CLOCK_REALTIME)`, clears the two flag bits; every defined command fits in the low 7 bits, so `op & 0x7f` gives the same result. |
 | `FUTEX_PRIVATE_FLAG`, `FUTEX_CLOCK_REALTIME` | Linux | 128 (0x80), 256 (0x100) | An op of `0x80` is a private `FUTEX_WAIT` and `0x86` a private `FUTEX_LOCK_PI`; `0x109` is `FUTEX_WAIT_BITSET` with `FUTEX_CLOCK_REALTIME` and no private flag (what `pthread_join` used, since glibc passes `LLL_SHARED` there); `0x189` is the private form, seen for a condition-variable wait (`val` 0), a `std::shared_mutex` writer blocked behind a reader (`val` 2), and glibc's PI park (`val` 0). |
 | glibc contended-lock futex value | Linux | `__lock` is 0 unlocked, 1 locked, 2 locked with waiters | `__lll_lock_wait` sleeps with `val` 2, the signature of a mutex wait. |
 | `pthread_mutex_t` size | Linux | 40 bytes on x86-64, 48 on arm64 | Bounds what to dump with `x/12wx`. |
@@ -166,10 +192,13 @@ Distribution builds are commonly signed with the hardened runtime and without th
 | Thread states in `ps` and `/proc/PID/stat` | Linux | `R` running, `S` interruptible sleep, `D` uninterruptible, `T` stopped, `t` tracing stop | `S` with a `futex_*` `wchan` is some futex wait (mutex, condition variable, rwlock, or join), and the op and `val` in `syscall` tell them apart; `t` after triage means a debugger left the thread stopped. |
 | TSan `detect_deadlocks` | Both | Upstream default true (`sanitizer_flags.inc`); Homebrew LLVM 23.1.5 reported `true` and the Apple clang 21 runtime `false` | Lock-order reports need it; see the macOS pitfall. |
 | TSan `ignore_noninstrumented_modules`, `ignore_interceptors_accesses` | Both | false on Linux, true on Apple platforms (`SANITIZER_APPLE ? true : false` in `tsan_flags.inc`) | While both are true every interceptor runs with reports suppressed, which hides lock-order reports on macOS. |
-| TSan `exitcode`, `abort_on_error` | Both | `exitcode` 66 on both; `abort_on_error` reported `true` on macOS, so a report there ended the process with `SIGABRT` (shell status 134) until `abort_on_error=0` was set | A CI job fails on a lock-order report without parsing stderr. |
+| TSan `exitcode`, `abort_on_error` | Both | `exitcode` 66 on both (`tsan_flags.cpp` overrides the common default of 1); `abort_on_error` defaults to `SANITIZER_ANDROID \|\| SANITIZER_APPLE` in `sanitizer_flags.inc` and reported `true` on macOS, so a report there ended the process with `SIGABRT` (shell status 134) until `abort_on_error=0` was set | A CI job fails on a lock-order report without parsing stderr. |
 | Helgrind `--track-lockorders` | Linux | `yes` | Lock-order checking is on by default under Helgrind. |
 | macOS mutex owner | macOS | 64-bit thread ID at byte offset 24 of `pthread_mutex_t` on the macOS 27.2 arm64 test host | Internal libpthread layout (`m_tid`), not an API; it can move between releases. |
-| `sample` defaults | macOS | 10 second duration, 1 ms interval | Pass a short duration such as `3` during an incident. |
+| `sample` defaults | macOS | 10 second duration, 1 ms interval | Pass a short duration such as `3` during an incident; a 1 second sample recorded 803 or 804 samples per thread on the macOS 27.3 test host. |
+| libstdc++ static-init guard word | Linux | 0 not started, `0x1` done, `0x100` in progress, `0x10100` in progress with waiters, on little-endian targets (`_GLIBCXX_GUARD_BIT`, `_GLIBCXX_GUARD_PENDING_BIT`, `_GLIBCXX_GUARD_WAITING_BIT` in GCC 13.3 `cxxabi_tweaks.h`) | In the futex build (`_GLIBCXX_USE_FUTEX`) a waiter calls `futex` with op 0 (`FUTEX_WAIT`, not private) and `val` `0x10100` on the guard variable, a form `waitfor.py` does not match. |
+| macOS leaf frames of a blocked thread | macOS | `__psynch_mutexwait` (mutex), `__psynch_cvwait` (condition variable, `std::future`, and libc++abi static-init guard), `__ulock_wait` (join) | Read the frame above the leaf: `__cxa_guard_acquire` or `_sigtramp` turns an apparently idle wait into a deadlock. |
+| glibc rwlock default kind | Linux | `PTHREAD_RWLOCK_PREFER_READER_NP`; `PTHREAD_RWLOCK_PREFER_WRITER_NP` is ignored, per pthread_rwlockattr_setkind_np(3) | Recursive read locks do not deadlock behind a waiting writer by default, but writers can starve. |
 
 ## Step-by-Step Execution (Linux)
 
@@ -465,6 +494,63 @@ Then read the application's own progress metric (completed requests, sequence nu
 **Verification:** the threads are `R` with high CPU, their frame 0 varies between snapshots inside a bounded set of functions, and the progress metric did not advance.
 The lockstep livelock reproduction showed both workers in `top -H` as `R` at 99.9% CPU, the Step 1 loop printed `R running` for both, Step 3 printed `blocked on a mutex: 0 threads`, frame 0 moved between `rendezvous`, `std::__atomic_base<int>::load`, and `__aarch64_swp4_rel` in `libc.so.6` (the release exchange in glibc's unlock path; its caller was `lll_mutex_unlock_optimized`), and its own counters printed `attempts>0: yes completed: 0` at each of three one-second checks.
 `perf top -t TID` on Linux or `sample` on macOS shows where the CPU goes; the cure is breaking the symmetry, not adding threads.
+
+The lockstep reproduction below is the macOS 27.3 run (Apple clang 21.0.0, `c++ -std=c++20 -O1 -g -pthread livelock.cpp -o livelock`); the Linux numbers quoted above came from the earlier container run of a program of the same shape.
+Each thread locks its own first mutex, `try_lock`s the other's, and backs off, and the spin rendezvous holds both threads in step, so every `try_lock` meets a held mutex:
+
+```cpp
+// Two threads each lock their first mutex, try_lock the second, back off,
+// and retry. A spin rendezvous keeps them in step so every try_lock fails.
+#include <atomic>
+#include <chrono>
+#include <cstdio>
+#include <mutex>
+#include <thread>
+
+std::mutex m1, m2;
+std::atomic<long> attempts{0}, completed{0};
+std::atomic<int> arrived{0};
+
+void rendezvous(int round) {
+  arrived.fetch_add(1);
+  while (arrived.load() < 2 * (round + 1)) {
+  }
+}
+
+void worker(std::mutex& first, std::mutex& second) {
+  for (int round = 0;; ++round) {
+    first.lock();
+    rendezvous(2 * round);
+    attempts.fetch_add(1);
+    bool got = second.try_lock();
+    rendezvous(2 * round + 1);
+    if (got) {
+      completed.fetch_add(1);
+      second.unlock();
+      first.unlock();
+      return;
+    }
+    first.unlock();
+  }
+}
+
+int main() {
+  std::thread a(worker, std::ref(m1), std::ref(m2));
+  std::thread b(worker, std::ref(m2), std::ref(m1));
+  for (int i = 0; i < 3; ++i) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::printf("attempts>0: %s completed: %ld\n",
+                attempts.load() > 0 ? "yes" : "no", completed.load());
+    std::fflush(stdout);
+  }
+  std::_Exit(0);
+}
+```
+
+On the macOS 27.3 arm64 test host the program printed `attempts>0: yes completed: 0` three times, `ps -M -p PID` showed both workers in state `R` at 95.5% and 95.4% CPU, and a one-second `sample` attributed each worker's 768 samples to `worker()` itself, almost all of them on the two rendezvous lines (one worker: 331 samples at `livelock.cpp:22` and 218 at line 25; the other: 408 and 347), with only a handful inside `pthread_mutex_lock` and `pthread_mutex_unlock`.
+That is the macOS livelock signature: no `__psynch_*` leaf frame at all, and the samples spread across the retry loop's own lines.
+The standard does not make the loop safe even without the rendezvous: per [thread.mutex.requirements.mutex.general] paragraph 15, `try_lock` "may fail to obtain the lock even if it is not held by any other thread" (spurious failure), and the implementation only "should ensure that try_lock() does not consistently return false in the absence of contending mutex acquisitions".
+A back-off loop therefore needs randomized, growing delays or a switch to a blocking `std::scoped_lock`, never a fixed retry.
 Each `gdb -p` snapshot stops every thread for a moment, which changes the timing; a livelock that depends on precise timing can resolve itself while you watch, so record the counters before the first attach.
 
 ### Step 6: Hangs with no cycle
@@ -489,6 +575,67 @@ When threads sleep but Step 3 finds no cycle, classify each sleeping thread from
    With one thread holding a `FILE` lock through `flockfile` and another blocked in `fputs`, `waitfor.py` printed `held by thread 120844704`: the low 30 bits of the holder's `pthread_t`, `0xffff8733f1a0`, which GDB listed as `Thread 0xffff8733f1a0 (LWP 169)`.
    An "owner" larger than `/proc/sys/kernel/pid_max` (4194304 in the test container) is therefore part of a pointer, not a thread.
    Spin locks and custom futex locks have their own layouts; confirm every edge from `waitfor.py` against the stack before trusting it.
+7. **Static-initialization guard:** one thread is inside the constructor of a block-scope `static` and blocks on a lock; the thread holding that lock then touches the same `static` and waits for the initialization to finish.
+   [stmt.dcl] paragraph 3 requires the second thread to wait ("the concurrent execution shall wait for completion of the initialization"), and its note says the implementation cannot add a deadlock of its own but "Deadlocks might still be caused by the program logic".
+   Re-entering the declaration recursively on the same thread is undefined behavior by the same paragraph.
+   libstdc++ 13.3 implements the wait in `__cxa_guard_acquire` (`libsupc++/guard.cc`) with no mutex and no owner field: in the futex build the waiter sets the waiting bit and calls `syscall (SYS_futex, gi, _GLIBCXX_FUTEX_WAIT, expected, 0)` on the guard word, so by that source (not run on Linux here) `/proc/TID/syscall` shows op `0x0` and `val` `0x10100`, and the guard records no TID to follow.
+   The same function throws `__gnu_cxx::recursive_init_error` for a recursive initialization only when `__gnu_cxx::__is_single_threaded()` is true; once a second thread exists, a recursive initialization takes the waiting path and the thread waits on its own guard forever.
+   Find the initializing thread by its stack, which is inside the constructor of the same variable; the futex address is that variable's guard, a symbol whose mangled name starts with `_ZGV` in `nm` output.
+   On macOS 27.3 the libc++abi waiter is a condition-variable wait, which looks like an idle thread until you read the frame above the leaf; `sample` of `static_init.cpp` from the Worked Example (a `Config` constructor that locks `registry_mu`, and a `registrar` thread that holds `registry_mu` and calls `config()`) printed, trimmed to the two workers:
+
+   ```text
+   804 Thread_7787633
+   +       804 loader()  (in static_init) + 68  [0x102eb8734]  static_init.cpp:26
+   +         804 Config::Config()  (in static_init) + 64  [0x102eb86d4]  static_init.cpp:14
+   +           804 std::mutex::lock()  (in libc++.1.dylib) + 16  [0x192c9b084]
+   +             804 _pthread_mutex_firstfit_lock_slow  (in libsystem_pthread.dylib) + 216  [0x18dc3899c]
+   +               804 _pthread_mutex_firstfit_lock_wait  (in libsystem_pthread.dylib) + 84  [0x18dc3af60]
+   +                 804 __psynch_mutexwait  (in libsystem_kernel.dylib) + 8  [0x18dbfb9dc]
+   804 Thread_7787634
+             804 registrar()  (in static_init) + 128  [0x102eb87e0]  static_init.cpp:31
+               804 __cxa_guard_acquire  (in libc++abi.dylib) + 132  [0x19239d450]
+                 804 _pthread_cond_wait  (in libsystem_pthread.dylib) + 980  [0x18dc3e1b4]
+                   804 __psynch_cvwait  (in libsystem_kernel.dylib) + 8  [0x18dbfc50c]
+   ```
+
+   `sample` attributed the `Config::Config()` frame to line 14, the constructor's opening line, although the blocking `lock_guard` is on line 16 of the listing.
+   The fix is to never block, take a lock, or wait for another thread inside a static initializer; construct the object eagerly before threads start, or initialize it outside every lock it might need.
+   How the guard variable and `-fno-threadsafe-statics` work is owned by [[Cpp-ODR-Violations-Static-Init-and-Linker-Template-Errors]].
+8. **Signal handler relock:** the stack shows a signal trampoline frame between application code that holds a lock and a lock wait on the same thread.
+   `pthread_mutex_lock` is not on the async-signal-safe list in signal-safety(7), which even notes that glibc's `aio_suspend` is unsafe "because it uses pthread_mutex_lock(3) internally"; `malloc`, `printf`, and every logger that buffers fall in the same class.
+   `signal_relock.cpp` from the Worked Example, a handler that locks `log_mu` while `main` holds it, raised with `raise(SIGUSR1)`, sampled on macOS 27.3 as:
+
+   ```text
+   804 main  (in signal_relock) + 88  [0x104a74654]  signal_relock.cpp:18
+     804 raise  (in libsystem_c.dylib) + 32  [0x18dc98bbc]
+       804 pthread_kill  (in libsystem_pthread.dylib) + 296  [0x18dc3d960]
+         804 _sigtramp  (in libsystem_platform.dylib) + 56  [0x192c8f144]
+           804 on_usr1(int)  (in signal_relock) + 28  [0x104a745ec]  signal_relock.cpp:10
+             804 std::mutex::lock()  (in libc++.1.dylib) + 16  [0x192c9b084]
+               804 _pthread_mutex_firstfit_lock_slow  (in libsystem_pthread.dylib) + 216  [0x18dc3899c]
+                 804 _pthread_mutex_firstfit_lock_wait  (in libsystem_pthread.dylib) + 84  [0x18dc3af60]
+                   804 __psynch_mutexwait  (in libsystem_kernel.dylib) + 8  [0x18dbfb9dc]
+   ```
+
+   On Linux this was not run; from the glibc mechanism in Step 3, the handler's wait reads the thread's own TID from `__owner`, so `waitfor.py` should report a cycle of length one, like the self-relock in the Worked Example, and GDB's backtrace distinguishes the two by the signal frame between the frames.
+   The rule and the async-signal-safe crash-dump pattern are owned by [[Debugging-Without-a-Debugger-and-Concurrency-Bugs]].
+9. **Child of `fork` in a threaded process:** a process with one thread is stuck on a mutex whose `__owner` is a TID that is not in its own `/proc/PID/task`.
+   fork(2) creates the child "with a single thread", replicates the address space "including the states of mutexes", and allows only async-signal-safe calls in the child until `execve`; POSIX `fork` says the same.
+   A mutex that another parent thread held at the moment of `fork` is copied locked, with that parent thread's TID in `__owner`, and no thread in the child will ever unlock it.
+   glibc 2.39 protects its own state: `__libc_fork` in `posix/fork.c` takes `_IO_list_lock` and the malloc arena locks (`__malloc_fork_lock_parent`) before `_Fork`, then in the child releases the malloc locks, resets the stdio locks, and re-initializes the dynamic loader's `dl_load_lock`.
+   Application mutexes, and those of libraries that register no `pthread_atfork` handlers, get no such treatment, and pthread_atfork(3) itself says that restoring consistency this way "is generally too difficult to be practicable".
+   The fix is `posix_spawn`, or `fork` followed immediately by `execve`, or a fork-server process started before any thread.
+10. **Dynamic loader lock:** in glibc 2.39, `_dl_open` takes `GL(dl_load_lock)` ("Make sure we are alone.") and `dl_open_worker` runs the new object's initializers through `_dl_init` before the lock is released, so C++ static constructors of a `dlopen`ed library run under the loader lock.
+    It follows from that code (no reproduction was run) that a constructor which waits for another thread that needs the same lock, for example a worker that calls `dlopen` or `dlclose`, deadlocks with one stack under `_dl_init` and the other blocked in `dlopen`; `dl_load_lock` is recursive, so the constructor's own thread can still call `dlopen` without blocking.
+    Keep library constructors free of thread creation and waiting; do the work in an explicit `init()` call after `dlopen` returns.
+11. **Thread-pool starvation:** every worker of a bounded pool blocks on a future whose task is still queued behind it, so there is no mutex cycle, only a resource with N units held by N waiters.
+    A one-worker pool in which the running task submits a child task to the same pool and calls `child.get()` printed `queued: 1 ready: no` on macOS 27.3, and `sample` showed the worker, inside `Pool::run()` and `std::packaged_task<int ()>::operator()()`, waiting in `std::__assoc_sub_state::__sub_wait` over `std::condition_variable::wait` and `__psynch_cvwait`, the same leaf as an idle worker.
+    The evidence is the combination: every worker is inside a task (not in the pool's own dequeue wait), each is waiting on a future, and the queue is non-empty.
+    The fix is to never block a pool thread on work scheduled to the same pool: continue asynchronously, run the child inline, or give dependent stages separate pools.
+12. **Starvation and priority inversion:** one thread never progresses while others do, so nothing is a cycle.
+    The canonical incident is Mars Pathfinder in 1997: a high-priority bus management task blocked on a mutex held by a low-priority meteorological task, a medium-priority communications task preempted the holder, and a watchdog reset the spacecraft; JPL reproduced it with VxWorks event tracing and fixed it by uploading a change that turned on priority inheritance for that mutex and two others (Mike Jones's account of David Wilner's RTSS 1997 keynote).
+    POSIX expresses the same fix as `pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT)`, which glibc implements with the PI futexes from item 4; the default protocol is `PTHREAD_PRIO_NONE`.
+    Reader-writer locks starve writers by design on glibc: the default kind is `PTHREAD_RWLOCK_PREFER_READER_NP`, and `PTHREAD_RWLOCK_PREFER_WRITER_NP` "is ignored by glibc" because recursive read locks "would cause this option to create trivial deadlocks"; `PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP` avoids writer starvation only if no thread takes a read lock recursively (pthread_rwlockattr_setkind_np(3)).
 
 **Verification:** every sleeping thread has a named reason, and the reason's wake-up source (a notifier, an exiting thread, an unlocker) is identified as absent or itself blocked.
 
@@ -505,20 +652,24 @@ Mitigation restores service; it does not fix the bug, and it must come after Ste
 
 ### Step 8: Fix the order permanently
 
-1. **Define a lock hierarchy.** Give each mutex a level and acquire only in increasing level; document it next to the mutex declarations.
-2. **Acquire peers together.** Use `std::scoped_lock lk(a, b);` (C++17) or `std::lock(a, b)` when two locks of the same level are needed; per [thread.lock.algorithm] the sequence of calls "does not result in deadlock, but is otherwise unspecified".
+Items 1 to 3 deny circular wait or wait-for in the sense of the four conditions in Trigger and Symptoms; item 5 removes the hidden acquisitions that make a declared order incomplete.
+
+1. **Define a lock hierarchy:** Give each mutex a level and acquire only in increasing level; document it next to the mutex declarations.
+2. **Acquire peers together:** Use `std::scoped_lock lk(a, b);` (C++17) or `std::lock(a, b)` when two locks of the same level are needed; per [thread.lock.algorithm] the sequence of calls "does not result in deadlock, but is otherwise unspecified".
    libstdc++ 13.3 implements it by locking one mutex, `try_lock`ing the rest, and on failure unlocking what it holds and starting again with a blocking `lock` on the mutex that failed.
    When every argument has the same type, as with two `std::mutex` objects in C++17 or later, that loop does not yield; the `__gthread_yield()` call is only in `__detail::__lock_impl`, the path for mixed mutex types and for builds before C++17.
    Argument order then does not matter: two threads calling `std::scoped_lock` on the same pair in opposite orders completed 200000 critical sections under GCC 13 TSan with no report.
-3. **Make the order checkable at compile time.** Clang Thread Safety Analysis checks `acquired_after` and `acquired_before`, but which flag enables the check depends on the compiler (as of 2026-11, macOS).
+3. **Make the order checkable at compile time:** Clang Thread Safety Analysis checks `acquired_after` and `acquired_before`, but which flag enables the check depends on the compiler (as of 2026-11, macOS).
    With Apple clang 21 the order warning `mutex 'accounts_mu' must be acquired before 'audit_mu'` appeared only with `-Wthread-safety -Wthread-safety-beta`, while `-Wthread-safety` alone reported only the `guarded_by` violation.
    With Homebrew LLVM 23.1.5 `-Wthread-safety` alone printed both warnings, and `ThreadSafety.cpp` on llvm-project main calls `checkBeforeAfter` without testing the beta flag.
+   The upstream change is between releases: on the `release/21.x` branch that call is guarded by `Handler.issueBetaWarnings()`, and on `release/22.x` and `release/23.x` it is not.
    Pass both flags so the check is on with either compiler.
-4. **Make the order checkable at test time.** Run concurrency tests under TSan, where a lock-order inversion is reported even when the test never hangs; add Helgrind for code TSan cannot instrument.
+4. **Make the order checkable at test time:** Run concurrency tests under TSan, where a lock-order inversion is reported even when the test never hangs; add Helgrind for code TSan cannot instrument.
    On Linux the report is on by default; on macOS it needs `TSAN_OPTIONS=detect_deadlocks=1:ignore_noninstrumented_modules=0` (see the macOS pitfall).
-5. **Remove the structural causes.** Never call user callbacks, virtual hooks, logging sinks, or RPCs while holding a lock; copy the data, release, then call.
+5. **Remove the structural causes:** Never call user callbacks, virtual hooks, logging sinks, or RPCs while holding a lock; copy the data, release, then call.
    Prefer one owner thread plus a queue over two locks when an object pair is always touched together.
-6. **Add a progress signal.** A per-worker heartbeat or "last completed sequence" counter turns the next livelock from a guess into a metric.
+   The same rule covers the no-cycle classes of Step 6: no locks or waits inside static initializers or library constructors, nothing but async-signal-safe calls in signal handlers and in a forked child before `execve`, and no blocking of a pool thread on work queued to the same pool.
+6. **Add a progress signal:** A per-worker heartbeat or "last completed sequence" counter turns the next livelock from a guess into a metric.
 
 **Verification:** the reproduction or the regression test from the incident passes under TSan with no `lock-order-inversion` report, and the lock-order rule is enforced by a compiler flag or a test, not only by a comment.
 
@@ -535,6 +686,8 @@ grep -nE 'Thread_|psynch_mutexwait|ulock_wait' "/tmp/hang.${PID}.sample.txt" | h
 Thread names are `Thread_<decimal thread ID>`; the ABBA reproduction on the macOS 27.2 test host showed `Thread_40002010` with `transfer()  (in abba) + 48 ... abba.cpp:16` above `__psynch_mutexwait`.
 
 **Verification:** each worker thread's leaf frame is one of `__psynch_mutexwait` (blocked on a pthread mutex, including `std::mutex` from libc++), `__psynch_cvwait` (condition variable), `__ulock_wait` (join and other ulock waits; the main thread's `_pthread_join` was here), or varying frames with high sample counts (running).
+Then read one frame higher on every `__psynch_cvwait` thread, because on macOS 27.3 three different hangs shared that leaf: an idle `std::condition_variable` waiter, a static-initialization guard waiter (`__cxa_guard_acquire` in `libc++abi.dylib`, Step 6 item 7), and a pool worker blocked on a future (`std::__assoc_sub_state::__sub_wait`, Step 6 item 11).
+A `_sigtramp` frame between application code and `__psynch_mutexwait` is a signal handler relock (Step 6 item 8).
 
 ### Step M2: Read the owner from the mutex
 
@@ -558,12 +711,12 @@ The offset follows `struct pthread_mutex_s` in Apple's `libpthread/src/types_int
 
 ### Step M3: Capture for later
 
-`sudo spindump PID 5 -o /tmp/hang.spindump.txt` records user and kernel stacks for every process with the target sorted first; the usage text on the test host gives the form `spindump [<pid/partial name> [duration [interval]]] <options>` with a default 10 second duration and 10 ms interval, and `-onlyBlocked` narrows the report to blocked threads.
-It needs root on macOS 27.2: without `sudo` it printed `spindump must be run as root when sampling the live system` and wrote no file.
-UNVERIFIED: what a `spindump` report shows for the reproduction; it was not run as root here, so the description rests on the usage text alone.
+Keep the `sample` file from Step M1: it is the primary artifact on macOS, and it needs neither root nor a debuggable build.
+`spindump` is the system-wide alternative; its usage text on the test host gives the form `spindump [<pid/partial name> [duration [interval]]] <options>` with a default 10 second duration and 10 ms interval, sorts the target process topmost, and offers `-onlyBlocked` to narrow the report to blocked threads.
+It needs root: without `sudo` it printed `spindump must be run as root when sampling the live system` and wrote no file, and this playbook did not run it as root, so it describes the command only from its usage text.
 For a Mach-O core of a debuggable process use LLDB's `process save-core`, whose prerequisites [[Debug-a-Production-Crash-From-a-Core-Dump]] covers.
 
-## Worked Example: ABBA, Self-Relock, and Lockstep Livelock
+## Worked Example: ABBA, Self-Relock, Livelock, and No-Cycle Hangs
 
 No lab backs this playbook, so `make verify` does not re-run these outputs.
 They were observed on 2026-11-08 and re-run on 2026-11-11 in the `ubuntu:24.04` arm64 image from `code/_harness/linux-labs.Dockerfile` (GCC 13.3.0, glibc 2.39, GDB 15.1, kernel 7.2 under OrbStack, `ptrace_scope` 0) and on macOS 27.2 arm64 with Apple clang 21.0.0 and Homebrew LLVM 23.1.5.
@@ -638,22 +791,170 @@ For `std::mutex` this is a precondition violation ("the calling thread does not 
 
 The lockstep livelock has each thread lock its first mutex, `try_lock` the second, back off, and retry, with a spin rendezvous that keeps the two threads in step so that every `try_lock` fails; its outputs are quoted in Step 5.
 
+The three no-cycle reproductions from Step 6 ran on macOS 27.3 (26C5035r) arm64 on 2026-11-15, built with Apple clang 21.0.0 as `c++ -std=c++20 -O1 -g NAME.cpp -o NAME` (with `-pthread` added for `static_init.cpp`); the line numbers in the `sample` output quoted in Step 6 refer to these listings.
+
+`static_init.cpp`, a static-initialization guard deadlock (Step 6, item 7):
+
+```cpp
+// Thread A runs the initializer of a block-scope static and, inside it,
+// takes registry_mu. Thread B holds registry_mu and then touches the same
+// static, so it waits on the guard. Neither wait is visible as a mutex edge
+// from B's side: B waits on a guard variable, not on a pthread_mutex_t.
+#include <chrono>
+#include <cstdio>
+#include <mutex>
+#include <thread>
+#include <unistd.h>
+
+std::mutex registry_mu;
+
+struct Config {
+  Config() {
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::lock_guard<std::mutex> g(registry_mu);  // waits for thread B
+  }
+  int value = 42;
+};
+
+Config& config() {
+  static Config c;  // guarded by __cxa_guard_acquire
+  return c;
+}
+
+void loader() { config(); }
+
+void registrar() {
+  std::lock_guard<std::mutex> g(registry_mu);
+  std::this_thread::sleep_for(std::chrono::milliseconds(400));
+  std::printf("%d\n", config().value);  // waits on the guard held by loader
+}
+
+int main() {
+  std::printf("pid %d\n", getpid());
+  std::fflush(stdout);
+  std::thread a(loader);
+  std::thread b(registrar);
+  a.join();
+  b.join();
+}
+```
+
+`signal_relock.cpp`, a signal handler that relocks a held mutex (Step 6, item 8):
+
+```cpp
+// The handler takes the mutex that the interrupted code already holds.
+#include <csignal>
+#include <cstdio>
+#include <mutex>
+#include <unistd.h>
+
+std::mutex log_mu;
+
+void on_usr1(int) {
+  std::lock_guard<std::mutex> g(log_mu);  // not async-signal-safe
+}
+
+int main() {
+  std::signal(SIGUSR1, on_usr1);
+  std::printf("pid %d\n", getpid());
+  std::fflush(stdout);
+  std::lock_guard<std::mutex> g(log_mu);
+  raise(SIGUSR1);  // handler runs on this thread while log_mu is held
+}
+```
+
+`pool_starvation.cpp`, a one-worker pool whose task waits on its own child task (Step 6, item 11):
+
+```cpp
+// A one-worker pool: the running task submits a child task to the same pool
+// and blocks on its future. The child sits in the queue behind its parent.
+#include <chrono>
+#include <condition_variable>
+#include <cstdio>
+#include <deque>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <unistd.h>
+#include <vector>
+
+class Pool {
+ public:
+  explicit Pool(int n) {
+    for (int i = 0; i < n; ++i) workers_.emplace_back([this] { run(); });
+  }
+  std::future<int> submit(std::function<int()> f) {
+    auto task = std::make_shared<std::packaged_task<int()>>(std::move(f));
+    auto fut = task->get_future();
+    {
+      std::lock_guard<std::mutex> g(mu_);
+      queue_.emplace_back([task] { (*task)(); });
+    }
+    cv_.notify_one();
+    return fut;
+  }
+  std::size_t queued() {
+    std::lock_guard<std::mutex> g(mu_);
+    return queue_.size();
+  }
+
+ private:
+  void run() {
+    for (;;) {
+      std::function<void()> job;
+      {
+        std::unique_lock<std::mutex> lk(mu_);
+        cv_.wait(lk, [this] { return !queue_.empty(); });
+        job = std::move(queue_.front());
+        queue_.pop_front();
+      }
+      job();
+    }
+  }
+  std::mutex mu_;
+  std::condition_variable cv_;
+  std::deque<std::function<void()>> queue_;
+  std::vector<std::thread> workers_;
+};
+
+int main() {
+  std::printf("pid %d\n", getpid());
+  std::fflush(stdout);
+  Pool pool(1);
+  auto parent = pool.submit([&pool] {
+    auto child = pool.submit([] { return 1; });
+    return child.get() + 1;  // waits for a task only this worker could run
+  });
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::printf("queued: %zu ready: %s\n", pool.queued(),
+              parent.wait_for(std::chrono::seconds(0)) == std::future_status::ready ? "yes" : "no");
+  std::fflush(stdout);
+  (void)parent.get();
+}
+```
+
+The run of `pool_starvation.cpp` printed `queued: 1 ready: no` and then hung in `parent.get()`; the binary that produced it was built before `(void)` was added to silence clang's `nodiscard` warning and before the `<chrono>`, `<memory>`, and `<vector>` includes were made explicit, which are the only differences.
+
 What these runs prove and what they do not:
 - They prove the glibc 2.39 mechanism on arm64: futex address equals mutex address, `__owner` at offset 8, and `val` 2 for contended waits.
 - They do not prove the x86-64 numbers; those come from `syscall_64.tbl` and `sysdeps/x86/nptl/bits/struct_mutex.h`, where `__owner` is also the third 32-bit field.
 - They cover reader-writer locks only through one blocked-writer run, and do not cover robust mutexes or custom spin locks; Step 6 handles those by reading stacks.
+- The static-init guard, signal-handler, and pool-starvation runs are macOS only; their Linux signatures in Step 6 (guard futex op `0x0` with `val` `0x10100`, the one-thread cycle of a handler relock) are derived from the libstdc++ and glibc sources and were not run.
+- The fork-child and loader-lock items in Step 6 rest on fork(2), POSIX, and the glibc 2.39 `posix/fork.c` and `elf/dl-open.c` sources, with no reproduction.
 
 ## Rollback Procedure
 
 The procedure changes nothing in the application, but it creates sensitive artifacts and can leave a process stopped.
 
-1. **Resume stopped threads.** If a debugger or `gcore` was interrupted, check the `State:` line of `/proc/$PID/status` and of every `/proc/$PID/task/*/status`; for `T` run `kill -CONT "$PID"`, and for `t` find and end the tracer named by `grep TracerPid /proc/$PID/status`.
+1. **Resume stopped threads:** If a debugger or `gcore` was interrupted, check the `State:` line of `/proc/$PID/status` and of every `/proc/$PID/task/*/status`; for `T` run `kill -CONT "$PID"`, and for `t` find and end the tracer named by `grep TracerPid /proc/$PID/status`.
    **Check:** no thread is in `t` or `T`, and `TracerPid` is 0.
-2. **Revert temporary privileges.** Remove `--cap-add SYS_PTRACE`, a lowered `kernel.yama.ptrace_scope`, or a debug sidecar added for the incident; save the old value first with `sysctl -n kernel.yama.ptrace_scope > /var/tmp/ptrace_scope.saved` (`-n` prints the bare value, `0` in the lab container, where the plain form prints `kernel.yama.ptrace_scope = 0`).
+2. **Revert temporary privileges:** Remove `--cap-add SYS_PTRACE`, a lowered `kernel.yama.ptrace_scope`, or a debug sidecar added for the incident; save the old value first with `sysctl -n kernel.yama.ptrace_scope > /var/tmp/ptrace_scope.saved` (`-n` prints the bare value, `0` in the lab container, where the plain form prints `kernel.yama.ptrace_scope = 0`).
    **Check:** `cat /proc/sys/kernel/yama/ptrace_scope` matches the saved value.
-3. **Destroy or vault the core.** A `gcore` file holds the whole address space, including keys and customer data; keep one copy under incident access control with an expiry and delete the rest.
+3. **Destroy or vault the core:** A `gcore` file holds the whole address space, including keys and customer data; keep one copy under incident access control with an expiry and delete the rest.
    **Check:** `ls /var/tmp/hang.*` shows only the files the ticket says are retained.
-4. **Revert mitigations.** Restore worker counts and feature flags once the fix ships, and remove any temporary `try_lock_for` detector.
+4. **Revert mitigations:** Restore worker counts and feature flags once the fix ships, and remove any temporary `try_lock_for` detector.
    **Check:** the configuration diff against the pre-incident baseline is empty except for the fix.
 
 ## Failure Modes of the Procedure
@@ -671,6 +972,8 @@ The procedure changes nothing in the application, but it creates sensitive artif
 | macOS attach refused | `Not allowed to attach to process` | Use `sample`; lldb attached only to the copy without the hardened runtime and to the hardened copy that carried the `com.apple.security.get-task-allow` entitlement. |
 | Thread state column is garbage | `cut -d' ' -f3 /proc/TID/stat` prints part of a thread name such as `worker)` | The name in field 2 contains a space; read `State:` from `/proc/TID/status` or use `ps -L -o tid,stat`. |
 | `thread find` matches the wrong threads | Several `Thread N has target id` lines for one TID | The pattern matched the hexadecimal pthread address; search for `(LWP TID)` instead. |
+| Hung threads look idle | Every blocked thread sits in `__psynch_cvwait` on macOS, or in a futex wait that is not a mutex lock wait on Linux, and Step 3 finds 0 edges | Read the frame above the wait: `__cxa_guard_acquire` is a static-init deadlock, a future wait inside a pool task is pool starvation (Step 6, items 7 and 11). |
+| A one-thread process waits on a mutex owned by a missing TID | The process is a `fork` child; the owner TID belongs to a parent thread | Step 6, item 9; capture the parent's state too, since the lock was held there at `fork` time. |
 
 ## Pitfalls
 
@@ -705,6 +1008,15 @@ The procedure changes nothing in the application, but it creates sensitive artif
 > [!warning] Livelock from polite back-off
 > `try_lock`, release, and retry with an identical delay on every thread is a livelock generator.
 > Prefer `std::scoped_lock`, or add randomized exponential back-off; glibc's adaptive mutex does exactly that in its spin loop (`exp_backoff + (jitter & (exp_backoff - 1))`) before falling back to the futex.
+
+> [!warning] Blocking inside a static initializer or library constructor
+> A block-scope `static` whose constructor takes a lock, joins a thread, or waits on a future turns the compiler's own guard into a hidden lock with no owner field, and in libstdc++ a recursive initialization in a multithreaded process waits on itself instead of throwing.
+> A `dlopen`ed library's constructors run under glibc's loader lock, which adds a second hidden lock to the same code.
+> Initialize such objects explicitly, before the threads that need them start.
+
+> [!warning] fork without exec in a threaded process
+> glibc 2.39 resets its own malloc, stdio, and loader locks in the child, which makes the bug rarer, not absent: every application and third-party mutex is copied in whatever state the parent's other threads left it.
+> Use `posix_spawn`, or `execve` straight after `fork`.
 
 > [!warning] Reading a snapshot as a trend
 > One stack dump of a busy process looks like a deadlock on a hot lock.
@@ -864,6 +1176,36 @@ flowchart LR
 > > Find why the thread exited holding the lock: an exception path that skipped an unlock outside RAII, `pthread_exit` inside a critical section, or a crashed peer process.
 > > For in-process locks, RAII and no thread cancellation fix it; for shared memory, use `PTHREAD_MUTEX_ROBUST`, handle `EOWNERDEAD` by repairing the protected state and calling `pthread_mutex_consistent`, and treat `ENOTRECOVERABLE` as fatal.
 
+> [!question] L6
+> A macOS service hangs at startup.
+> `sample` shows the main thread in `_pthread_join`, one worker in `__psynch_mutexwait` under a constructor, and another worker in `__psynch_cvwait`, which an engineer reads as "idle".
+> What is the hang, and why does the "idle" reading fail?
+>
+> > [!success]- Answer
+> > The frame above the condition-variable leaf decides it: if it is `__cxa_guard_acquire`, that worker is waiting for a block-scope `static` to finish initializing, and the initializing thread is the one blocked on a mutex inside the constructor.
+> > If the waiting worker holds that mutex, the two form a cycle that no mutex-only tool sees, because the guard has no owner field; libc++abi on macOS 27.3 implements the guard wait with a condition variable, so the leaf is the same as an idle waiter's.
+> > Fix it by not taking locks inside the initializer, or by constructing the object before the threads start.
+
+> [!question] L7
+> A threaded C++ daemon forks a helper child that runs a few library calls before `execve`.
+> Once a month the child hangs; `/proc/CHILD/task` has one entry, and the mutex it waits on has an `__owner` that is not that entry.
+> Explain the mechanism and why glibc's own `fork` handling does not save you.
+>
+> > [!success]- Answer
+> > fork(2) gives the child only the calling thread but copies the whole address space, including locked mutexes, so a mutex that another parent thread held at the instant of `fork` is copied locked with that parent thread's TID in `__owner`, and nobody in the child can unlock it.
+> > glibc 2.39's `__libc_fork` takes the stdio list lock and malloc arena locks before `_Fork` and releases or resets them, and the loader lock, in the child, so `malloc` and stdio survive; application and third-party library mutexes do not, and only async-signal-safe calls are allowed in the child before `execve`.
+> > The once-a-month rate is the probability that some other thread held one of those locks at the instant of `fork`.
+> > Fix: `posix_spawn`, or `execve` immediately after `fork`, or a single-threaded fork server started before any thread; pthread_atfork(3) itself calls the handler approach "generally too difficult to be practicable".
+
+> [!question] L7
+> A real-time control loop runs under `SCHED_FIFO`; the highest-priority thread misses deadlines only while a low-priority logger is busy, and there is no cycle in any wait-for graph.
+> What is happening, and what do you change?
+>
+> > [!success]- Answer
+> > Priority inversion: the high-priority thread waits on a mutex the low-priority logger holds, and a medium-priority thread preempts the logger, so the holder cannot run to release the lock; Mars Pathfinder's 1997 resets were this pattern, cured by enabling priority inheritance on the shared mutex.
+> > Set `PTHREAD_PRIO_INHERIT` with `pthread_mutexattr_setprotocol` on every mutex shared across priority levels (POSIX's default protocol is `PTHREAD_PRIO_NONE`), which glibc implements with PI futexes; better still, keep the logger off the high-priority path with a lock-free hand-off queue.
+> > Expect `waitfor.py` to see PI waits as `FUTEX_LOCK_PI` edges whose owner TID is in the futex word itself.
+
 > [!question] L7
 > Design lock-order enforcement for a 3-million-line C++ codebase with hundreds of mutexes.
 >
@@ -936,8 +1278,20 @@ flowchart LR
   The Apple-only defaults that suppress lock-order reports on macOS.
 - Linux `kernel/locking/rtmutex.c`, https://github.com/torvalds/linux/blob/master/kernel/locking/rtmutex.c.
   The chain walk that returns `EDEADLK` for a priority-inheritance cycle.
+- Coffman, Elphick, and Shoshani, System Deadlocks (1971), https://doi.org/10.1145/356586.356588.
+  The four conditions, Havender's three prevention approaches, and why a cycle stops being sufficient with multi-unit resources.
+- Mike Jones, What really happened on Mars Rover Pathfinder, https://www.cs.cornell.edu/courses/cs614/1999sp/papers/pathfinder.html.
+  The canonical priority-inversion incident, diagnosed from an event trace and fixed by enabling priority inheritance in flight.
+- fork(2), https://man7.org/linux/man-pages/man2/fork.2.html, and pthread_atfork(3), https://man7.org/linux/man-pages/man3/pthread_atfork.3.html.
+  Why a forked child of a threaded process inherits locked mutexes and may call only async-signal-safe functions.
+- signal-safety(7), https://man7.org/linux/man-pages/man7/signal-safety.7.html.
+  The async-signal-safe function list that excludes `pthread_mutex_lock`, `malloc`, and stdio.
+- libstdc++ `libsupc++/guard.cc`, https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/libstdc%2B%2B-v3/libsupc%2B%2B/guard.cc.
+  The futex-based static-initialization guard and its single-threaded-only recursion check.
+- pthread_rwlockattr_setkind_np(3), https://man7.org/linux/man-pages/man3/pthread_rwlockattr_setkind_np.3.html.
+  glibc's reader preference and why the writer-preferring kind is ignored.
 
 ## Related
 
 - Prerequisites: [[Cpp-ThreadSanitizer-and-MemorySanitizer-Internals]], [[Cpp-GDB-and-LLDB-Expert-Guide]]
-- See also: [[Cpp-Valgrind-Memcheck-Helgrind-and-DRD]], [[Debugging-Without-a-Debugger-and-Concurrency-Bugs]], [[Debug-a-Production-Crash-From-a-Core-Dump]], [[Drill-Debugging-Asyncio-and-Tokio-Deadlock]], [[Cpp-Debugger-Scripting-and-Pretty-Printers]], [[Record-and-Replay-rr-UDB-and-Pernosco]]
+- See also: [[Cpp-ODR-Violations-Static-Init-and-Linker-Template-Errors]], [[Cpp-Valgrind-Memcheck-Helgrind-and-DRD]], [[Debugging-Without-a-Debugger-and-Concurrency-Bugs]], [[Debug-a-Production-Crash-From-a-Core-Dump]], [[Drill-Debugging-Asyncio-and-Tokio-Deadlock]], [[Cpp-Debugger-Scripting-and-Pretty-Printers]], [[Record-and-Replay-rr-UDB-and-Pernosco]]

@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Ahmad Yasin, A Top-Down Method for Performance Analysis and Counters Architecture, IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS), pp. 35-44, 2014, doi:10.1109/ISPASS.2014.6844459, https://rcs.uwaterloo.ca/~ali/cs854-f23/papers/topdown.pdf"
@@ -21,6 +21,19 @@ sources:
   - "Docker Inc., Seccomp security profiles for Docker, Docker Docs, 2026, https://docs.docker.com/engine/security/seccomp/"
   - "Jim Blandy and contributors, perf-event: a Rust interface to Linux performance monitoring, crates.io 0.4.9, 2026, https://github.com/jimblandy/perf-event"
   - "Innovative Computing Laboratory, PAPI: The Performance Application Programming Interface, University of Tennessee, 2026, https://github.com/icl-utk-edu/papi"
+  - "Linux perf contributors, tools/perf/Documentation/perf-stat.txt (--topdown, --metric-no-group, --metric-no-merge), Linux v7.3, 2026, https://github.com/torvalds/linux/blob/v7.3/tools/perf/Documentation/perf-stat.txt"
+  - "Linux perf contributors, tools/perf/Documentation/perf-list.txt (event modifiers, weak groups), Linux v7.3, 2026, https://github.com/torvalds/linux/blob/v7.3/tools/perf/Documentation/perf-list.txt"
+  - "Linux kernel contributors, Documentation/admin-guide/perf-security.rst, Linux v7.3, 2026, https://github.com/torvalds/linux/blob/v7.3/Documentation/admin-guide/perf-security.rst"
+  - "Linux man-pages project, capabilities(7) (CAP_PERFMON), Linux man-pages 6.19, 2026, https://man7.org/linux/man-pages/man7/capabilities.7.html"
+  - "Linux perf contributors, pmu-events skx-metrics.json, icx-metrics.json, skylake/floating-point.json (tma_info_system_gflops, tma_info_system_dram_bw_use, FP_ARITH_INST_RETIRED), Linux v7.3, 2026, https://github.com/torvalds/linux/tree/v7.3/tools/perf/pmu-events/arch/x86"
+  - "Andi Kleen and contributors, pmu-tools README (toplev), GitHub, 2026, https://github.com/andikleen/pmu-tools"
+  - "Aleksandar Ilic, Frederico Pratas, and Leonel Sousa, Cache-aware Roofline model: Upgrading the loft, IEEE Computer Architecture Letters 13(1):21-24, 2014, doi:10.1109/L-CA.2013.6, https://doi.org/10.1109/L-CA.2013.6"
+  - "Intel Corporation, Intel Advisor Roofline (article 658346), Intel Developer Zone, updated 2018-04-12, https://www.intel.com/content/www/us/en/developer/articles/guide/intel-advisor-roofline.html"
+  - "Linux kernel contributors, drivers/perf/arm_pmu.c (armpmu_event_init) and drivers/perf/arm_pmuv3.c (caps/slots from PMMIR_EL1), Linux v7.3, 2026, https://github.com/torvalds/linux/tree/v7.3/drivers/perf"
+  - "Linux perf contributors, tools/perf/util/python.c (PyInit_perf), Linux v7.3, 2026, https://github.com/torvalds/linux/blob/v7.3/tools/perf/util/python.c"
+  - "Linux perf contributors, tools/perf/pmu-events/arch/x86/mapfile.csv (table versions), Linux v7.3, 2026, https://github.com/torvalds/linux/blob/v7.3/tools/perf/pmu-events/arch/x86/mapfile.csv"
+  - "crates.io, perf-event crate metadata (0.4.9 published 2026-02-12), 2026, https://crates.io/api/v1/crates/perf-event"
+  - "Jim Blandy and contributors, perf-event/src/lib.rs (Group, Counts::time_enabled, Counts::time_running), GitHub, 2026, https://github.com/jimblandy/perf-event/blob/master/perf-event/src/lib.rs"
 ---
 
 # Hardware Performance Counters, Top-Down TMA, and Roofline
@@ -67,7 +80,7 @@ The fields this note relies on:
   Counting only user space is what `kernel.perf_event_paranoid = 2` (the default since Linux 4.6) allows an unprivileged process to do on itself.
 - `read_format` decides what `read()` returns.
   `PERF_FORMAT_TOTAL_TIME_ENABLED` and `PERF_FORMAT_TOTAL_TIME_RUNNING` append two 64-bit times; `PERF_FORMAT_GROUP` makes one `read()` on the leader return `nr`, the two times, and every member's value, so all values describe the same interval.
-- `pinned` asks for a group that must always be on the PMU; if it cannot be scheduled it enters an error state in which `read()` returns end-of-file (0 bytes) until it is re-enabled.
+- `pinned` asks for a group that must always be on the PMU; if it cannot be scheduled it enters an error state in which `read()` returns end-of-file (0 bytes) "until the counter is subsequently enabled or disabled" (perf_event_open(2)).
 
 The read layout, from the comment in `include/uapi/linux/perf_event.h`:
 
@@ -83,6 +96,38 @@ struct read_one {                        struct read_group {
 
 `ioctl(fd, PERF_EVENT_IOC_ENABLE | DISABLE | RESET, PERF_IOC_FLAG_GROUP)` acts on the whole group, and `prctl(PR_TASK_PERF_EVENTS_ENABLE)` enables every event the calling task owns, in a loop over its event list (`perf_event_task_enable()` in `kernel/events/core.c`).
 `PERF_EVENT_IOC_RESET` zeroes only the count: `_perf_event_reset()` at v7.3 sets `event->count` to 0 and leaves `time_enabled` and `time_running` alone, so a reset counter still remembers how long it ran before.
+
+Access is a policy decision before it is an API.
+perf_event_open(2) lists the `kernel.perf_event_paranoid` levels as `2` (user-space measurements only, the default since Linux 4.6), `1` (kernel and user, the default before 4.6), `0` (CPU-specific data but not raw tracepoint samples), and `-1` (no restrictions).
+`CAP_PERFMON` was "added in Linux 5.8 to separate out performance monitoring functionality from the overloaded CAP_SYS_ADMIN capability" (capabilities(7)), and `perf-security.rst` at v7.3 says unprivileged processes holding it are exempted from the scope and access checks.
+perf_event_open(2) separately dates the CAP_PERFMON check for monitoring another process (`pid > 0`) to Linux 5.9, with a ptrace `PTRACE_MODE_READ_REALCREDS` check before that, so a 5.8 kernel already has the capability but not every path that honors it.
+
+#### Reading without a system call: the mmap page and rdpmc
+
+`read()` costs a system call per sample, which is too much inside a hot loop.
+After `mmap()` of the event fd, the first page is a `struct perf_event_mmap_page`, and on x86 a self-monitoring task can read the live counter with the `rdpmc` instruction.
+The comment in `include/uapi/linux/perf_event.h` at v7.3 gives the protocol, a seqlock retry loop:
+
+```c
+do {
+    seq = pc->lock;                  /* seqlock: changes when the kernel reschedules */
+    barrier();
+    enabled = pc->time_enabled;
+    running = pc->time_running;
+    index = pc->index;               /* 0 means "not on a counter now" */
+    count = pc->offset;
+    if (pc->cap_user_rdpmc && index) {
+        width = pc->pmc_width;       /* sign-extend: pmc <<= 64 - width; pmc >>= 64 - width */
+        pmc = rdpmc(index - 1);
+    }
+    barrier();
+} while (pc->lock != seq);
+```
+
+- `cap_user_rdpmc` dates from Linux 3.12; the bit it replaced, `cap_usr_rdpmc` (3.4 to 3.11), aliased `cap_usr_time`, which is why perf_event_open(2) tells new code to test `cap_user_rdpmc`.
+- `index == 0` means the event is not on a hardware counter at this instant (multiplexed out, or the PMU refused it), and the reader must fall back to `offset` alone or to `read()`.
+- Since Linux 4.0 rdpmc is allowed only while an event is enabled in the task's context; `/sys/devices/cpu/rdpmc` controls it, and at v7.3 `arch/x86/events/core.c` documents `0` (disabled), `1` (the default: enabled during the mmap window, and only for events that are not system-wide), and `2` (enabled unconditionally).
+- The man page warns that rdpmc "is not necessarily faster than other methods for reading event values", and the comment in the header notes it "only works on self-monitoring processes".
 
 ### 2. Groups and multiplexing
 
@@ -102,6 +147,11 @@ Three consequences follow from the rotation mechanism:
 1. Rotation moves one group per tick, so with G flexible groups a full cycle takes about G ticks; with 48 single-event groups at HZ=250 that is about 190 ms.
 2. A region shorter than one tick is never rotated, so groups that did not fit at enable time read `time_running = 0` and have no estimate at all.
 3. Ratios computed from events in different groups (instructions from one slice, cycles from another) mix phases, and in TMA that can produce a negative category, as the lab's model part shows.
+
+perf's metric groups (`-M`) do not make this problem go away by themselves.
+At v7.3, perf-stat(1) says that "by default, events to compute a metric are placed in weak groups", and perf-list(1) defines the weak modifier `W` as a group that "will fallback to non-group if not schedulable".
+So a metric whose events do not fit still prints a number, but its events were no longer counted together, and only the running percentages show it.
+`--metric-no-group` drops grouping on purpose (better coverage, worse ratio accuracy, in perf-stat(1)'s words "for metrics like instructions per cycle"), and `--metric-no-merge` stops perf from sharing one group between metrics, which reduces multiplexing for a small group at the cost of the shared groups that make "certain groups of metrics sum to 100%".
 
 `perf stat` prints the running fraction in parentheses after a scaled count, for example `(0.43%)` in the hybrid example of `intel-hybrid.txt`, and its CSV mode (`-x`) carries "run time of counter" and "percentage of measurement time the counter was running" as columns (perf-stat(1)).
 
@@ -135,7 +185,7 @@ The paper implements level 1 on Ivy Bridge, a 4-wide machine, with these events 
 
 Level 1 needs five events; the paper's counter-architecture proposal adds "just eight simple new events" to a conventional PMU to support the hierarchy.
 At level 2, Backend Bound splits into Memory Bound and Core Bound using execution-stall cycles, and Memory Bound splits into L1, L2, L3, and external-memory bound; Frontend Bound splits into Fetch Latency and Fetch Bandwidth; Bad Speculation splits into Branch Mispredicts and Machine Clears.
-Linux perf ships these formulas per model; `skl-metrics.json` at v7.3 uses the same level-1 expressions, with `INT_MISC.RECOVERY_CYCLES_ANY / 2` in place of `INT_MISC.RECOVERY_CYCLES` when SMT is on (as of 2026-11, Linux).
+Linux perf ships these formulas per model; `skl-metrics.json` at v7.3 uses the same level-1 expressions (Backend Bound written as `1 - tma_frontend_bound - (UOPS_ISSUED.ANY + 4 * recovery) / slots`, which is algebraically the same remainder), with `INT_MISC.RECOVERY_CYCLES_ANY / 2` in place of `INT_MISC.RECOVERY_CYCLES` when SMT is on (as of 2026-11, Linux).
 
 #### Ice Lake and later: SLOTS and PERF_METRICS
 
@@ -146,7 +196,11 @@ The rules that come with it:
 - All TopDown metric events must be in one group with SLOTS as the leader, each with `PERF_FORMAT_GROUP`.
 - With raw encodings, SLOTS is `PERF_TYPE_RAW` config `0x0400` and the Retiring metric is config `0x8000`; the kernel names are `slots`, `topdown-retiring`, `topdown-bad-spec`, `topdown-fe-bound`, `topdown-be-bound`, and on Sapphire Rapids and later `topdown-heavy-ops`, `topdown-br-mispredict`, `topdown-fetch-lat`, `topdown-mem-bound`.
 - The fractions are of the whole time since the counters were last reset, so a region needs both endpoints: multiply each fraction by the SLOTS value read at the same instant, subtract, and divide by the SLOTS delta.
-- An 8-bit field resolves 1/255, about 0.39% of the slots it covers, and loses precision over long intervals, so perf reads and resets them often; `topdown.txt` recommends `perf stat -I` with an interval of "a few seconds at most", and warns that the kernel resets these counters after each system call read, so `rdpmc` reads must not be mixed with `read()`.
+- An 8-bit field resolves 1/255, about 0.39% of the slots it covers, and loses precision over long intervals, so perf reads and resets them often; `topdown.txt` recommends always using `perf stat -I` "with no longer interval than a few seconds", and warns that the kernel resets these counters after each system call read, so `rdpmc` reads must not be mixed with `read()`.
+
+Before Ice Lake, and on Atom, the restriction runs the other way: perf-stat(1) at v7.3 says the top-down metrics "are collected per core instead of per CPU thread", that per-core mode is enabled automatically, and that `-a` (system-wide) is needed, "requiring root rights or perf.perf_event_paranoid=-1"; on Ice Lake and later "TopDown can be collected for any thread".
+In the same older-CPU and Atom restrictions list, the page says TopDown "uses the full Performance Monitoring Unit" and recommends disabling the NMI watchdog (`echo 0 > /proc/sys/kernel/nmi_watchdog`) "for best results", and recommends interval mode such as `-I 1000` "as the bottleneck of workloads can change often".
+Outside the kernel tree, Andi Kleen's pmu-tools `toplev` implements the full hierarchy on top of perf (`toplev -l2 program`, `toplev --drilldown --only-bottleneck program`, `toplev -l1 --single-thread program` in its README), and downloads Intel's event lists on first run.
 
 perf's `icl-metrics.json` at v7.3 does not use the register bytes unmodified: Frontend Bound subtracts `INT_MISC.UOP_DROPPING / slots`, Backend Bound adds `5 * INT_MISC.CLEARS_COUNT / slots`, and Bad Speculation is the clamped remainder `max(1 - (FE + BE + Retiring), 0)`.
 From Granite Rapids, Timed PEBS (TPEBS) adds a 16-bit retire latency to PEBS records for metrics that need it (`perf stat -M <metric> --record-tpebs`).
@@ -186,6 +240,37 @@ Roofline and TMA answer different questions.
 TMA says a kernel is Memory Bound, but a pointer chase is Memory Bound at a tiny fraction of the bandwidth roof because it is latency bound, with one miss in flight; a STREAM triad is Memory Bound on the roof itself.
 Placing the measured point on the roofline separates those cases: far below the bandwidth line means latency or parallelism, on the line means only fewer bytes will help.
 
+#### Why latency-bound code sits far below the bandwidth line
+
+Little's law ties sustained bandwidth to the misses in flight: `bandwidth = outstanding lines x 64 bytes / latency`.
+As arithmetic with an assumed 100 ns DRAM latency, one outstanding 64-byte miss sustains 0.64 GB/s, and the hypothetical 200 GB/s machine in the lab needs `200e9 x 100e-9 / 64 = 312.5` lines in flight across the chip to stay on its roof.
+A dependent pointer chase has exactly one miss in flight per chain, so it sits two orders of magnitude below the bandwidth line however many bytes it moves; independent chains, software prefetch, and out-of-order windows that reach past one miss are what move it up.
+
+#### Measuring the two inputs with counters
+
+The flop count and the byte count are themselves counter metrics, and perf's tables show how to get them.
+At v7.3, `skx-metrics.json` and `icx-metrics.json` define `tma_info_system_gflops` as:
+
+```text
+(FP_ARITH_INST_RETIRED.SCALAR + 2 * FP_ARITH_INST_RETIRED.128B_PACKED_DOUBLE
+ + 4 * FP_ARITH_INST_RETIRED.4_FLOPS + 8 * FP_ARITH_INST_RETIRED.8_FLOPS
+ + 16 * FP_ARITH_INST_RETIRED.512B_PACKED_SINGLE) / 1e9 / tma_info_system_time
+```
+
+The client Skylake table (`skl-metrics.json`) stops at `8 * FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE`, because the part has no 512-bit units.
+Each event counts instructions and the weight converts them to element operations; Skylake's `floating-point.json` adds that "FM(N)ADD/SUB instructions count twice as they perform 2 calculations per element", so an FMA is two flops without any extra term.
+The same event descriptions say "The DAZ and FTZ flags in the MXCSR register need to be set when using these events", so a kernel that hits denormals with those flags clear can miscount.
+
+DRAM bytes come from the uncore, not the core: `tma_info_system_dram_bw_use` is `64 * (UNC_M_CAS_COUNT.RD + UNC_M_CAS_COUNT.WR) / 1e9 / tma_info_system_time` on Skylake-SP and Ice Lake-SP (memory-controller column-access commands, one 64-byte line each), and `64 * (UNC_ARB_TRK_REQUESTS.ALL + UNC_ARB_COH_TRK_REQUESTS.ALL) / 1e6 / tma_info_system_time / 1e3` on client Skylake.
+Uncore counters belong to the socket, not the thread, so they count every core's traffic, need system-wide collection (`-a`), and attribute nothing to your process unless the rest of the machine is idle.
+Operational intensity is then `flops / (64 x CAS commands)` over the same interval, and the measured GFLOP/s is the point's height.
+
+#### Cache-aware Roofline
+
+The Williams, Waterman, and Patterson roof counts DRAM traffic only, so a cache-blocking optimization moves a kernel to the right by changing its operational intensity.
+Ilic, Pratas, and Sousa's Cache-aware Roofline model (IEEE Computer Architecture Letters 13(1), 2014) changes the byte count so that, in Intel's words, arithmetic intensity "is a fixed value tied to the algorithm itself", whereas "in classic roofline, a kernel's Arithmetic Intensity would change with problem size or cache usage optimization, because the byte count was based on DRAM traffic only" (Intel Advisor Roofline guide, updated 2018).
+Intel Advisor "uses a cache-aware roofline model", so an Advisor chart and a hand-built DRAM roofline place the same kernel at different x positions; say which model a chart uses before comparing points.
+
 ### 5. Derived metrics: IPC, miss ratios, and what moves the denominator
 
 Most day-to-day counter work is arithmetic on a few generic events, and each ratio has a trap in its denominator.
@@ -207,11 +292,17 @@ Most day-to-day counter work is arithmetic on a few generic events, and each rat
 | Item | Value | Platform and date | Why it matters |
 | :--- | :--- | :--- | :--- |
 | `perf stat --topdown` | prints level-1 TMA, implies `--metric-only`; `--td-level=N` picks a level | Linux (as of 2026-11, perf 2026-03-27) | Fastest way to a level-1 breakdown |
-| `perf stat -M TopdownL1` / `-M PipelineL1` | metric group names in Intel and Arm JSON / AMD Zen 4 JSON | Linux (as of 2026-11, v7.3) | Opens the metric's events as one group |
+| `perf stat -M TopdownL1` / `-M PipelineL1` | metric group names in Intel and Arm JSON / AMD Zen 4 JSON | Linux (as of 2026-11, v7.3) | Opens the metric's events in weak groups (check every running percentage) |
 | `perf stat -x,` | CSV: value, unit, event, run time, running percentage | Linux (as of 2026-11) | Scripts must check the running percentage |
 | `perf stat -e cpu_core/cycles/` | pick one hybrid PMU | Linux, Intel hybrid (as of 2026-11) | Avoids per-PMU event duplication |
 | `kernel.perf_event_paranoid` | default `2`: user-space measurement only for unprivileged users | Linux (default since 4.6; as of 2026-11) | `-1`, `0`, `1` loosen it; Debian added an out-of-tree level 3 in 2015 |
-| `CAP_PERFMON` | capability for privileged perf use | Linux 5.8+ (as of 2026-11) | Grant this, not `CAP_SYS_ADMIN` |
+| `CAP_PERFMON` | capability for privileged perf use | Linux 5.8+; per-process `pid > 0` check since 5.9 (as of 2026-11) | Grant this, not `CAP_SYS_ADMIN` |
+| `/sys/devices/cpu/rdpmc` | `0` off, `1` default (mmap window, not system-wide events), `2` always | Linux x86, v7.3 (as of 2026-11) | Gates user-space `rdpmc` |
+| `cap_user_rdpmc` | mmap-page bit, since Linux 3.12 | Linux (as of 2026-11, man-pages 6.19) | Test it, not the aliased pre-3.12 bit |
+| `-M` metric grouping | weak groups by default; `--metric-no-group`, `--metric-no-merge` | Linux (as of 2026-11, perf v7.3) | A weak group silently degrades to ungrouped |
+| `tma_info_system_gflops` | weighted `FP_ARITH_INST_RETIRED.*`, FMA counted twice by the event | Linux, Intel (as of 2026-11, v7.3) | Roofline y axis from counters |
+| `tma_info_system_dram_bw_use` | `64 * (UNC_M_CAS_COUNT.RD + .WR)` on SKX/ICX | Linux, Intel server (as of 2026-11, v7.3) | Roofline bytes; socket-wide, needs `-a` |
+| TopDown scope | per core on pre-Ice Lake Intel and Atom (needs `-a`); per thread on Ice Lake+ | Linux (as of 2026-11, perf v7.3) | Decides whether a per-process TMA run is possible |
 | `perf_event_mux_interval_ms` | default `1000 / HZ` ms | Linux (as of 2026-11, v7.3) | Rotation period; one flexible group rotated per tick |
 | Core counters, Skylake | 3 fixed, 4 general-purpose | Linux perf tables (as of 2026-11, v7.3) | Level 1 on Skylake already needs 5 events |
 | Core counters, Ice Lake | 4 fixed (incl. SLOTS), 8 general-purpose | Linux perf tables (as of 2026-11, v7.3) | SLOTS plus PERF_METRICS give level 1 without multiplexing |
@@ -252,7 +343,7 @@ TOOLCHAIN_LABS_PMU=1 bash run.sh     # on a Linux host with a visible PMU
 ### Model output (parts 1 and 2)
 
 The two Python parts are pure arithmetic and print the same text on every OS.
-The blocks below are verbatim excerpts of their output from a direct `python3 tma_model.py` and `python3 roofline.py` run on darwin-arm64 on 2026-11-08, not from an `expected/` file: the lab as a whole requires `linux, pmu`, so the harness skips it on this host and no `expected/<platform>.txt` has been recorded yet.
+The two output blocks in this subsection are verbatim excerpts of their output from a direct `python3 -I tma_model.py` and `python3 -I roofline.py` run on darwin-arm64 (Python 3.15.2) on 2026-11-15, not from an `expected/` file: the lab as a whole requires `linux, pmu`, so the harness skips it on this host and no `expected/<platform>.txt` has been recorded yet.
 
 ```text
 [B] multiplexing hazard: half the run is frontend-starved, half is branchy
@@ -283,6 +374,13 @@ The blocks below are verbatim excerpts of their output from a direct `python3 tm
     Fetch Bandwidth       0.20%  = Frontend Bound - Fetch Latency
     Core Bound           35.69%  = Backend Bound - Memory Bound
   forgetting the /0xff gives Retiring = 4,600%
+[D] Arm SBSA level 1 (perf sbsa.json), #slots from the PMU, here 8
+  illustrative counts
+    Retiring           40.00%
+    Bad Speculation    10.00%
+    Frontend Bound     12.50%
+    Backend Bound      37.50%
+    sum               100.00%
 ```
 
 ```text
@@ -327,13 +425,17 @@ Its stdout is a fixed list of checks, each of which prints `no` if the mechanism
 | every scaled count within 5% of the pinned reference | scaling not compensating for multiplexing, or a reference that counted zero (the checks fail closed) |
 | 64 KiB region: at least one counter has `time_running == 0` | rotation happening inside a region shorter than one tick |
 
-UNVERIFIED: no Linux host with a visible PMU was available when this note was written, so part 3 has been compiled with `gcc -O2 -Wall -Wextra -Werror` on Ubuntu 24.04 (aarch64, in the harness image) and its error path checked (EPERM under Docker's seccomp profile, ENOENT in a privileged container whose VM exposes only software PMUs), but its checks have not been run against real counters; the integrator records `expected/linux-<arch>.txt` on a PMU host.
+Part 3 has not been run against real counters, so the note shows no output for it.
+No Linux host with a visible hardware PMU was available: an earlier revision compiled `pmc_lab.c` with `gcc -O2 -Wall -Wextra -Werror` on Ubuntu 24.04 (aarch64, in the harness image) and saw only its error paths (EPERM under Docker's seccomp profile, ENOENT in a privileged container whose VM exposes only software PMUs).
+The thresholds in the table are design targets, not measured results; the first run on a PMU host records `expected/linux-<arch>.txt` and is their first test.
+In the model part, [D] applies `sbsa.json`'s formulas: the stalled-slot fractions give Frontend and Backend Bound directly, and the non-stalled half of the 8 x 1,000,000 slots is split by `op_retired / op_spec = 0.8` into Retiring 40% and Bad Speculation 10%.
 
 ## Pitfalls
 
 > [!warning] Pitfall: ratios across separately scheduled counters
 > IPC from `instructions` and `cycles` opened as two independent events, or TMA level 1 from events in different groups, mixes time slices.
-> Put every event of one ratio in one group, or use the metric groups (`-M TopdownL1`), which perf opens together.
+> Put every event of one ratio in one group, or use the metric groups (`-M TopdownL1`), which perf opens as weak groups.
+> A weak group that does not fit falls back to ungrouped events, so check that every event in the metric reads 100% running.
 
 > [!warning] Pitfall: trusting a scaled count without its running fraction
 > `perf stat` prints `(12.50%)` after a multiplexed count; a script that drops that column cannot tell an exact count from an eighth-of-the-time estimate.
@@ -357,7 +459,16 @@ UNVERIFIED: no Linux host with a visible PMU was available when this note was wr
 
 > [!warning] Pitfall: counting cache-miss events as DRAM bytes
 > Roofline's denominator is DRAM traffic after the caches, including write-allocate and writeback traffic.
-> Last-level-cache miss counts times 64 bytes can miss prefetches and writebacks, so prefer memory-controller (uncore) counters or a STREAM-calibrated model, and say which you used.
+> Last-level-cache miss counts times 64 bytes can miss prefetches and writebacks, so prefer memory-controller (uncore) counters, as perf's `tma_info_system_dram_bw_use` does with `UNC_M_CAS_COUNT.RD + .WR`, or a STREAM-calibrated model, and say which you used.
+> Uncore counts are socket-wide, so on a shared host they include every neighbor's traffic.
+
+> [!warning] Pitfall: flop counts that miss or double-count FMA, or drift with denormals
+> Counting FP instructions instead of weighting them by width under-counts vector code by up to 16x on AVX-512 single precision.
+> Intel's `FP_ARITH_INST_RETIRED` events already count an FMA twice, so adding an FMA term on top double-counts it; and the event descriptions require DAZ and FTZ set in MXCSR, so code running on denormals with those flags clear can miscount.
+
+> [!warning] Pitfall: rdpmc without the seqlock and index checks
+> Reading `rdpmc(index - 1)` once, without the `pc->lock` retry loop, can mix a counter value and an `offset` from either side of a reschedule.
+> When `pc->index` is 0 the event is not on a counter at that instant, and the header's loop skips rdpmc entirely in that case; follow the loop in `perf_event.h` exactly and sign-extend by `pmc_width`.
 
 > [!warning] Pitfall: no PMU and a silent fallback
 > In containers, `perf_event_open` fails with EPERM under Docker's default seccomp profile; in many VMs there is no hardware PMU and generic events fail with ENOENT; with `perf_event_paranoid` above 2 (an out-of-tree distribution patch, such as the level 3 Debian added in 2015) unprivileged use fails with EACCES.
@@ -459,6 +570,22 @@ Decision rules:
 > > The fixes are latency fixes: fewer dependent misses (layout, smaller nodes, huge pages for TLB misses), software prefetch, or more independent work in flight, not fewer bytes.
 > > The lab's pointer chase shows the symptom directly as more than 20 cycles per dependent load at an IPC well under a quarter of a sequential scan over the same array.
 
+> [!question] L7: You must place a production AVX-512 kernel on a Roofline using only counters on an Ice Lake-SP host; which events do you collect, and what can go wrong?
+>
+> > [!success]- Answer
+> > For the height, perf's `tma_info_system_gflops`: `FP_ARITH_INST_RETIRED.SCALAR + 2 x 128B_PACKED_DOUBLE + 4 x 4_FLOPS + 8 x 8_FLOPS + 16 x 512B_PACKED_SINGLE`, over time; the events already count each FMA twice, so no extra FMA term.
+> > For the bytes, the memory-controller uncore: `64 x (UNC_M_CAS_COUNT.RD + UNC_M_CAS_COUNT.WR)` over the same interval, which is `tma_info_system_dram_bw_use`.
+> > Traps: the uncore counts the whole socket, so other tenants inflate the bytes and push the point left; the FP events need DAZ and FTZ set, so denormal-heavy code can miscount; and the core and uncore events must cover the same interval, so collect them system-wide with `-a` while the kernel runs alone.
+> > Finally, say that this is a DRAM roofline; Intel Advisor's cache-aware chart would place the same kernel at a different intensity.
+
+> [!question] L7: Why does a hot loop read counters with rdpmc through the mmap page instead of `read()`, and what makes a naive rdpmc read wrong?
+>
+> > [!success]- Answer
+> > `read()` is a system call per sample; after `mmap()` of the event fd, `struct perf_event_mmap_page` lets a self-monitoring task read the live counter with `rdpmc` and add `pc->offset`, with no kernel entry.
+> > The read must sit inside the seqlock loop from `perf_event.h`: snapshot `pc->lock`, read `index`, `offset`, and the times, execute `rdpmc(index - 1)` only if `cap_user_rdpmc` is set and `index` is nonzero, and retry if `pc->lock` changed, because the kernel may reschedule the event between those loads.
+> > The raw value is `pmc_width` bits wide and must be sign-extended before it is added to `offset`.
+> > Access is gated by `/sys/devices/cpu/rdpmc` (default 1 at v7.3: allowed during the mmap window for non-system-wide events), and on Ice Lake TopDown the kernel resets the metrics after each system-call read, so rdpmc and `read()` must not be mixed.
+
 > [!question] L8+: You own the measurement policy for a fleet of mixed Intel hybrid, AMD, and Arm hosts, with containers and a continuous profiler; what do you standardize?
 >
 > > [!success]- Answer
@@ -477,6 +604,11 @@ Decision rules:
 - `kernel/events/core.c` at v7.3: `perf_init_event()`, `perf_rotate_context()`, `rotate_ctx()`, and `_perf_event_reset()`, the source of the scheduling and reset behavior described here.
 - `tools/perf/pmu-events/arch/` at v7.3: the per-model metric formulas for Intel, AMD, and Arm, and `mapfile.csv` with each table's version.
 - Intel VTune Cookbook, "Top-down Microarchitecture Analysis Method": slot definitions and the expected ranges per workload class.
+- `tools/perf/Documentation/perf-stat.txt` and `perf-list.txt` (Linux v7.3): `--topdown` scope rules, weak metric groups, and `--metric-no-group` and `--metric-no-merge`.
+- `Documentation/admin-guide/perf-security.rst` (Linux v7.3) and capabilities(7): what each `perf_event_paranoid` level and `CAP_PERFMON` permit.
+- `skx-metrics.json`, `icx-metrics.json`, and `skylake/floating-point.json` (Linux v7.3): the counter formulas for GFLOP/s and DRAM bandwidth that put a kernel on a Roofline.
+- Ilic, Pratas, and Sousa, "Cache-aware Roofline model: Upgrading the loft" (IEEE CAL 13(1), 2014): the variant Intel Advisor plots, with intensity tied to the algorithm rather than to DRAM traffic.
+- pmu-tools (`toplev`): a full-hierarchy TMA driver on top of perf, with drill-down to the bottleneck.
 
 ## Related
 

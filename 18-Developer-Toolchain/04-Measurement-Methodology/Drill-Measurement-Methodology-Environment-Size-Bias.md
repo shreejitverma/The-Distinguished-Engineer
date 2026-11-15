@@ -2,12 +2,16 @@
 type: problem
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Todd Mytkowicz, Amer Diwan, Matthias Hauswirth, Peter F. Sweeney, Producing Wrong Data Without Doing Anything Obviously Wrong!, ASPLOS 2009, ACM, pages 265-276, https://users.cs.northwestern.edu/~robby/courses/322-2013-spring/mytkowicz-wrong-data.pdf"
   - "Charlie Curtsinger, Emery D. Berger, STABILIZER: Statistically Sound Performance Evaluation, ASPLOS 2013, ACM, https://people.cs.umass.edu/~emery/pubs/stabilizer-asplos13.pdf"
-  - "Intel Corporation, Intel 64 and IA-32 Architectures Optimization Reference Manual: Volume 1, Document Number 248966-051US, October 2026 (sections 15.8, 22.4.3.8, 22.5.4.4, 22.8.4.2), https://cdrdv2.intel.com/v1/dl/getContent/671488"
+  - "Intel Corporation, Intel 64 and IA-32 Architectures Optimization Reference Manual: Volume 1, Document Number 248966-051US, October 2026 (sections 3.4.1.4, 3.4.2.4, 3.4.2.5, 15.8, 22.1, 22.4.3.8, 22.5.4.4, 22.5.7, 22.8.4.2), https://cdrdv2.intel.com/v1/dl/getContent/671488"
+  - "Intel Corporation, Mitigations for Jump Conditional Code Erratum, White Paper, Document Number 341810-001, Revision 1.0, November 2019, https://cdrdv2.intel.com/v1/dl/getContent/841076"
+  - "GCC developers, Using the GNU Compiler Collection: Optimize Options (-falign-functions, -falign-loops, -falign-jumps, -falign-labels), GNU Project, 2026, https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html"
+  - "GNU Binutils developers, Using as: i386 Options (-malign-branch-boundary, -malign-branch, -mbranches-within-32B-boundaries), GNU Project, 2026, https://sourceware.org/binutils/docs/as/i386_002dOptions.html"
+  - "LLVM project, Clang Command Line Argument Reference (-malign-branch-boundary, -mbranches-within-32B-boundaries), 2026, https://clang.llvm.org/docs/ClangCommandLineReference.html"
   - "Linux kernel v6.12, fs/exec.c (do_execveat_common, setup_arg_pages), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/fs/exec.c"
   - "Linux kernel v6.12, fs/binfmt_elf.c (load_elf_binary, create_elf_tables), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/fs/binfmt_elf.c"
   - "Linux kernel v6.12, arch/x86/kernel/process.c (arch_align_stack), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/arch/x86/kernel/process.c"
@@ -15,7 +19,9 @@ sources:
   - "Linux kernel v6.12, mm/util.c (randomize_stack_top), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/mm/util.c"
   - "Linux kernel v6.12, include/uapi/linux/personality.h (ADDR_NO_RANDOMIZE, PER_CLEAR_ON_SETID), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/include/uapi/linux/personality.h"
   - "Linux kernel v6.12, tools/perf/pmu-events/arch/x86/mapfile.csv and the per-model pipeline.json event tables, 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/tools/perf/pmu-events/arch/x86/mapfile.csv"
-  - "Linux kernel v6.12, tools/perf/pmu-events/arch/x86/skylake/skl-metrics.json (tma_4k_aliasing), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/tools/perf/pmu-events/arch/x86/skylake/skl-metrics.json"
+  - "Linux kernel v6.12, tools/perf/pmu-events/arch/x86/{alderlake,alderlaken,lunarlake,goldmont}/pipeline.json (alias event coverage per table), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/tools/perf/pmu-events/arch/x86/alderlake/pipeline.json"
+  - "Linux kernel v6.12, tools/perf/pmu-events/arch/x86/skylake/frontend.json and pipeline.json (IDQ.*, DSB2MITE_SWITCHES.PENALTY_CYCLES, FRONTEND_RETIRED.DSB_MISS, LSD.UOPS), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/tools/perf/pmu-events/arch/x86/skylake/frontend.json"
+  - "Linux kernel v6.12, tools/perf/pmu-events/arch/x86/skylake/skl-metrics.json (tma_4k_aliasing, tma_dsb, tma_dsb_switches), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/tools/perf/pmu-events/arch/x86/skylake/skl-metrics.json"
   - "Linux kernel v6.12, arch/x86/events/core.c (hybrid PMU registration) and kernel/events/core.c (perf_init_event), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/arch/x86/events/core.c"
   - "Linux kernel v6.12, Documentation/admin-guide/sysctl/kernel.rst (perf_event_paranoid, randomize_va_space), 2024, https://raw.githubusercontent.com/torvalds/linux/v6.12/Documentation/admin-guide/sysctl/kernel.rst"
   - "Michael Kerrisk et al., perf_event_open(2), Linux man-pages 6.19, 2026, https://man7.org/linux/man-pages/man2/perf_event_open.2.html"
@@ -30,9 +36,10 @@ sources:
 # Drill: Environment Size and Code Alignment Bias
 
 > [!summary] Scope
-> This problem note is a hands-on drill that reproduces an execution-time swing of at least 15% caused only by the size of the environment strings, which shifts where the stack lands.
+> This problem note is a hands-on drill whose lab passes only when it finds an execution-time swing of at least 15% caused by nothing but the size of the environment strings, which shifts where the stack lands.
 > It challenges the engineer to measure the stack-placement effect with PMU counters, rule out L1 data cache misses, attribute the swing to 4K address-aliasing load blocks, and stabilize the harness.
-> It grounds the first experiment of Mytkowicz et al. in a runnable lab.
+> It covers the code-alignment counterpart, where link order and alignment move hot loops across 32-byte and 64-byte fetch boundaries, by mechanism and counters, without a lab stage.
+> It grounds both experiments of Mytkowicz et al. in a runnable lab and a by-hand procedure.
 
 The general theory of layout bias, ASLR, and host preparation is owned by [[Benchmark-Methodology-Noise-and-Environment-Control]].
 Counter mechanics, multiplexing, and Top-Down attribution are owned by [[Hardware-Performance-Counters-Top-Down-TMA-and-Roofline]].
@@ -49,6 +56,9 @@ flowchart TD
     CMP -->|"no: 255 of 256 offsets"| FAST["Loads resolve normally<br/>baseline cycles"]
     CMP -->|"yes: 1 of 256 offsets"| SLOW["Load matches the wrong store<br/>on a partial address compare<br/>and is re-issued: 4K aliasing"]
     SLOW --> BIAS["Same instructions, more cycles<br/>the result is a function<br/>of the environment size"]
+    LINK["Link order, edits elsewhere,<br/>code-size flags"] --> CODE["Hot loop address<br/>modulo 32 and 64"]
+    CODE --> FE["Decoded ICache fit,<br/>JCC erratum microcode,<br/>LSD fetch-line limit"]
+    FE --> CBIAS["Same instructions, more cycles<br/>the result is a function<br/>of the link order"]
 ```
 
 ## 1. Reproduction
@@ -115,10 +125,10 @@ cd code/04-Measurement-Methodology/drill_env_size_bias && DRILL_RAW=1 bash run.s
 ```
 
 > [!warning] Recording status
-> This draft ships no `expected/<platform>.txt`.
-> The lab was written on a macOS arm64 host whose Linux container VM exposes no hardware counters, so the harness skips it there.
-> UNVERIFIED: the size of the swing on any current CPU, and that the lab's 15% bar is met; the integrator records the lab on a bare-metal Linux PMU host.
-> UNVERIFIED: whether cores other than the Intel families listed in the technical reference penalize this loop at all.
+> This note ships no `expected/<platform>.txt`, and this note contains no output block from the lab.
+> The lab was written on a macOS arm64 host whose Linux container VM exposes no hardware counters, so the harness skips it there, and it has not yet been run on a bare-metal Linux host with a PMU.
+> The 15% figure is the lab's pass bar (`SLOW_RATIO = 1.15` in `drill.py`), not a reported result; a CPU that does not penalize this loop makes the drill exit 3 instead of recording a pass.
+> The lab's model-specific alias event covers only the Intel families whose Linux v6.12 perf tables define one; on any other CPU the Diagnose stage prints "no known event for this CPU model" and relies on the address prediction alone.
 > Every number in this note is therefore either quoted from a cited source or derived from cited source code, never a measurement of this lab.
 
 ## 2. Observed Symptom
@@ -136,7 +146,7 @@ On full benchmarks the same knob changed conclusions, not just magnitudes.
 | The paper's reading of the lbm range | "a 12% slowdown when in fact we have a 9% speedup" |
 | Benchmarks whose O3 speedup straddles 1.0 across environment sizes | 4: libquantum, perlbench, sphinx, lbm |
 | Median range of the speedup across environment sizes | 0.01 on Core 2, 0.04 on Pentium 4 |
-| Papers surveyed from ASPLOS, PACT, PLDI, and CGO that adequately considered this bias | none of 133 |
+| Papers surveyed from ASPLOS, PACT, PLDI, and CGO that adequately considered this bias | none: 133 papers surveyed, 88 of them with an experimental methodology section, none addressing the bias satisfactorily |
 
 ### Symptom 2: What the lab's Reproduce stage reports
 
@@ -156,6 +166,23 @@ The shape of the symptom is the important part.
 The slowdown is not noise: repeating a slow environment size gives the slow result again.
 It is not monotonic: adding 16 more bytes makes it disappear.
 It is not work: the instruction count per iteration is identical.
+
+### Symptom 3: The code-alignment twin
+
+The same paper ran the same kind of experiment on code instead of data, by changing only the order of the `.o` files on the link line.
+The lab does not reproduce this half; the numbers below are the paper's, and the by-hand procedure is in the Model Solution.
+
+| Observation in the paper (link order, Core 2 unless stated) | Value |
+| :--- | :--- |
+| Builds of perlbench compared | 33: the makefile's default order, alphabetical order, and 31 random orders |
+| O3 speedup of perlbench across link orders | 0.92 to 1.10, "a 7% slowdown when in fact we have a 8% speedup" |
+| Benchmarks whose O3 speedup straddles 1.0 across link orders | 5: libquantum, perlbench, bzip2, sphinx, lbm |
+| Median range of the speedup across link orders | 0.02 on Core 2, 0.08 on Pentium 4 |
+| O3 speedup of bzip2 across link orders on the m5 O3CPU simulator | 0.8 to 1.1 |
+| Default and alphabetical orders versus random ones | some random orders beat both |
+
+Stabilizer's authors report the same knob from their own measurements: "simply changing the link order of object files can cause performance to decrease by as much as 57%".
+Link-order bias is larger than environment-size bias in the paper's data (median range 0.02 against 0.01 on Core 2), and it is the half of the title that most CI pipelines trigger without noticing, because every code change relinks the binary.
 
 ## 3. Progressive Hint Ladder
 
@@ -187,6 +214,11 @@ It is not work: the instruction count per iteration is identical.
 > [!tip]- Hint 6: Do not fix the environment
 > Pinning the environment to one size makes the result repeatable, and it is still one arbitrary point of 256.
 > A harness is stable when its answer does not depend on the setup, which means the harness has to vary the setup itself and report what it finds.
+
+> [!tip]- Hint 7: When the code moved instead of the data
+> If the environment is pinned and the swing follows a relink, a reordered `.o` list, or an edit to an unrelated function, the hot loop's own address moved.
+> Compare `nm` addresses of the hot function in both binaries, modulo 32 and modulo 64.
+> Then look at the front end, not the memory system: how many micro-ops came from the Decoded ICache, and how many cycles went to switching away from it.
 
 ## 4. Model Solution
 
@@ -277,7 +309,7 @@ It is not work: the instruction count per iteration is identical.
 > done
 > ```
 >
-> Use `ld_blocks.address_alias:u` on Alder Lake, Sapphire Rapids, and later cores.
+> Use `ld_blocks.address_alias:u` on Alder Lake, Sapphire Rapids, and later cores; the Linux v6.12 Lunar Lake table defines no alias event at all (as of 2026-11).
 > When the installed perf predates the CPU, the raw form is `r0107` or `r0403`, as the technical reference table lists.
 >
 > ### Stabilizing the harness
@@ -325,12 +357,75 @@ It is not work: the instruction count per iteration is identical.
 > ### When the code should change
 >
 > If the aliasing pair has a fixed relative offset in production, such as an input and an output buffer a multiple of 4096 bytes apart, it is a real cost and worth fixing.
-> Section 15.8 of the Intel manual lists the remedies in order: align data to 32 bytes, then change the offsets between input and output buffers.
+> Section 15.8 of the Intel manual, written in its Intel AVX chapter, lists the remedies in order: align data to 32 bytes, then change the offsets between input and output buffers.
 > If the pair is a stack slot against a static, as in this drill, production samples a different stack offset on every process start once ASLR is on, and the durable fix is to remove the memory round trip: keep loop state in registers instead of in address-taken or volatile locals.
+>
+> ### The code-alignment half: the same bias in the front end
+>
+> The environment strings move only the stack.
+> `do_execveat_common()` copies them into the new stack's pages, while `load_elf_binary()` in `fs/binfmt_elf.c` maps a dynamically linked PIE (one with `PT_INTERP`) at `ELF_ET_DYN_BASE`, plus `arch_mmap_rnd()` only when `PF_RANDOMIZE` is set, so with ASLR off the text address does not depend on the strings at all.
+> Code addresses move for other reasons: the link order, a changed function earlier in the same section, a flag that changes code size, and padding that the compiler or assembler inserts.
+> Any of those moves a hot loop relative to the 16-byte, 32-byte, and 64-byte boundaries that Intel front ends index on.
+>
+> | Front-end structure | The address-dependent rule, as Intel states it | How a move changes the outcome |
+> | :--- | :--- | :--- |
+> | Decoded ICache (DSB), introduced with Sandy Bridge | "can hold only up to 18 micro-ops per each 32 byte aligned memory chunk" (section 3.4.2.5, written for Sandy Bridge); only three unconditional branches per 32-byte chunk can enter it | a dense loop that moves to straddle a different pair of 32-byte chunks can overflow one chunk and run from the legacy decoders instead |
+> | Switch between DSB and legacy decode (MITE) | "There is overhead in switching between the Decoded ICache and the legacy decode pipeline" (section 3.4.2.5) | each overflow costs a switch penalty, counted by `DSB2MITE_SWITCHES.PENALTY_CYCLES` |
+> | Taken-branch placement | Coding Rule 11 (section 3.4.1.4): with the DSB, a mostly-taken direct branch should have all its bytes in one 64-byte line, near its end, with the target near the start of a line; with legacy decode, the same within a 16-byte chunk | alignment decides whether the loop's closing branch and its target obey the rule |
+> | Loop Stream Detector (LSD) | qualifies loops of "up to 60 uops, with up to 15 taken branches, and up to 15 64-byte fetch lines", no `CALL` or `RET`, and more than about 20 iterations (section 3.4.2.4) | a loop body near the fetch-line limit spans one more 64-byte line when its start moves |
+> | JCC erratum microcode (SKX102) | the microcode update "prevents jump instructions from being cached in the Decoded ICache when the jump instructions cross a 32-byte boundary or when they end on a 32-byte boundary", for `Jcc`, macro-fused `cmp`, `test`, `add`, `sub`, `and`, `inc`, or `dec` plus `Jcc`, direct and indirect jumps, calls, and returns (white paper 341810-001, section 2.1) | on an affected core, moving a loop so that its closing branch touches a 32-byte boundary evicts the loop from the DSB on every iteration |
+>
+> The JCC erratum is why this half of the bias is larger on some machines than others.
+> The white paper lists Skylake, Cascade Lake, Kaby Lake, Coffee Lake, Whiskey Lake, Comet Lake, and Amber Lake parts as affected, reports that Intel "observed performance effects associated with the workaround ranging from 0-4% on many industry-standard benchmarks" with higher outliers in subcomponents, and says that applications with more than 40% of micro-ops from the Decoded ICache "will be more susceptible".
+> A benchmark that is layout-neutral on one CPU can therefore be layout-sensitive on another, which matches the paper's finding that "the best link order or best UNIX environment size on one machine is not necessarily the best on another machine".
+>
+> The paper reached the front end too and stopped short of proof.
+> On the m5 O3CPU simulator, bzip2's speed depended on "whether or not a particular hot loop fit in a single cache line"; on the Core 2 the authors suspected the LSD and listed three reasons they could not confirm it: no full LSD description, no performance monitor for LSD behavior, and no way to turn the LSD off.
+> Later cores answer the second objection on some parts: the Skylake event tables in Linux v6.12 define `LSD.UOPS` (EventCode `0xA8`, UMask `0x01`), and the white paper notes that "The LSD is only available on some cores".
+>
+> ### Diagnosis with front-end counters
+>
+> The code-side investigation mirrors the data-side one: same instructions, different cycles, and a counter that names the structure.
+>
+> | Counter (Linux v6.12 Skylake tables) | EventCode, UMask | What it tells you |
+> | :--- | :--- | :--- |
+> | `IDQ.DSB_UOPS` | `0x79`, `0x08` | micro-ops delivered from the Decoded ICache |
+> | `IDQ.MITE_UOPS` | `0x79`, `0x04` | micro-ops delivered from the legacy decoders |
+> | `IDQ.MS_UOPS` | `0x79`, `0x30` | micro-ops delivered while the microcode sequencer is busy |
+> | `LSD.UOPS` | `0xA8`, `0x01` | micro-ops delivered by the LSD |
+> | `DSB2MITE_SWITCHES.PENALTY_CYCLES` | `0xAB`, `0x02` | cycles lost switching from the DSB to legacy decode |
+> | `FRONTEND_RETIRED.DSB_MISS` | `0xC6`, `0x01` | precise event that tags retired instructions which suffered a critical DSB miss, so it names the code location |
+>
+> The white paper gives the two ratios to compute: `IFU_SWITCH_PENALTY% = 100 * DSB2MITE_SWITCHES.PENALTY_CYCLES / CPU_CLK_UNHALTED.THREAD` and `DECODED_ICACHE_UOPS% = 100 * IDQ.DSB_UOPS / (IDQ.MS_UOPS + IDQ.MITE_UOPS + IDQ.DSB_UOPS + LSD.UOPS)`.
+> The perf metric `tma_dsb_switches` is the first ratio as a fraction of thread clocks, and it is flagged only above 0.05 while its parents `tma_fetch_latency` and `tma_frontend_bound` are above 0.1 and 0.15.
+>
+> A by-hand reproduction, two link orders of the same objects with everything else pinned:
+>
+> ```bash
+> "${CC:-cc}" -O2 -c main.c a.c b.c
+> "${CC:-cc}" -o order_ab main.o a.o b.o
+> "${CC:-cc}" -o order_ba main.o b.o a.o
+> # The hot function's address modulo 64 differs between the two binaries when the move matters.
+> nm order_ab | grep ' hot$'; nm order_ba | grep ' hot$'
+> for exe in order_ab order_ba; do
+>   env -i PATH=/usr/bin:/bin setarch "$(uname -m)" -R \
+>     perf stat -r 5 -e cycles:u,instructions:u,idq.dsb_uops:u,idq.mite_uops:u,dsb2mite_switches.penalty_cycles:u "./${exe}"
+> done
+> perf stat -M tma_dsb_switches ./order_ab
+> ```
+>
+> ### Stabilizing against code placement
+>
+> Alignment flags make placement more regular; they do not make it irrelevant.
+> GCC enables `-falign-functions`, `-falign-jumps`, `-falign-labels`, and `-falign-loops` at `-O2` and `-O3`, with a machine-dependent default when no value is given.
+> The `n:m` form aligns "to the next power-of-two greater than or equal to n, skipping up to m-1 bytes", so a loop is left unaligned when the padding would exceed the budget, and "alignment is ignored for functions considered cold" unless `-fmin-function-alignment` is used.
+> GNU `as` and Clang accept `-mbranches-within-32B-boundaries`, which GNU `as` documents as equivalent to `-malign-branch-boundary=32 -malign-branch=jcc+fused+jmp -malign-branch-prefix-size=5`; "The default doesn't align branches."
+> Those options remove the JCC-erratum term on affected cores and leave every other placement effect in place, so a code-alignment claim still needs the paper's remedy: several link orders per binary, or a runtime randomizer such as Stabilizer, and a comparison of distributions.
 
 ## 5. Core Takeaway
 
 A benchmark result is a function of the code and of the memory layout the code happened to get, and the layout is set by inputs nobody thinks of as inputs: the environment strings, the argument strings, the path the binary was launched by, and the link order.
+The first three move data on the stack and act through the load and store machinery; the last moves code and acts through the front end, so the two halves need different counters and different randomization knobs.
 Repetition inside one layout measures that layout's noise, and says nothing about the others.
 The Stabilizer authors state it in one sentence: "A single binary constitutes just one sample from the space of program layouts, regardless of the number of runs."
 
@@ -363,9 +458,15 @@ The harness procedure that applies these rules is [[Design-a-Low-Noise-Benchmark
 | 4K aliasing cost estimate | five cycles of load latency (as of 2026-11) | Intel | Optimization Manual, sections 15.8 and 22.5.4.4 |
 | Cost formula | `100 * LD_BLOCKS_PARTIAL.ADDRESS_ALIAS * 5 / CPU_CLK_UNHALTED.THREAD` (as of 2026-11) | Intel | Optimization Manual, section 22.5.4.4 |
 | `LD_BLOCKS_PARTIAL.ADDRESS_ALIAS` | EventCode `0x07`, UMask `0x01`, raw `r0107`: Sandy Bridge through Rocket Lake tables (as of 2026-11) | Linux v6.12 perf, Intel | `pmu-events/arch/x86/*/pipeline.json` |
-| `LD_BLOCKS.ADDRESS_ALIAS` | EventCode `0x03`, UMask `0x04`, raw `r0403`: Alder Lake, Meteor Lake, Sapphire Rapids, Emerald Rapids, Granite Rapids, Sierra Forest, Grand Ridge tables (as of 2026-11) | Linux v6.12 perf, Intel | `pmu-events/arch/x86/*/pipeline.json` |
-| `LD_BLOCKS.4K_ALIAS` | EventCode `0x03`, UMask `0x04`: Goldmont, Goldmont Plus, Snow Ridge, Elkhart Lake tables (as of 2026-11) | Linux v6.12 perf, Intel | `pmu-events/arch/x86/*/pipeline.json` |
+| `LD_BLOCKS.ADDRESS_ALIAS` | EventCode `0x03`, UMask `0x04`, raw `r0403`: Alder Lake (both `cpu_core` and `cpu_atom`), Alder Lake-N, Meteor Lake, Sapphire Rapids, Emerald Rapids, Granite Rapids, Sierra Forest, Grand Ridge tables; none in the Lunar Lake table (as of 2026-11) | Linux v6.12 perf, Intel | `pmu-events/arch/x86/*/pipeline.json` |
+| `LD_BLOCKS.4K_ALIAS` | EventCode `0x03`, UMask `0x04`: Goldmont, Goldmont Plus, Snow Ridge, Elkhart Lake tables, plus Alder Lake `cpu_atom` and Alder Lake-N alongside `LD_BLOCKS.ADDRESS_ALIAS` (as of 2026-11) | Linux v6.12 perf, Intel | `pmu-events/arch/x86/*/pipeline.json` |
 | `tma_4k_aliasing` | `LD_BLOCKS_PARTIAL.ADDRESS_ALIAS / tma_info_thread_clks`, flagged above 0.2 only when its parents are also flagged (as of 2026-11) | Linux v6.12 perf, Skylake | `skl-metrics.json` |
+| Decoded ICache capacity rule | up to 18 micro-ops per 32-byte aligned chunk, at most three unconditional branches per chunk (as of 2026-11) | Intel, Sandy Bridge text | Optimization Manual, section 3.4.2.5 |
+| LSD qualification | up to 60 micro-ops, 15 taken branches, 15 64-byte fetch lines, no `CALL` or `RET`, more than about 20 iterations (as of 2026-11) | Intel | Optimization Manual, section 3.4.2.4 |
+| JCC erratum microcode rule | jumps that cross or end on a 32-byte boundary are not cached in the DSB; 0 to 4% on many benchmarks, higher outliers (as of 2026-11) | Intel Skylake-derived cores listed in the white paper | White paper 341810-001, sections 2.1, 2.2, 4.0 |
+| `-mbranches-within-32B-boundaries` | `-malign-branch-boundary=32 -malign-branch=jcc+fused+jmp -malign-branch-prefix-size=5`; branches are not aligned by default (as of 2026-11) | Linux, x86, GNU as and Clang | GNU as i386 options, Clang reference |
+| GCC `-falign-functions`, `-falign-loops`, `-falign-jumps`, `-falign-labels` | enabled at `-O2` and `-O3`, machine-dependent default `n`, maximum 65536, ignored for cold code (as of 2026-11) | Both | GCC Optimize Options |
+| `tma_dsb_switches` | `DSB2MITE_SWITCHES.PENALTY_CYCLES / tma_info_thread_clks`, flagged above 0.05 when its parents are flagged (as of 2026-11) | Linux v6.12 perf, Skylake | `skl-metrics.json` |
 | Longest single environment string | 32 pages (`MAX_ARG_STRLEN`) | Linux | execve(2) |
 | Google Benchmark ASLR handling | `benchmark_main` calls `benchmark::MaybeReenterWithoutASLR(argc, argv)`, which re-executes without ASLR; a custom `main()` must call it itself; "Automatic ASLR disablement" shipped in v1.9.3 on 2025-05-07 and v1.9.4 (2025-05-19) fixed it under Docker (as of 2026-11) | Linux | `docs/reducing_variance.md`, release notes |
 
@@ -398,7 +499,7 @@ cat /proc/sys/kernel/perf_event_paranoid
 > With ASLR on, x86-64 Linux subtracts a random 0 to 8191 bytes before rounding the stack to 16 bytes, so each of the 256 page offsets is equally likely on every launch and an aliased layout shows up as an occasional slow process.
 > With ASLR off, the same layout is chosen by the environment and shows up on every launch or on none.
 > The second state has less variance and more bias, and bias is the one that statistics on repeated runs cannot see.
-> Google Benchmark's `benchmark_main` has disabled ASLR automatically since v1.9.3 (as of 2026-11), so the fixed-layout state is the default for every benchmark on Linux that links it.
+> Google Benchmark's `benchmark_main` has disabled ASLR automatically since v1.9.3 (as of 2026-11), so the fixed-layout state is the default for every benchmark on Linux that links it, wherever `personality(2)` is permitted.
 
 > [!warning] Pitfall: Forgetting the other strings on the stack
 > The environment is one of three string groups the kernel copies above the stack.
@@ -414,6 +515,15 @@ cat /proc/sys/kernel/perf_event_paranoid
 > A change that adds or removes a local, reorders functions, or changes the link order moves code and data in the candidate and not in the baseline.
 > The paper measured the O3 speedup of perlbench ranging from 0.92 to 1.10 across link orders alone.
 > An A/B result from one layout of each binary measures the change plus an unknown layout term of the same size as many real optimizations.
+
+> [!warning] Pitfall: Treating alignment flags as a cure for code-layout bias
+> `-falign-loops=n:m` aligns a loop only when the padding fits the `m` budget, and GCC ignores alignment for loops and functions it considers cold.
+> `-mbranches-within-32B-boundaries` removes only the JCC-erratum term, and only on the cores the erratum affects.
+> Both shift placement to a different fixed point; neither turns one binary into a sample of the layout space.
+
+> [!warning] Pitfall: Reading a memory counter for a front-end effect
+> A link-order swing leaves L1D misses and alias blocks unchanged, because the data did not move.
+> If the stack-side counters are flat and the swing follows the relink, switch to `IDQ.DSB_UOPS`, `IDQ.MITE_UOPS`, and `DSB2MITE_SWITCHES.PENALTY_CYCLES`, and locate the code with the precise `FRONTEND_RETIRED.DSB_MISS` event.
 
 > [!warning] Pitfall: Letting the measurement move the stack
 > A wrapper that adds its own variables to the environment, or a harness flag that lengthens the command line, changes the layout it is trying to observe.
@@ -450,6 +560,7 @@ It is the optimization that was merged, celebrated, and never existed.
 > 3. Turn ASLR back on by deleting the `ensure_no_aslr()` call, launch `kernel naive` 2000 times in one fixed environment, and compare the fraction of slow launches with the 1 in 256 that `arch_align_stack()` predicts.
 > 4. Remove `volatile` from the frame, confirm in the disassembly that `g` and `inc` moved to registers, and rerun: state which check fails and why that is the correct outcome.
 > 5. Reproduce the paper's other axis: build a two-file program in both link orders and measure the difference with the stack offset swept, so that only the code layout varies.
+> 6. Repeat exercise 5 with `-Wa,-mbranches-within-32B-boundaries` on both sides and with the front-end counters from the Model Solution; on a core from the JCC erratum white paper's list, state how much of the link-order gap the option removes and what is left.
 
 ## Interview Questions
 
@@ -528,6 +639,20 @@ It is the optimization that was merged, celebrated, and never existed.
 > > When the stack local `g` shares its low 12 bits with the static `i`, the store to one sits between the store and the load of the other in program order, and the load's early partial-address check matches the wrong store.
 > > The general lesson is that a counter measures occurrences, and the cost depends on whether the occurrences sit on the critical path.
 
+> [!question] L6: Debug this issue:
+> A pull request adds a logging call to a cold error path in `parse.c`.
+> The hot loop lives in `book.c`, which the pull request does not touch, and the benchmark on a Coffee Lake runner gets 9% slower.
+> The environment is pinned, `instructions:u` matches, and L1D misses and the alias load-block event are unchanged.
+> What happened, and how do you prove it?
+>
+> > [!success]- Answer
+> > The data-side counters are flat, so the stack did not cause it; the extra bytes in `parse.c` moved every function linked after it, including the hot loop in `book.c`.
+> > Compare the hot function's address modulo 32 and 64 in both binaries with `nm`, and disassemble the loop to see whether its closing branch, or a macro-fused compare and branch, now crosses or ends on a 32-byte boundary.
+> > Coffee Lake parts are on the JCC erratum white paper's affected list, and with the microcode update such a branch is not cached in the Decoded ICache, so the loop runs from the legacy decoders.
+> > Prove it with `IDQ.DSB_UOPS` falling and `IDQ.MITE_UOPS` and `DSB2MITE_SWITCHES.PENALTY_CYCLES` rising at matched instructions, and locate it with `FRONTEND_RETIRED.DSB_MISS`.
+> > Then intervene: rebuild the baseline with the hot loop shifted by the same number of bytes, or both sides with `-Wa,-mbranches-within-32B-boundaries`, and check that the gap follows the placement.
+> > The pull request is not a regression in its own code; the gate should compare several link orders per side so that a placement change is reported as layout sensitivity rather than as a slowdown.
+
 ### Level 7 (L7+)
 
 > [!question] L7: A team reports that a compiler flag gives a 2% speedup on the service's hot benchmark, measured with 50 runs of each binary and a tight confidence interval.
@@ -574,6 +699,12 @@ It is the optimization that was merged, celebrated, and never existed.
   Turns the paper's remedy into a tool that re-randomizes code, stack, and heap layout at run time so that standard statistical tests apply.
 - Intel, *Intel 64 and IA-32 Architectures Optimization Reference Manual: Volume 1*, section 15.8 "4K Aliasing" and section 22.5.4.4 "Other Memory Access Issues".
   The vendor's definition of the hazard, its condition on address bits, its cost estimate, and the event that counts it.
+- Intel, *Intel 64 and IA-32 Architectures Optimization Reference Manual: Volume 1*, sections 3.4.1.4, 3.4.2.4, and 3.4.2.5.
+  The code-placement rules: branch placement within 16-byte and 64-byte units, LSD qualification, and the Decoded ICache's 32-byte chunk limits.
+- Intel, *Mitigations for Jump Conditional Code Erratum*, white paper 341810-001, November 2019.
+  The one public case where a vendor made 32-byte code alignment a first-order performance variable, with its counters, ratios, and assembler options.
+- GCC, *Optimize Options*, and GNU Binutils, *i386 Options*.
+  The exact semantics of `-falign-*` budgets and of the assembler's branch-alignment options, which decide what an alignment flag can and cannot guarantee.
 - Linux kernel v6.12, `fs/exec.c`, `fs/binfmt_elf.c`, and `arch/x86/kernel/process.c`.
   The code that decides where the stack starts; `arch_align_stack()` is short enough to memorize.
 - Linux man-pages, `perf_event_open(2)` and `personality(2)`.

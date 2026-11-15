@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Todd Mytkowicz, Amer Diwan, Matthias Hauswirth, and Peter F. Sweeney, Producing Wrong Data Without Doing Anything Obviously Wrong!, ASPLOS 2009, ACM, 2009, https://doi.org/10.1145/1508244.1508275"
@@ -29,10 +29,28 @@ sources:
   - "Python Software Foundation, Command line and environment: PYTHONHASHSEED, Python 3 documentation, 2026, https://docs.python.org/3/using/cmdline.html"
   - "Free Software Foundation, Optimize Options (-falign-functions), Using the GNU Compiler Collection, 2026, https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html"
   - "Free Software Foundation, i386 Options (-mbranches-within-32B-boundaries), Using as, GNU Binutils, 2026, https://sourceware.org/binutils/docs/as/i386_002dOptions.html"
-  - "H. J. Lu, [PATCH 0/5] i386: Optimize for Jump Conditional Code Erratum, binutils mailing list, 2019, https://sourceware.org/pipermail/binutils/2019-November/108760.html"
+  - "H. J. Lu, [PATCH 0/5] i386: Optimize for Jump Conditional Code Erratum, binutils mailing list, 2019, cover letter as quoted in Florian Weimer's reply, https://sourceware.org/pipermail/binutils/2019-November/108760.html"
   - "Free Software Foundation, Starting your Program (set disable-randomization), Debugging with GDB, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Starting.html"
   - "Moby Project, seccomp default profile (default.json), GitHub moby/profiles, 2026, https://github.com/moby/profiles/blob/main/seccomp/default.json"
   - "Brendan Gregg, Active Benchmarking, brendangregg.com, 2014, https://www.brendangregg.com/activebenchmarking.html"
+  - "Linux kernel contributors, mm/util.c (randomize_stack_top), Linux v7.0 source, 2026, https://github.com/torvalds/linux/blob/v7.0/mm/util.c"
+  - "Google LLC, Random Interleaving and src/benchmark_register.cc (default mean, median, stddev, cv statistics), Google Benchmark source (main), 2026, https://github.com/google/benchmark/blob/main/docs/random_interleaving.md"
+  - "Victor Stinner and pyperf contributors, pyperf/_runner.py (Runner defaults, --rigorous) and pyperf/_system.py (system tune operations), pyperf source (main), 2026, https://github.com/psf/pyperf/blob/main/pyperf/_system.py"
+  - "Linux kernel contributors, Documentation/admin-guide/pm/cpuidle.rst (idle states, PM QoS, cpu_dma_latency, idle=poll, max_cstate), Linux v7.0, 2026, https://github.com/torvalds/linux/blob/v7.0/Documentation/admin-guide/pm/cpuidle.rst"
+  - "Linux kernel contributors, Documentation/admin-guide/pm/amd-pstate.rst (per-CPU boost), Linux v7.0, 2026, https://github.com/torvalds/linux/blob/v7.0/Documentation/admin-guide/pm/amd-pstate.rst"
+  - "Linux kernel contributors, Documentation/admin-guide/mm/transhuge.rst (THP enabled, defrag, khugepaged), Linux v7.0, 2026, https://github.com/torvalds/linux/blob/v7.0/Documentation/admin-guide/mm/transhuge.rst"
+  - "Linux kernel contributors, Documentation/admin-guide/sysctl/vm.rst (drop_caches), Linux v7.0, 2026, https://github.com/torvalds/linux/blob/v7.0/Documentation/admin-guide/sysctl/vm.rst"
+  - "Linux kernel contributors, tools/power/cpupower/man/cpupower-frequency-info.1, Linux v7.0 source, 2026, https://github.com/torvalds/linux/blob/v7.0/tools/power/cpupower/man/cpupower-frequency-info.1"
+  - "Michael Kerrisk, proc_stat(5) (steal time), Linux man-pages project, 2026, https://man7.org/linux/man-pages/man5/proc_stat.5.html"
+  - "Google LLC, src/sysinfo.cc (CpuScaling), Google Benchmark source (main), 2026, https://github.com/google/benchmark/blob/main/src/sysinfo.cc"
+  - "David Peter and hyperfine contributors, hyperfine README and CHANGELOG (v2.0.0), GitHub sharkdp/hyperfine, 2026, https://github.com/sharkdp/hyperfine/blob/master/CHANGELOG.md"
+  - "Victor Stinner and pyperf contributors, pyperf/_manager.py (worker environment via create_environ) and doc/system.rst (nohz_full needs a fixed frequency), pyperf source (main), 2026, https://github.com/psf/pyperf/blob/main/pyperf/_manager.py"
+  - "Linux kernel contributors, tools/perf/Documentation/perf-stat.txt (--repeat, max 100), Linux v7.0 source, 2026, https://github.com/torvalds/linux/blob/v7.0/tools/perf/Documentation/perf-stat.txt"
+  - "Sebastien Godard and sysstat contributors, mpstat(1) (%steal), man7.org, 2026, https://man7.org/linux/man-pages/man1/mpstat.1.html"
+  - "procps-ng contributors, vmstat(8) (st column), man7.org, 2026, https://man7.org/linux/man-pages/man8/vmstat.8.html"
+  - "Michael Kerrisk, set_mempolicy(2) (local allocation default), Linux man-pages project, 2026, https://man7.org/linux/man-pages/man2/set_mempolicy.2.html"
+  - "Google LLC, User Guide (--benchmark_min_time Nx and Ns forms), Google Benchmark documentation (main), 2026, https://github.com/google/benchmark/blob/main/docs/user_guide.md"
+  - "Google LLC, Google Benchmark v1.10.0 release (published 2026-10-14), GitHub, 2026, https://github.com/google/benchmark/releases/tag/v1.10.0"
 ---
 
 # Benchmark Methodology: Noise and Environment Control
@@ -68,6 +86,9 @@ flowchart TD
         SMT["SMT sibling activity"]
         NUMA["NUMA node of CPU and of pages"]
         IRQ["Interrupts, timer ticks,<br/>other tasks, RCU callbacks"]
+        IDLE["Idle state exit latency<br/>(cpuidle, PM QoS)"]
+        MEM["Page cache, THP and khugepaged,<br/>dynamic loader"]
+        VM["Hypervisor steal time,<br/>heterogeneous core types"]
     end
 
     MAIN --> BIAS{"Fixed per setup:<br/>bias"}
@@ -77,6 +98,9 @@ flowchart TD
     SMT --> NOISE
     NUMA --> NOISE
     IRQ --> NOISE
+    IDLE --> NOISE
+    MEM --> NOISE
+    VM --> NOISE
     BIAS --> FIXB["Randomize the setup and test across setups<br/>(Mytkowicz setup randomization, STABILIZER)"]
     NOISE --> FIXN["Control the host, repeat, interleave A and B<br/>(this note), then use the right statistics"]
 ```
@@ -99,7 +123,8 @@ They ran on a Core 2 workstation (Linux 2.6.25, gcc 4.1.3 and icc 10.1), a Penti
 The bias they found survived all of that.
 
 The LLVM benchmarking guide puts the same point in one line: "Note that low noise is required, but not sufficient. It does not exclude measurement bias."
-Every control in sections 4 to 7 below reduces noise; sections 2, 3, and 8 are about bias.
+The controls in subsections 5 to 10 of this mechanism reduce noise; subsections 2, 3, 4, and 11 are about bias.
+Some sources sit on both sides: page cache state is noise when it varies between runs and bias when every A run is cold and every B run is warm.
 
 ### 2. Environment size moves the stack
 
@@ -125,9 +150,9 @@ They grew an unused environment variable from 0 to 4096 bytes in 63-byte steps a
 - The median spread across benchmarks was 0.01 on the Core 2 and 0.04 on the Pentium 4, and four of the violins on the Core 2 straddled 1.0.
 - An unoptimized micro-kernel that only increments three global counters in a loop changed run time "frequently by about 33% and once by almost 300%" as the environment grew (Section 2).
 
-They then confirmed the mechanism by intervention (Section 7.2): when they fixed the stack's start address regardless of environment size, the speedup no longer depended on environment size for every benchmark except perlbench, which copies the environment to the heap; fixing the heap start as well removed most of the remaining effect.
-Of 340 Core 2 performance events, one, `LOAD_BLOCK.OVERLAP_STORE` (loads blocked by preceding overlapping stores), changed 10-fold between the fastest and slowest environment sizes, which points at the hardware's alignment-based load-store overlap heuristics.
-The authors call that cause "probably," because the hardware could not attribute the event to stack locations.
+They then confirmed the mechanism by intervention (Section 4.2.2, summarized again as the causal-analysis example in Section 7.2): when they fixed the stack's start address regardless of environment size, the speedup no longer depended on environment size for every benchmark except perlbench, which copies the environment to the heap; for perlbench, fixing the heap start so that every environment fit below it left a much smaller effect, and the authors attribute the residual to the stack shift.
+Of 340 Core 2 performance events, 42 differed by more than 25%, and one, `LOAD_BLOCK:OVERLAP_STORE` (loads blocked for various reasons, among them preceding stores), changed 10-fold between the fastest and slowest environment sizes, which points at the hardware's alignment-based load-store overlap heuristics.
+The authors call that cause "probably," because the hardware could not attribute the event to stack locations: PEBS, the Core 2's precise sampling, does not support that event.
 
 ### 3. ASLR turns the bias into noise
 
@@ -151,13 +176,13 @@ The tools disagree about which side to take (as of 2026-11, Linux):
 - The LLVM guide says "Disable frequency scaling, Turbo Boost and address space randomization."
 - Google Benchmark's reporter prints `***WARNING*** ASLR is enabled, the results may have unreproducible noise in them.`, its v1.9.3 release added "Automatic ASLR disablement", and its variance guide recommends calling `benchmark::MaybeReenterWithoutASLR(argc, argv)` first in `main()`.
 - pyperf's `system tune` instead checks that `randomize_va_space` is `2` (full randomization), and its `Runner` spawns 20 worker processes by default.
-- pyperf also builds each worker's environment from scratch: `create_environ()` in `pyperf/_utils.py` copies only `PATH`, `HOME`, `TEMP`, `COMSPEC`, `SystemRoot`, `SystemDrive`, `PYTHONPATH`, `PYTHON_CPU_COUNT`, `PYTHON_GIL`, three pyperf variables, and optionally the locale, unless `--copy-env` or `--inherit-environ` is given, which removes most accidental environment-size differences between runs.
+- pyperf also builds each worker's environment from scratch: `create_environ()` in `pyperf/_utils.py` copies only `PATH`, `HOME`, `TEMP`, `COMSPEC`, `SystemRoot`, `SystemDrive`, `PYTHONPATH`, `PYTHON_CPU_COUNT`, `PYTHON_GIL`, three pyperf variables, and the locale variables unless `--no-locale` is given; `--inherit-environ` adds named variables to that list and `--copy-env` copies the whole environment, so by default most accidental environment-size differences between runs are gone.
 
 The two positions are consistent once noise and bias are separated.
 Disabling ASLR is right for a single-binary microbenchmark when you are hunting a small effect and want a stable number from one layout, and wrong when you compare two binaries, because each binary then sits at one fixed, arbitrary layout.
 Keeping ASLR on and spawning many processes, as pyperf does, samples layouts for free and is the cheap half of setup randomization.
 
-### 4. Link order and code alignment
+### 4. Link order, code alignment, and dynamic loading
 
 The linker lays out input sections in command-line order, padding each one to its section alignment.
 Adding, removing, or reordering any object file therefore moves every function that follows it, and GCC's `-falign-functions` documentation states the alignment rule: align function starts to a power of two, "skipping up to m-1 bytes", which GCC enables at `-O2` and `-O3` with a machine-dependent default, and which "is ignored for functions considered cold."
@@ -170,6 +195,12 @@ On the Core 2 they suspected the loop stream detector but could not confirm it, 
 Code alignment interacts with front-end structures that fetch in fixed windows, so it is not only a cache-line question.
 The Jump Conditional Code erratum is the best-documented recent case: H. J. Lu's binutils patch series states that the microcode update for the erratum "may cause performance loss for some workloads", and GNU as added `-mbranches-within-32B-boundaries`, which "aligns conditional jumps, fused conditional jumps and unconditional jumps within 32 byte boundary" and is off by default.
 A benchmark that spans a microcode update, or compares a binary assembled with and without that option, can therefore move for reasons unrelated to the source change.
+
+Dynamic linking adds a third layout source.
+Shared libraries are mapped at the mmap base, which `randomize_va_space` level 1 already randomizes, and calls into them normally go through PLT stubs and GOT slots that the dynamic loader fills, either lazily on first call or at startup when the binary is linked with `-z now`.
+The LLVM guide's advice is direct: "Use static linking if the OS supports it. That avoids any variation that might be introduced by loading dynamic libraries."
+Static linking removes the library mapping, the loader's work, and the indirect call from the timed path, at the price of measuring a binary that may not be the one you ship.
+[[Linkers-LTO-PGO-AutoFDO-and-BOLT]] owns the linker mechanics, including the layout changes that LTO, PGO, and BOLT make on purpose.
 
 ### 5. Frequency: governors, turbo, power, and heat
 
@@ -189,20 +220,51 @@ In `intel_pstate` active mode with HWP, `performance` is not the generic governo
 With turbo allowed, that upper boundary is in the turbo range, and the same document says turbo P-states "are not sustainable": the processor raises cores into them only while power and the thermal envelope allow, and the highest turbo P-state "generally depends on the number of cores running concurrently."
 So "governor = performance" does not mean "fixed frequency" on that hardware; setting `no_turbo` keeps the range below the turbo threshold, where the document calls P-states "generally sustainable", and pinning `scaling_min_freq` to `scaling_max_freq`, which `pyperf system tune` does, closes the rest of the range.
 
+AMD's `amd-pstate` driver puts the switch per CPU instead: `Documentation/admin-guide/pm/amd-pstate.rst` describes `/sys/devices/system/cpu/cpuX/cpufreq/boost`, where writing 0 "restricts the CPU to operate at the base frequency" and 1 lets it go beyond it.
+A host script that writes only the global `cpufreq/boost` file, or only `intel_pstate/no_turbo`, therefore leaves turbo on when the machine uses a different driver, and a script that ignores the write error never notices; read `cpuN/cpufreq/scaling_driver` first, which is how pyperf decides whether its `intel_pstate` operations apply.
+
+The order of the writes matters too.
+pyperf's `OPERATIONS` list in `pyperf/_system.py` runs `CPUGovernor` before `TurboBoostIntelPstate`, with the comment "Setting the CPU scaling governor resets no_turbo and so must be set before Turbo Boost", and on x86 without `intel_pstate` it falls back to `TurboBoostMSR`, which reads and writes the turbo bit through `/dev/cpu/N/msr` and needs the `msr` kernel module.
+A hand-written preparation script that disables turbo first and sets the governor second can end with turbo back on.
+
+The harnesses check less than they appear to.
+Google Benchmark's `CpuScaling()` in `src/sysinfo.cc` reads every `cpuN/cpufreq/scaling_governor` and reports scaling as enabled only if one of them is not `performance`, which makes the reporter print `***WARNING*** CPU scaling is enabled, the benchmark real time measurements may be noisy and will incur extra overhead.`
+It does not read turbo, boost, or the frequency range, so an `intel_pstate` host with governor `performance` and turbo on prints no warning while running at an unsustainable frequency.
+
 Frequency also depends on things no sysfs file controls.
 Mytkowicz et al. note that room temperature affects the clock speed (Section 3).
 A laptop on battery changes speed as the battery drains, which is why `pyperf system tune` checks that the power cable is plugged in.
-nanobench checks the same family at startup on Linux: it warns when `scaling_min_freq` differs from `scaling_max_freq`, when `cpu0`'s governor is not `performance`, and when `intel_pstate/no_turbo` is 0, then recommends `pyperf system tune`.
+nanobench checks the same family on Linux once, before it prints its first result table (`gatherStabilityInformation()`): it warns when `scaling_min_freq` differs from `scaling_max_freq`, when `cpu0`'s governor is not `performance`, and when `intel_pstate/no_turbo` is 0, then recommends `pyperf system tune`.
 
-### 6. SMT siblings
+### 6. Idle states and wake-up latency
+
+Frequency governs how fast a running CPU executes; idle states govern how long a sleeping CPU takes to start again, and any benchmark that blocks, sleeps, or waits on another thread pays that cost on every wake-up.
+`Documentation/admin-guide/pm/cpuidle.rst` (Linux v7.0) characterizes each idle state by two numbers: the target residency, "the minimum time the hardware must spend in the given state, including the time needed to enter it", to save more energy than a shallower state, and the worst-case exit latency, "the maximum time it will take a CPU asking the processor hardware to enter an idle state to start executing the first instruction after a wakeup from that state."
+The governor (`menu` by default on tickless systems, or `teo`, `ladder`, `haltpoll`) picks a state from the predicted idle duration, so the depth a CPU reaches, and with it the next wake-up cost, depends on the recent timer and interrupt history rather than on the benchmark.
+That makes idle depth a noise source for latency benchmarks such as ping-pong between threads, request-response loops, and anything with a `futex` wait, and almost none for a CPU-bound loop that never idles.
+
+The kernel exposes and controls the states at several levels:
+
+- Per state and per CPU: `/sys/devices/system/cpu/cpuN/cpuidle/stateK/` holds `name`, `latency` (exit latency in microseconds), `residency` (target residency in microseconds), `usage`, `time`, `above`, `below`, and `disable`, the only writable file; disabling a state on one CPU does not disable it on the others.
+- Global latency limit: opening `/dev/cpu_dma_latency` and writing a binary signed 32-bit value in microseconds adds a PM QoS request, the kernel applies the minimum of all requests as the ceiling on exit latency, and the request lasts only while the file descriptor stays open, so a shell `echo` into the file has no lasting effect.
+- Per-CPU limit: `/sys/devices/system/cpu/cpuN/power/pm_qos_resume_latency_us` holds one request shared by all of user space.
+- Boot time: `intel_idle.max_cstate=<n>` and `processor.max_cstate=<n>` drop states deeper than `<n>` for those drivers, `cpuidle.off=1` disables the subsystem, and on x86 `idle=poll` makes idle CPUs spin.
+
+Disabling idle states is not free, and on Intel it can lower the frequency the benchmark gets.
+The same document warns that `idle=poll` "is somewhat drastic", because on Intel hardware "it effectively prevents CPUs from using P-states ... that require any number of CPUs in a package to be idle, so it very well may hurt single-thread computations performance."
+The coupling runs through turbo: the highest turbo P-state depends on how many cores are busy, as the frequency subsection quotes from `intel_pstate.rst`, and a polling CPU never enters the idle state those P-states require.
+Turning off turbo and limiting idle depth together gives a fixed frequency and a bounded wake-up cost; limiting idle depth alone trades one noise source for a bias toward lower single-thread frequency.
+`pyperf system tune` does not touch idle states (as of 2026-11, its `OPERATIONS` list has no cpuidle operation), so a latency benchmark needs this step added by hand.
+
+### 7. SMT siblings
 
 Two SMT threads on one core share its execution units and private caches, so the timing of a benchmark on one thread depends on whatever runs on the other.
-The kernel comment quoted in section 3 is an admission of exactly this coupling: the sub-page stack shuffle exists to reduce L1 conflicts between processes on the same core.
+The kernel comment quoted in subsection 3 is an admission of exactly this coupling: the sub-page stack shuffle exists to reduce L1 conflicts between processes on the same core.
 Linux reports a CPU's siblings in `/sys/devices/system/cpu/cpuN/topology/thread_siblings_list`.
 It can disable SMT at runtime through `/sys/devices/system/cpu/smt/control` (`on`, `off`, a thread count, or the read-only states `forceoff`, `notsupported`, `notimplemented`), or at boot with `nosmt`.
 The LLVM guide takes the narrower route: take the benchmark CPU's sibling offline with `echo 0 > /sys/devices/system/cpu/cpuX/online`.
 
-### 7. Placement: NUMA, the scheduler, and interrupts
+### 8. Placement: NUMA, the scheduler, and interrupts
 
 On a multi-socket or multi-die system, memory latency depends on which node holds a page relative to the CPU that touches it.
 The default Linux policy is "local allocation": `set_mempolicy(2)` documents that pages are allocated "on the node of the CPU that triggered the allocation."
@@ -218,7 +280,41 @@ The controls, from coarse to fine:
 - `nohz_full=` stops the scheduler tick on listed CPUs when one task runs and offloads their RCU callbacks as `rcu_nocbs=` would; pyperf warns that it is incompatible with `intel_pstate` and requires a fixed frequency.
 - IRQ affinity: `pyperf system tune` stops `irqbalance` and rewrites `/proc/irq/default_smp_affinity` and `/proc/irq/N/smp_affinity` so device interrupts land elsewhere.
 
-### 8. Controlling bias: setup randomization and causal analysis
+### 9. Memory and storage state: page cache and transparent huge pages
+
+The kernel keeps state between runs that the benchmark did not create, and two parts of it matter most.
+
+The page cache holds file data from earlier runs, so the first run of an I/O-touching benchmark reads from storage and later runs read from memory.
+That is a warm-versus-cold choice, and it must be made explicitly and identically for A and B.
+For cold runs, `Documentation/admin-guide/sysctl/vm.rst` documents `echo 1`, `2`, or `3 > /proc/sys/vm/drop_caches` to free the page cache, reclaimable slab objects (dentries and inodes), or both; it is "a non-destructive operation and will not free any dirty objects", so run `sync` first, and the kernel logs a line such as `cat (1234): drop_caches: 3` each time.
+hyperfine's README shows the same command as a per-run `--prepare` step, `sync; echo 3 | sudo tee /proc/sys/vm/drop_caches`, and offers `--warmup N` for the warm case.
+The LLVM guide avoids the question for compiler benchmarks by putting "the program, inputs and outputs on tmpfs", because a real storage system "can have a pretty big variability."
+
+Transparent huge pages make memory layout change while the benchmark runs.
+`Documentation/admin-guide/mm/transhuge.rst` (Linux v7.0) explains the gain: one page fault per 2 MiB region instead of 512, and fewer, faster TLB misses afterwards, at the cost of "larger clear-page copy-page in page faults."
+Whether a given buffer gets a huge page depends on the policy, on whether a free huge page exists at fault time, and on later background work, and three controls decide it:
+
+- `/sys/kernel/mm/transparent_hugepage/enabled` is `always`, `madvise` (only regions marked with `madvise(MADV_HUGEPAGE)`), or `never`; per-size files under `hugepages-<size>kB/enabled` exist for multi-size THP, and PMD-sized pages default to `inherit`.
+- `defrag` decides what a fault does when no huge page is free: `always` stalls in direct reclaim and compaction, `defer` wakes `kswapd` and `kcompactd` and lets `khugepaged` install the huge page later, and `madvise`, the default, stalls only for `MADV_HUGEPAGE` regions.
+- `khugepaged` scans in the background (`khugepaged/pages_to_scan` per pass, `scan_sleep_millisecs` between passes) and collapses small pages into huge pages in place.
+
+So the same binary can run its timed loop on 4 KiB pages in one run and on 2 MiB pages in the next, or switch partway through when `khugepaged` collapses its buffer, and the difference can show up as two clusters of timings rather than as one wider spread.
+Record `AnonHugePages` from `/proc/meminfo` (or per mapping in `/proc/PID/smaps`) and the `thp_fault_alloc`, `thp_fault_fallback`, and `thp_collapse_alloc` counters from `/proc/vmstat` before and after each run, and either pin the policy (`never`, or `madvise` with an explicit `MADV_HUGEPAGE` in the benchmark) or treat page size as a measured factor.
+[[Virtual-Memory-Mmap-and-Process-Address-Space]] owns page tables and the fault path.
+
+### 10. Virtual machines and heterogeneous cores
+
+A guest kernel cannot remove noise that the host creates.
+`proc_stat(5)` defines the eighth CPU time column, `steal` (since Linux 2.6.11), as "the time spent in other operating systems when running in a virtualized environment": time the guest's vCPU was runnable but the hypervisor ran something else.
+A nonzero steal delta during a run means the guest's wall-clock time includes the neighbors' work, and no guest setting changes that; whatever cpufreq, cpuidle, and SMT files a guest exposes describe virtual CPUs, not the host cores that run them.
+Record steal with every cloud result (`mpstat` prints it as `%steal`, "involuntary wait by the virtual CPU or CPUs while the hypervisor was servicing another virtual processor", and `vmstat` as `st`), and keep wall-clock comparisons for dedicated or bare-metal hosts.
+
+Heterogeneous CPUs add a placement dimension that frequency controls cannot cover.
+On the Apple M3 Pro used to check this note (macOS 27.3), `sysctl hw.nperflevels` prints `2`, with `hw.perflevel0.name` `Performance` and `hw.perflevel1.name` `Efficiency`, six logical CPUs each.
+The same benchmark thread can be scheduled on either kind, and macOS has no `/sys` cpufreq or cpuidle interface; `taskpolicy(8)` on that system offers QoS clamps (`utility`, `background`, `maintenance`), I/O policies, and tiers, and no option that pins a process to a core or a core type.
+On macOS the practical controls are therefore a quiet machine on mains power, many repetitions, and a recorded `sysctl hw` snapshot; tight host control is a Linux activity.
+
+### 11. Controlling bias: setup randomization and causal analysis
 
 Host controls cannot remove a bias that the setup itself defines, so Mytkowicz et al. borrow two techniques from experimental science (Section 7).
 
@@ -227,7 +323,7 @@ For perlbench they used 484 setups (22 link orders times 22 environment sizes), 
 They also showed that a benchmark suite is not a substitute: across 66 layouts, the suite-average speedup still varied by 7%, because what cancels bias is diversity of layouts, not number of programs.
 
 Causal analysis checks a conclusion by intervention: change the suspected cause while holding everything else, and see whether the effect follows.
-Fixing the stack start address and re-measuring across environment sizes is the example from section 2.
+Fixing the stack start address and re-measuring across environment sizes is the example from subsection 2.
 
 STABILIZER (Curtsinger and Berger, ASPLOS 2013) automates setup randomization inside one run.
 An LLVM pass and runtime place functions at random addresses, shuffle heap allocations, and insert a random pad of up to 4096 bytes in 16-byte steps between stack frames, and the runtime re-randomizes code and stack every 500 ms by default.
@@ -235,10 +331,21 @@ Because each run is a sum of many independently randomized layout periods, its e
 They report a median overhead under 7% and, on SPEC CPU2006 with LLVM, that "the performance impact of -O3 over -O2 optimizations is indistinguishable from random noise."
 Their own measurements also found link order alone changing performance by as much as 57%.
 
-### 9. What remains after all of this
+### 12. What remains after all of this
 
 Mytkowicz et al. surveyed 133 papers from ASPLOS 2008, PACT 2007, PLDI 2007, and CGO 2007; 88 had an experimental methodology section, none addressed measurement bias satisfactorily, and the median reported speedup was 10%, a size their data shows bias can manufacture.
-Brendan Gregg's "active benchmarking" is the practical complement: analyze the system with `vmstat`, `mpstat`, `perf`, and similar tools while the benchmark runs, to confirm it is limited by what you think it is limited by.
+
+Process-level harnesses decide how much of this a comparison samples.
+hyperfine (v2.0.0, released 2026-10-07) launches every run of a command as a new process, performs at least 10 runs by default with a run count aimed at roughly 3 seconds, and flags statistical outliers as possible "interference from other programs and caching effects."
+Because each run is a fresh `execve`, ASLR re-draws the sub-page stack offset for each run, which samples layouts the way pyperf's workers do.
+Its 2.0.0 release changed the default to run commands directly, without an intermediate shell (`--shell=none`), and added `--env` to set variables without one; before that, every run went through `sh` and hyperfine subtracted a measured shell spawn time, which was itself a noise term for fast commands.
+`--setup`, `--prepare`, `--conclude`, and `--cleanup` still run through a shell.
+Two benchmarks that differ in `--env` values or in command length change the stack layout as subsection 2 describes, so keep both sides' environments and paths the same length when the effect is small.
+
+Brendan Gregg's "Active Benchmarking" page (last updated 20-Apr-2014) names the failure that host control cannot catch: "casual benchmarking: you benchmark A, but actually measure B, and conclude you've measured C."
+His remedy is to analyze the system with `vmstat`, `iostat`, `mpstat`, `perf`, and similar tools while the benchmark runs, so you can say why the result was X and not 2X.
+His problem checklist starts with a benchmark "Perturbed by other system events, including neighbors", the noise this note's host controls target, and continues with failures no host setting fixes: throttling by resource controls or the network, a single-threaded benchmark, mismatched software versions in a comparison, testing disk I/O instead of file system I/O, and an unrealistic workload.
+He also warns that statistics cannot rescue a wrong benchmark: "A sound statistical method can make benchmark results seem trustworthy, when in fact, they are false."
 [[USE-RED-and-Systems-Performance-Methodologies]] owns that method, and [[Hardware-Performance-Counters-Top-Down-TMA-and-Roofline]] owns the counters that explain a layout effect once one is found.
 
 ## Commands and Numbers to Know
@@ -252,9 +359,19 @@ Brendan Gregg's "active benchmarking" is the practical complement: analyze the s
 | Docker default seccomp `personality` | allows only `0`, `8`, `0x20000`, `0x20008`, `0xffffffff` | Linux (as of 2026-11) | `setarch -R` and GDB's ASLR disable fail with EPERM in a default container |
 | GDB `set disable-randomization` | `on` by default | Linux (as of 2026-11) | Programs started under GDB run without ASLR |
 | LLDB `target.disable-aslr` | `true` by default (lldb-2103.0.34.407) | macOS (as of 2026-11) | Programs launched by LLDB run without ASLR |
-| `cpupower frequency-set --governor performance` | governor for all CPUs | Linux (as of 2026-11) | cpufreq policy; check with `cpupower frequency-info -o proc` |
+| `cpupower frequency-set --governor performance` | governor for all CPUs | Linux (as of 2026-11) | cpufreq policy; check with `cpupower frequency-info -p` (policy) and `-d` (driver); `-o` is the legacy `/proc/cpufreq` format and takes no argument |
 | `/sys/devices/system/cpu/cpufreq/boost` | `0` forbids boost, `1` permits it | Linux (as of 2026-11) | Generic boost switch; absent under `intel_pstate` |
 | `/sys/devices/system/cpu/intel_pstate/no_turbo` | `1` forbids turbo P-states | Linux, Intel (as of 2026-11) | Turbo off under `intel_pstate` |
+| `cpuX/cpufreq/boost` (amd-pstate) | `0` base frequency only, `1` boost allowed, per CPU | Linux, AMD (as of 2026-11) | Turbo off under `amd-pstate`; check `scaling_driver` first |
+| `cpuN/cpuidle/stateK/{latency,residency,disable}` | exit latency and target residency in us; `disable` is the only writable file | Linux v7.0 (as of 2026-11) | Per-CPU idle state inspection and control |
+| `/dev/cpu_dma_latency` | binary s32 in us, held while the fd stays open | Linux v7.0 (as of 2026-11) | Global PM QoS ceiling on idle exit latency |
+| `intel_idle.max_cstate=<n>`, `processor.max_cstate=<n>`, `idle=poll` | boot parameters | Linux v7.0 (as of 2026-11) | Drop deep idle states; `idle=poll` can lower Intel single-thread turbo |
+| `/proc/sys/vm/drop_caches` | `1` page cache, `2` slab, `3` both; `sync` first | Linux v7.0 (as of 2026-11) | Cold-cache runs; logged in the kernel log |
+| `/sys/kernel/mm/transparent_hugepage/{enabled,defrag}` | `always`, `madvise`, `never`; defrag default `madvise` | Linux v7.0 (as of 2026-11) | Whether timed buffers get 2 MiB pages |
+| `/proc/vmstat` `thp_fault_alloc`, `thp_fault_fallback`, `thp_collapse_alloc` | counters | Linux v7.0 (as of 2026-11) | Detect huge page allocation and collapse during a run |
+| `/proc/stat` `steal` column, `mpstat` `%steal`, `vmstat` `st` | time a runnable vCPU waited for the hypervisor | Linux (as of 2026-11) | Detect host-side noise in a guest |
+| `sysctl hw.nperflevels hw.perflevel0.logicalcpu` | `2`; 6 Performance and 6 Efficiency CPUs on an M3 Pro | macOS 27.3 (as of 2026-11) | Heterogeneous core inventory to record with results |
+| `hyperfine -w N -p CMD` | at least 10 runs, about 3 s target; no shell by default since v2.0.0 | Both, v2.0.0 (as of 2026-11) | Whole-command benchmarking with warmup or per-run preparation |
 | `/sys/devices/system/cpu/smt/control` | `on`, `off`, `<N>`, `forceoff`, `notsupported`, `notimplemented` | Linux (as of 2026-11) | Runtime SMT switch; `nosmt` at boot |
 | `cpuN/topology/thread_siblings_list` | sibling CPU list | Linux (as of 2026-11) | Which CPU to offline or keep idle |
 | `isolcpus=`, `nohz_full=` | boot parameters; `isolcpus` deprecated in favor of cpusets | Linux v7.0 (as of 2026-11) | Scheduler isolation and tick suppression |
@@ -280,7 +397,7 @@ Brendan Gregg's "active benchmarking" is the practical complement: analyze the s
 | Host checks | Google Benchmark warns on CPU scaling; nanobench warns on min/max frequency, governor, `no_turbo` | `system tune` sets governor, min frequency, turbo, IRQ affinity | None in the defaults |
 | Warmup | `--benchmark_min_warmup_time` default 0 | 1 warmup value per worker | `warm_up_time` 3 s |
 | Measurement budget | `--benchmark_min_time` (iterations `Nx` or seconds `Ns`) | Loops calibrated to at least 100 ms per value | `measurement_time` 5 s, `sample_size` 100 |
-| Decision rule | Mean and stddev of repetitions; comparison via `compare.py` | `pyperf compare_to` | `noise_threshold` 0.01, `significance_level` 0.05, 100,000 bootstrap resamples |
+| Decision rule | Mean, median, stddev, and CV aggregates of repetitions; comparison via `compare.py` | `pyperf compare_to` | `noise_threshold` 0.01, `significance_level` 0.05, 100,000 bootstrap resamples |
 | Dead-code barrier | `benchmark::DoNotOptimize` | Not applicable to interpreted code | `std::hint::black_box`, stable since Rust 1.66.0, documented as "best-effort" |
 | Language-specific noise | Link order, `-falign-*` flags, PGO and LTO layout | `PYTHONHASHSEED` changes `str` and `bytes` hashes per process unless set | Codegen units and inlining change layout between builds |
 
@@ -294,7 +411,7 @@ It times nothing; it prints where the kernel and the linker put things, as offse
 
 `run.sh` compiles three C files with `"${CC:-cc}" -O2` and runs `driver.py`, which launches each binary with an explicit environment, `{"PAD": "x" * n}`, so the parent shell cannot leak in:
 
-- `probe.c` has four modes: `strings` prints `argv[0]`'s offset in its page and the offset predicted from the layout in section 2 (`4096 - (8 + strlen(AT_EXECFN) + 1 + sum of env strings + 1 + sum of argv strings + 1)`); `frame` prints the page offset of a 16-byte-aligned 64-byte buffer in a callee; `shift` calls the same callee after `alloca(k)`; `code` prints `hot_loop`'s offset in its 64-byte line and its distance from `lab_pad`.
+- `probe.c` has four modes: `strings` prints `argv[0]`'s offset in its page and the offset predicted from the layout in subsection 2 of the mechanism (`4096 - (8 + strlen(AT_EXECFN) + 1 + sum of env strings + 1 + sum of argv strings + 1)`); `frame` prints the page offset of a 16-byte-aligned 64-byte buffer in a callee; `shift` calls the same callee after `alloca(k)`; `code` prints `hot_loop`'s offset in its 64-byte line and its distance from `lab_pad`.
 - `hot.c` holds `hot_loop`, the stand-in for the benchmarked function; it is compiled once by default and once with `-falign-functions=64`.
 - `pad.c` holds `lab_pad`, exactly 40 bytes of code emitted with `.fill 10, 4, 0`, standing in for an unrelated function that grew.
 
@@ -306,7 +423,8 @@ cd ../.. && make verify LAB=04-Measurement-Methodology/env_alignment_bias/   # e
 
 ### Verified output
 
-Recorded by `python3 -m _harness.verify --record` on 2026-11-08 in the pinned container `toolchain-labs:f39efe0ff57b` (Ubuntu 24.04, GCC 13.3.0, kernel 7.2.12, aarch64) and re-checked by `make verify`; the file is `code/04-Measurement-Methodology/env_alignment_bias/expected/linux-aarch64.txt`.
+Recorded by `python3 -m _harness.verify --record` on 2026-11-08 in the lab container `toolchain-labs:f39efe0ff57b` (Ubuntu 24.04 base per `linux-labs.Dockerfile`, aarch64; the compiler and kernel versions of that image were not re-read, so the note does not state them); the file is `code/04-Measurement-Methodology/env_alignment_bias/expected/linux-aarch64.txt`, and the block is copied from it byte for byte.
+The harness image has since been rebuilt from a changed Dockerfile, so a fresh recording in the current image is the next check; part D's numbers are the ones a different compiler build could move.
 
 ```text
 == A. Environment bytes move the exec string area by exactly that many bytes ==
@@ -355,13 +473,20 @@ default build: line offset depends on link order: yes
   The prediction is computed independently from `getauxval(AT_EXECFN)`, `environ`, and `argv`; a different layout would print `MISMATCH`.
 - Part B shows ASLR's sub-page shuffle at work in the container, which runs with `randomize_va_space=2`.
   The buffer keeps its 16-byte alignment, but over 64 launches it landed in all four 16-byte slots of a 64-byte line, so in some launches it fits in one line and in others it straddles two.
-  On a host with ASLR disabled the same part prints `1 of 4` and one of the last two lines turns to `no`: the layout becomes fixed, and the environment decides which slot.
+  On a host with ASLR disabled the same part prints `1 of 4`, and both the page-offset line and one of the last two lines turn to `no` (by reading `driver.py`; not run here, because the container cannot disable ASLR): the layout becomes fixed, and the environment decides which slot.
 - Part C is the harness-side control: reserving `k` bytes on the stack before calling the benchmark moves its frame by `k` rounded up to 16, so a harness can sweep all four slots on purpose, which is the stack half of setup randomization and what STABILIZER's per-frame pad does.
 - Part D isolates link order.
-  On this toolchain `hot.o`'s `.text` is 16-byte aligned and `pad.o`'s is byte-aligned, so with `pad.o` first `hot_loop` starts 44 bytes after `lab_pad` (40 bytes of pad plus 4 bytes of alignment padding) at line offset 16, and with `hot.o` first it starts at line offset 48 and `lab_pad` follows its 52 bytes.
+  On this toolchain `hot.o`'s `.text` is 16-byte aligned and `pad.o`'s needs at most 4-byte alignment (in the `pad_first` order `lab_pad` starts 4 bytes past a 16-byte boundary, which the output implies), so with `pad.o` first `hot_loop` starts 44 bytes after `lab_pad` (40 bytes of pad plus 4 bytes of alignment padding) at line offset 16, and with `hot.o` first it starts at line offset 48 and `lab_pad` follows its 52 bytes.
   Recompiling `hot.c` with `-falign-functions=64` puts it at offset 0 in both orders, paying 52 bytes of padding in the `pad_first` order (92 - 40), which is the trade the flag makes.
 
-In a reviewer run in the same container (not part of the golden file), `setarch $(uname -m) -R true` failed with `setarch: failed to set personality to aarch64: Operation not permitted`, and `gdb -batch -ex run /bin/true` printed `warning: Error disabling address space randomization: Operation not permitted`, matching the Docker seccomp allowlist in the table.
+What the lab does not prove:
+- Part B's `mod 16 identical` line is guaranteed by the buffer's `_Alignas(16)`, so it checks the declaration, not the kernel's `& ~0xf` in `arch_align_stack`; the 4-of-4 slot line is the one that depends on the kernel.
+- Part B is probabilistic: with 64 launches and four equally likely slots, the chance of missing a slot is about 4e-8, negligible but not zero.
+- Part C measures GCC's `alloca` rounding on this toolchain, not a rule of the ABI.
+- Part D's offsets and distances depend on the compiler and linker versions, so they are recorded for the aarch64 GCC build of that container image only; there is no linux-amd64 expected file.
+- The ASLR-off branch is never executed.
+
+Inside a default Docker container the `personality(2)` call that turns ASLR off is blocked by the default seccomp allowlist (checked against moby `profiles/seccomp/default.json`), so `setarch -R` and a debugger's ASLR disabling are expected to fail with `Operation not permitted`; this lab did not run that failure, so no output for it is shown.
 That is why the lab demonstrates the ASLR-off case by reasoning rather than by running it.
 
 ## Pitfalls
@@ -400,9 +525,27 @@ That is why the lab demonstrates the ASLR-off case by reasoning rather than by r
 > Adding a log line, reordering objects, or toggling an unrelated flag moves `hot_loop`, as part D shows.
 > Before attributing a small regression to a commit, rebuild the parent with a different link order or with `-falign-functions=64` on the hot file and see whether the regression survives.
 
+> [!warning] Pitfall 9: Disabling turbo, then setting the governor
+> pyperf's own source orders its operations so that the governor is set before turbo, because "Setting the CPU scaling governor resets no_turbo."
+> A hand-written script that writes `no_turbo` first and the governor second can leave turbo on while its log says off.
+> Read every setting back after the last write, and write only the files that the active `scaling_driver` actually uses (`intel_pstate/no_turbo`, the global `cpufreq/boost`, or per-CPU `cpufreq/boost` under `amd-pstate`).
+
+> [!warning] Pitfall 10: Using `idle=poll` to remove wake-up noise
+> Spinning idle CPUs do bound wake-up latency, but the kernel documentation warns that on Intel this "effectively prevents CPUs from using P-states ... that require any number of CPUs in a package to be idle", which can lower single-thread performance.
+> Prefer a bounded PM QoS request (hold `/dev/cpu_dma_latency` open with a small value for the length of the run) or disable only the deepest states through `cpuidle/stateK/disable`, and turn turbo off so the frequency no longer depends on how many cores are idle.
+
+> [!warning] Pitfall 11: A cold A and a warm B
+> Running the baseline first after a reboot or a build and the candidate second gives the candidate a warm page cache, warm dentries, and possibly huge pages that `khugepaged` already collapsed.
+> Choose cold (`sync; echo 3 > /proc/sys/vm/drop_caches` before every run) or warm (discarded warmup runs) explicitly, apply it to both sides, and alternate their order.
+
+> [!warning] Pitfall 12: Trusting a harness's silence
+> Google Benchmark's scaling warning reads only `scaling_governor`, so an `intel_pstate` host with governor `performance` and turbo on prints no warning, and nanobench checks only `cpu0`'s governor.
+> No harness in this note checks idle states, THP, steal time, or SMT sibling load; the absence of a warning is not a description of the host.
+
 ## At Scale
 
 For one developer, the practical goal is to know which controls were in force: record governor, boost, SMT, ASLR, kernel, compiler, and environment with each result, and do not trust a difference from one process and one build until it exceeds the spread you see when only the layout changes.
+On a laptop, and on any macOS machine, that is most of what can be done: the host cannot be tuned into a benchmark machine, only described well enough that two results can be compared honestly.
 
 For a team of tens to hundreds of engineers, benchmark noise becomes a shared resource problem.
 Laptops and shared CI runners cannot be tuned, and cloud instances add hypervisor scheduling and neighbors that no guest setting removes.
@@ -419,7 +562,9 @@ Decision rules:
 - Treat any effect smaller than the layout spread you measured for that benchmark as unproven, the standard Mytkowicz et al. applied to the 10% median speedup in the papers they surveyed.
 - Pin the benchmark host's firmware, microcode, kernel, and toolchain, and treat changes to any of them as a baseline reset, because the JCC microcode update alone moved some workloads.
 - For CI on shared runners, prefer instruction or cycle counts from a simulator or from counters for gating, and keep wall-clock measurements on dedicated hosts; the choice is recorded in [[Measurement-Methodology-Decision-Records]].
-- Store an environment manifest (governor, boost, SMT state, `randomize_va_space`, personality, CPU model, microcode, kernel, compiler, flags, `env` hash) next to every stored result, so a later reader can tell a regression from a host change.
+- Store an environment manifest (scaling driver, governor, boost or turbo, frequency range, idle state limits, SMT state, THP policy, `randomize_va_space`, personality, CPU model, microcode, kernel, compiler, flags, `env` hash, and the steal and `thp_*` deltas of the run) next to every stored result, so a later reader can tell a regression from a host change.
+
+## Practice Drill
 
 > [!tip] Practice Drill:
 > Run the lab on a Linux host where you are root, then repeat part B under `setarch $(uname -m) -R` and confirm that it prints `1 of 4` slots.
@@ -440,7 +585,7 @@ Decision rules:
 > [!question] L5: You set the governor to `performance` on an Intel laptop and still see 10% run-to-run variation. What else do you check?
 >
 > > [!success]- Answer
-> > Turbo: under `intel_pstate` the `performance` policy asks for the highest allowed P-state, which is a turbo P-state when turbo is enabled, and turbo P-states are not sustainable: they depend on power, temperature, and how many cores are busy; set `intel_pstate/no_turbo` to 1, or the generic `cpufreq/boost` to 0 on other drivers.
+> > Turbo: under `intel_pstate` the `performance` policy asks for the highest allowed P-state, which is a turbo P-state when turbo is enabled, and turbo P-states are not sustainable: they depend on power, temperature, and how many cores are busy; set `intel_pstate/no_turbo` to 1, or the generic `cpufreq/boost` to 0 on other drivers, after setting the governor, and read both back.
 > > Power: on battery the frequency changes as the battery drains, which is why `pyperf system tune` checks for the power cable.
 > > SMT and placement: pin with `taskset` and make sure the sibling from `thread_siblings_list` is idle.
 > > Background load: browsers and desktop timers, which Google Benchmark's variance guide tells you to close.
@@ -459,7 +604,7 @@ Decision rules:
 > > [!success]- Answer
 > > On Linux, `execve` copies the executable name, the environment strings, and the argument strings downward from the top of the new stack before building the auxiliary vector and the pointer arrays, so every environment byte moves every later stack frame down.
 > > After 16-byte rounding, the loop's stack variables land in a different 16-byte slot of their cache line, and accesses that used to stay within a line, or not alias with nearby stores, now behave differently.
-> > Mytkowicz et al. saw this as perlbench's O3 speedup ranging from 0.91 to 1.07 across environment sizes, with Core 2's `LOAD_BLOCK.OVERLAP_STORE` count changing 10-fold between the extremes.
+> > Mytkowicz et al. saw this as perlbench's O3 speedup ranging from 0.91 to 1.07 across environment sizes, with Core 2's `LOAD_BLOCK:OVERLAP_STORE` count changing 10-fold between the extremes.
 > > They confirmed the cause by fixing the stack start address, after which environment size stopped mattering for every benchmark except perlbench, which also copies the environment to the heap.
 
 > [!question] L6: Debug this. A benchmark is consistently 4% faster when run under `gdb` than from the shell, and the difference disappears inside your CI container. What is going on?
@@ -469,6 +614,23 @@ Decision rules:
 > > Inside a default Docker container GDB cannot disable ASLR, because the seccomp profile allows `personality()` only with a few values that do not include `ADDR_NO_RANDOMIZE`, so GDB warns and runs with ASLR on, and the difference vanishes.
 > > Confirm by running from the shell under `setarch $(uname -m) -R` on the host and sweeping environment size: if the 4% follows the layout, it is bias, not a property of the code.
 > > The fix is methodological: compare builds across many randomized launches, and log the personality and `randomize_va_space` with each result.
+
+> [!question] L6: A thread ping-pong latency benchmark shows two clusters of results, around 2 us and around 60 us, and which one you get changes between runs. The CPU-bound benchmarks on the same host are stable. What do you suspect, and how do you confirm it?
+>
+> > [!success]- Answer
+> > The workload blocks and wakes on every iteration, so it pays the exit latency of whatever idle state the waiting CPU reached, and the cpuidle governor picks that depth from the predicted idle duration and recent history, not from the benchmark; CPU-bound loops never idle, so they do not see it.
+> > Confirm by reading `cpuidle/stateK/usage` and `time` for the benchmark CPUs before and after a slow and a fast run, and by comparing the state `latency` values with the gap between the clusters.
+> > Then intervene: hold `/dev/cpu_dma_latency` open with a small value, or disable the deepest states through `stateK/disable` on those CPUs, and check that the slow cluster disappears.
+> > Avoid `idle=poll` as the fix, because on Intel it keeps CPUs from the package-idle states that the highest turbo P-states depend on; turn turbo off as well, so the remaining frequency does not depend on how many cores are idle.
+> > A second suspect with the same signature in memory-heavy loops is THP: compare `thp_fault_alloc` and `thp_collapse_alloc` in `/proc/vmstat` between the two clusters.
+
+> [!question] L7: Your team wants to run its microbenchmark comparisons on cloud VMs because dedicated hardware is scarce. What can the guest control, what can it not, and what do you put in place?
+>
+> > [!success]- Answer
+> > The guest controls its own process setup: environment, ASLR, link order, pinning to vCPUs, and its page cache and THP policy.
+> > It cannot control the host: frequency, idle states, SMT siblings on the physical core, and the neighbors' load, and the cpufreq or cpuidle files a guest exposes describe virtual CPUs, not physical ones.
+> > The visible symptom is steal time, the `steal` column of `/proc/stat` (`%steal` in `mpstat`), which counts time a runnable vCPU waited while the hypervisor served another; record it per run and discard or flag runs where it moved.
+> > Put in place: interleaved A/B runs on the same VM in one session, so drift hits both sides; many processes per side to sample layouts; instruction or cycle counts where the PMU is exposed, or a simulator, for CI gating; and wall-clock comparisons that gate a release only on dedicated or bare-metal hosts, recorded in [[Measurement-Methodology-Decision-Records]].
 
 > [!question] L7: Google Benchmark can re-exec itself with ASLR disabled, and pyperf insists ASLR stays on. Which is right?
 >
@@ -490,11 +652,12 @@ Decision rules:
 > [!question] L7: Design the host preparation for a dedicated two-socket Linux benchmark machine, and say what each step buys.
 >
 > > [!success]- Answer
-> > Frequency: governor `performance`, turbo or boost off, `scaling_min_freq` equal to `scaling_max_freq`, so cycles map to time at a fixed rate.
+> > Frequency: governor `performance`, then turbo or boost off through the file the active `scaling_driver` uses, then `scaling_min_freq` equal to `scaling_max_freq`, so cycles map to time at a fixed rate; read all of them back.
+> > Idle states: for latency benchmarks, a held `/dev/cpu_dma_latency` request or the deepest `cpuidle` states disabled on the benchmark CPUs, so wake-up cost is bounded; not `idle=poll`.
 > > SMT: off through `smt/control`, or the benchmark CPUs' siblings offline, so no other thread shares the core's caches and ports.
 > > Isolation: a cpuset or `cset shield` with kernel threads moved off, `nohz_full` and RCU callback offload on those CPUs if the kernel supports it and the frequency is fixed, and IRQ affinity steered to housekeeping CPUs.
 > > NUMA: run each benchmark with `numactl --cpunodebind=N --membind=N`, so all memory is local and every run sees the same latency.
-> > Storage: inputs and outputs on tmpfs, as the LLVM guide suggests.
+> > Memory and storage: inputs and outputs on tmpfs, as the LLVM guide suggests, an explicit cold (`drop_caches`) or warm (discarded warmups) policy, and a fixed THP policy with the `thp_*` counters recorded.
 > > Layout: leave ASLR on for comparisons and launch many processes, or provide an explicit environment-size and link-order sweep; host tuning cannot remove that bias.
 > > Record the whole state in a manifest with each result, and recheck it before each run, because a reboot or a package update silently undoes sysfs settings.
 
@@ -524,7 +687,11 @@ Decision rules:
 - LLVM, "Benchmarking tips": a short, concrete host preparation list, and the reminder that low noise does not exclude bias.
 - Google Benchmark, "Reducing Variance" and "Random Interleaving": the C++ harness's view of host preparation and its ASLR re-exec.
 - pyperf, "System" and "Runner" documentation: the most complete one-command host tuning tool and the multi-process default.
-- Brendan Gregg, "Active Benchmarking" (2014): analyze while the benchmark runs, so you know what it measured.
+- Brendan Gregg, "Active Benchmarking" (last updated 20-Apr-2014): analyze while the benchmark runs, so you know what it measured, plus a checklist of the ways benchmarks mislead.
+- Linux v7.0 `Documentation/admin-guide/pm/cpuidle.rst`: idle state parameters, the governors, PM QoS through `cpu_dma_latency`, and why `idle=poll` can backfire.
+- Linux v7.0 `Documentation/admin-guide/pm/amd-pstate.rst`: the per-CPU `boost` file and the CPPC performance levels on AMD.
+- Linux v7.0 `Documentation/admin-guide/mm/transhuge.rst`: THP policies, defrag modes, `khugepaged`, and the counters that show what happened during a run.
+- hyperfine README and v2.0.0 CHANGELOG: warmup and prepare commands for warm and cold caches, and why the default no longer spawns a shell.
 
 ## Related
 
