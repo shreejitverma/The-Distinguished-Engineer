@@ -1,0 +1,146 @@
+== 1. pub doc/solver.md examples (from-scratch PubGrub) ==
+
+-- No Conflicts --
+  solution: bar 1.0.0, foo 1.0.0, root 1.0.0
+  stats: decisions=3 learned=0 conflicts=0
+
+-- Avoiding Conflict During Decision Making --
+  solution: bar 1.1.0, foo 1.0.0, root 1.0.0
+  stats: decisions=3 learned=0 conflicts=0
+
+-- Performing Conflict Resolution --
+  solution: foo 1.0.0, root 1.0.0
+  learned: foo >=2.0.0 is forbidden
+  stats: decisions=3 learned=1 conflicts=1
+
+-- Conflict Resolution With a Partial Satisfier --
+  solution: foo 1.0.0, root 1.0.0, target 2.0.0
+  stats: decisions=7 learned=0 conflicts=1
+
+-- Partial Satisfier, variant with shared 0.5.0 so shared 1.0.0 collapses to ^1.0.0 --
+  solution: foo 1.0.0, root 1.0.0, target 2.0.0
+  learned: every version of left requires target ^1.0.0 or shared >=2.0.0
+  learned: foo >=1.1.0 requires target ^1.0.0
+  stats: decisions=7 learned=2 conflicts=3
+
+-- Linear Error Reporting --
+  Because every version of foo depends on bar ^2.0.0 which depends on baz ^3.0.0, every version of foo requires baz ^3.0.0.
+  So, because root depends on both foo ^1.0.0 and baz ^1.0.0, version solving failed.
+  stats: decisions=3 learned=0 conflicts=2
+
+-- Branching Error Reporting --
+      Because foo <1.1.0 depends on a ^1.0.0 which depends on b ^2.0.0, foo <1.1.0 requires b ^2.0.0.
+  (1) So, because foo <1.1.0 depends on b ^1.0.0, foo <1.1.0 is forbidden.
+
+      Because foo >=1.1.0 depends on x ^1.0.0 which depends on y ^2.0.0, foo >=1.1.0 requires y ^2.0.0.
+      And because foo >=1.1.0 depends on y ^1.0.0, foo >=1.1.0 is forbidden.
+      And because foo <1.1.0 is forbidden (1), foo is forbidden.
+      So, because root depends on foo ^1.0.0, version solving failed.
+  stats: decisions=5 learned=2 conflicts=3
+
+== 2. 3-SAT reduced to version selection (Cox, Version SAT) ==
+
+-- F1 (4 clauses): 9 packages, 21 package versions --
+  brute force over 2^4 assignments: 1 satisfying
+  PubGrub: SAT, x1..x4 = 0 1 1 0 (read from X_j:1 installed)
+  installed: C1 1.0.0, C2 3.0.0, C3 3.0.0, C4 3.0.0, F 1.0.0, X1 1.0.0, X2 2.0.0, X3 2.0.0, X4 1.0.0
+  stats: learned=0 conflicts=0
+
+-- F2 (F1 plus (x1 or not x2 or x4)): 10 packages, 24 package versions --
+  brute force over 2^4 assignments: 0 satisfying
+  PubGrub: UNSAT, derivation report has 11 lines:
+    Because C5 ^2.0.0 depends on X2 1.0.0 and C5 <2.0.0 depends on X1 2.0.0, C5 <3.0.0 requires X2 1.0.0 or X1 2.0.0.
+    Because C1 <2.0.0 depends on X1 1.0.0 and C1 ^2.0.0 depends on X2 1.0.0, C1 <3.0.0 requires X1 1.0.0 or X2 1.0.0.
+    Thus, if C5 <3.0.0 and C1 <3.0.0 then X2 1.0.0.
+    And because C1 >=3.0.0 depends on X3 1.0.0, if C5 <3.0.0 and C1 any then X2 1.0.0 or X3 1.0.0.
+    And because C5 >=3.0.0 depends on X4 2.0.0 and C2 >=3.0.0 depends on X4 1.0.0, if C1 any and C5 any and C2 >=3.0.0 then X2 1.0.0 or X3 1.0.0.
+    Because C2 <2.0.0 depends on X2 1.0.0 and C2 ^2.0.0 depends on X3 1.0.0, C2 <3.0.0 requires X2 1.0.0 or X3 1.0.0.
+    Thus, if C1 any and C5 any and C2 any then X2 1.0.0 or X3 1.0.0.
+    And because C3 >=3.0.0 depends on X3 2.0.0 and C3 <3.0.0 depends on X2 1.0.0, if C1 any and C5 any and C2 any and C3 any then X2 1.0.0.
+    And because every version of C4 depends on X2 2.0.0 and F depends on C1 any, one of C5 any or C2 any or C3 any or C4 any must be false.
+    And because F depends on both C2 any and C3 any, C5 any is incompatible with C4 any.
+    So, because F depends on both C4 any and C5 any, version solving failed.
+  stats: learned=2 conflicts=6
+
+== 3. Clause learning versus chronological backtracking ==
+  root -> x any, a any, b any; x 2.0.0 -> z ^2.0.0 (no such z); a and b have n versions each
+
+  n    sat | naive: versions tried | PubGrub: versions loaded / conflicts
+  5    yes | 34                    | 5 / 1
+  10   yes | 114                   | 5 / 1
+  20   yes | 424                   | 5 / 1
+  40   yes | 1644                  | 5 / 1
+  5    no  | 62                    | 2 / 2
+  10   no  | 222                   | 2 / 2
+  20   no  | 842                   | 2 / 2
+  40   no  | 3282                  | 2 / 2
+
+== 4. Minimal version selection (Go Modules Reference example) ==
+  build list: A 1.2 B 1.2 C 1.4 D 1.2  (go.mod files loaded: 5 of 7 published)
+  exclude C 1.4 (Go 1.16+ rule: requirement ignored): A 1.2 B 1.2 C 1.3 D 1.2
+
+== 5. The same inputs through uv (pubgrub-rs) and pip (resolvelib) ==
+  uv 0.11.26
+  pip 26.2.2
+
+-- No Conflicts --
+  uv agrees: bar==1.0.0 foo==1.0.0
+
+-- Avoiding Conflict During Decision Making --
+  uv agrees: bar==1.1.0 foo==1.0.0
+
+-- Performing Conflict Resolution --
+  uv agrees: foo==1.0.0
+
+-- Conflict Resolution With a Partial Satisfier --
+  uv agrees: foo==1.0.0 target==2.0.0
+
+-- Partial Satisfier, variant with shared 0.5.0 so shared 1.0.0 collapses to ^1.0.0 --
+  uv agrees: foo==1.0.0 target==2.0.0
+
+-- Linear Error Reporting --
+  uv (exit 1):
+      x No solution found when resolving dependencies:
+      \-> Because only bar==2.0.0 is available and bar==2.0.0 depends on
+          baz>=3.0.0, we can conclude that bar==2.0.0 depends on baz>=3.0.0.
+          And because foo==1.0.0 depends on bar==2.0.0 and only foo==1.0.0 is
+          available, we can conclude that foo==1.0.0 depends on baz>=3.0.0.
+          And because you require foo==1.0.0 and baz<2.0.0, we can conclude that
+          your requirements are unsatisfiable.
+  pip (exit 1), from its ResolutionImpossible report:
+    ERROR: Cannot install baz<2.0.0 and >=1.0.0 and foo because these package versions have conflicting dependencies.
+    
+    The conflict is caused by:
+        The user requested baz<2.0.0 and >=1.0.0
+        bar 2.0.0 depends on baz<4.0.0 and >=3.0.0
+
+-- Branching Error Reporting --
+  uv (exit 1):
+      x No solution found when resolving dependencies:
+      \-> Because only a==1.0.0 is available and a==1.0.0 depends on
+          b>=2.0.0,<3.0.0, we can conclude that a==1.0.0 depends on
+          b>=2.0.0,<3.0.0.
+          And because foo==1.0.0 depends on a==1.0.0, we can conclude that
+          foo==1.0.0 depends on b>=2.0.0,<3.0.0.
+          And because foo==1.0.0 depends on b>=1.0.0,<2.0.0 and only the following
+          versions of foo are available:
+              foo<=1.0.0
+              foo==1.1.0
+          we can conclude that foo<1.1.0 cannot be used. (1)
+    
+          Because only x==1.0.0 is available and x==1.0.0 depends on
+          y>=2.0.0,<3.0.0, we can conclude that x==1.0.0 depends on
+          y>=2.0.0,<3.0.0.
+          And because foo==1.1.0 depends on x==1.0.0 and y>=1.0.0,<2.0.0, we can
+          conclude that foo==1.1.0 cannot be used.
+          And because we know from (1) that foo<1.1.0 cannot be used, we can
+          conclude that all versions of foo cannot be used.
+          And because you require foo, we can conclude that your requirements
+          are unsatisfiable.
+
+== 6. The same module graph through go list -m all ==
+  go1.27.4
+  dependencies at go 1.16 (full graph):          A 1.2 B 1.2 C 1.4 D 1.2
+  dependencies at go 1.21 (pruned graph):        A 1.2 B 1.2 C 1.4
+  go 1.16 graph, main module excludes C v1.4.0:  A 1.2 B 1.2 C 1.3 D 1.2
+  lab MVS and go agree on the full-graph and exclude cases

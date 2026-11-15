@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Andrey Mokhov, Neil Mitchell, Simon Peyton Jones, Build Systems a la Carte, Proceedings of the ACM on Programming Languages 2 (ICFP), Article 79, 2018, https://doi.org/10.1145/3236774 (PDF: https://www.microsoft.com/en-us/research/uploads/prod/2018/03/build-systems.pdf)"
@@ -19,6 +19,9 @@ sources:
   - "Python Software Foundation, hashlib: Secure hashes and message digests (file_digest, GIL release above 2047 bytes), Python 3 documentation, 2026, https://docs.python.org/3/library/hashlib.html"
   - "Python Software Foundation, os: Miscellaneous operating system interfaces (os.replace, st_mtime_ns, os.fsync), Python 3 documentation, 2026, https://docs.python.org/3/library/os.html"
   - "Michael Kerrisk et al., fsync(2) (directory entry durability), Linux man-pages, man7.org, 2026, https://man7.org/linux/man-pages/man2/fsync.2.html"
+  - "IEEE and The Open Group, POSIX.1-2024: fsync (System Interfaces, Application Usage on directory fsync), IEEE Std 1003.1-2024, 2024, https://pubs.opengroup.org/onlinepubs/9799919799/functions/fsync.html"
+  - "IEEE and The Open Group, POSIX.1-2017: rename (Rationale on the renamed file's status change timestamp), IEEE Std 1003.1-2017, 2018, https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html"
+  - "Ninja contributors, src/ninja.cc (-d explain: explain what caused a command to execute), GitHub ninja-build/ninja master, 2026, https://github.com/ninja-build/ninja/blob/master/src/ninja.cc"
   - "Guido van Rossum, Phillip J. Eby, PEP 342: Coroutines via Enhanced Generators, Python Enhancement Proposals, 2005, https://peps.python.org/pep-0342/"
 ---
 
@@ -106,7 +109,7 @@ make --version | head -1
 | Ninja log recompaction | Both | When entries exceed 100 and exceed 3 times the unique outputs | Append-only logs need compaction; the lab rewrites its JSON whole instead. |
 | Ninja `deps = gcc` / `deps = msvc` | Both | Since Ninja 1.3; the depfile is deleted after it is read into `.ninja_deps` | The lab copies the idea: the depfile is consumed and the trace becomes the database. |
 | Ninja `dyndep` | Both | Since Ninja 1.10 | Ninja's escape hatch for dependencies a static graph cannot know (Fortran and C++ modules). |
-| Ninja `-d explain` | Both | Prints "what caused a command to execute" (Ninja 1.13.2 `-d list`) | The production equivalent of the lab's `executed` and `verified` lines. |
+| Ninja `-d explain` | Both | Prints "what caused a command to execute" (`ninja -d list`, `src/ninja.cc`; latest release v1.13.2) | The production equivalent of the lab's `executed` and `verified` lines. |
 | GCC `-MD` / `-MMD` | Both | Write `OUT.d` as a side effect; `-MMD` omits system headers | The source of the lab's discovered dependencies. |
 | GCC `-MP` | Both | A phony target for each dependency other than the main file | Lets Make survive a deleted header; Step M7 shows why a hash rebuilder does not need it. |
 | Lab trace cap | Both | `MAX_TRACES_PER_KEY = 4` | More traces per key let an undo or a branch switch restore instead of rebuild, at the cost of verification work. |
@@ -133,13 +136,15 @@ WEAK_STAT = ("st_size", "st_mtime_ns")  # what a naive cache keys on
 ```
 
 `mtime` is under user control: `cp -p`, `rsync -t`, `tar x`, and `touch -r` all set it, and Bazel's `FileContentsProxy` notes that `mv` preserves it, so a naive `(size, mtime)` key can certify a changed file as unchanged.
-`ctime` cannot be set by the `utime` family; any write, rename into place, or `utime` call moves it to the current time, so including it closes that hole.
+`ctime` cannot be set by the `utime` family; any write or `utime` call moves it to the current time, so including it closes that hole.
+POSIX leaves it to the implementation whether `rename` updates the renamed file's `ctime` (POSIX.1-2017 `rename`, Rationale), but a file renamed into place is a different inode from the one cached, which `st_ino` catches.
 Bazel's `FileContentsProxy` makes the same choice: "On Linux, macOS and Windows we use both ctime and mtime, on Linux and macOS also the inode number", with the comment that "'mv' preserves mtime" (as of 2026-11, Bazel master).
 
 Git's index caches the same family of fields (`st_mtime`, `st_ctime`, `st_ino`, `st_uid`, `st_gid`, `st_size`, and parts of `st_mode`) and documents the remaining hole, the "racy git" problem: a file modified again within the same timestamp tick as the cached stat looks unchanged.
 Git's fix is to treat an entry whose cached mtime is the same as or newer than the index file's own timestamp as suspect and compare contents, and to smudge such entries' cached size to zero when it writes the index (`Documentation/technical/racy-git.adoc`).
 The lab does not implement a racy guard.
-On the recording host's APFS volume a fresh file's `st_ctime_ns` ended in `...738140`, so timestamps carry digits below the microsecond and the window is small (measured 2026-11-14, macOS 27.3); the racy-git document lists ext2, ext4, and XFS among the filesystems that "work".
+On the recording host's APFS volume a fresh file's `st_ctime_ns` ended in `...738140`, so timestamps carry digits below the microsecond and the window is small (measured 2026-11-14, re-measured 2026-11-15, macOS 27.3).
+The racy-git document's remark that ext2, ext4, and XFS "work" is about a different hole: whether nanosecond timestamps survive an inode being evicted from the in-core cache, which is why Git compares nanoseconds only with `core.useNanosec`; it is not a statement that the racy window is closed on those filesystems.
 A guard based on wall-clock time would also make the lab's counts depend on how fast the scenarios run; Failure Modes lists what to add for coarse-timestamp filesystems.
 
 **Verification.** Scenario 8 edits `src/util.c` without changing its size, then restores its old mtime with `os.utime(p, ns=(atime, mtime))`, which is what `cp -p` does.
@@ -341,12 +346,12 @@ Why groups, and why in order:
 - A dynamic task's later requests depend on earlier values, so a trace's groups must be checked in the order they were recorded, and checking stops at the first mismatch.
   If groups 0 to i all match, a deterministic task would make exactly the same request i+1, so the rebuilder never builds a key the task would not have needed; checking a stale trace out of order could build a dependency that no longer exists and fail the build.
 - Keeping the batch boundaries preserves parallelism during verification: each recorded group is needed as one batch, exactly as the task asked for it.
-- Shake persists the same shape: its `Result` record has `depends :: ![Depends]` with the field comment "dependencies (don't run them early)", and `Depends` wraps a flat `[Id]`, so the dependencies are a list of groups (`Development/Shake/Internal/Core/Types.hs`, as of 2026-11).
+- Shake persists the same shape: its `Result` record has `depends :: ![Depends]` with the field comment "dependencies (don't run them early)", and `Depends` wraps a flat `[Id]`, so the dependencies are a list of groups (`Development/Shake/Internal/Core/Types.hs`, as of 2026-11, Both).
 
 Why constructive rather than verifying:
 - A verifying trace stores only hashes, so it can say "the file on disk is current" but cannot produce a missing or damaged file.
 - A constructive trace also keeps the result, which is section 4.2.3's `constructCT`: if the current value matches a recorded result, skip; otherwise any recorded result can be copied into the store "without doing any work to build it".
-- The paper notes that verifying-trace systems gain little from more than one trace per key, while constructive traces make it sensible to keep many and share them (section 4.3).
+- The paper notes that verifying-trace systems are "unlikely to see significant benefit from storing more than one Trace per key" (section 4.3), while once the result is stored "it makes sense to record many constructive traces per key, and to share them with other users" (section 4.2.3).
 
 **Verification.** Scenarios 2, 3, 9, and 10.
 
@@ -467,7 +472,7 @@ After the action exits 0, the engine parses it, takes the prerequisites of the a
                     return Finished(1, f"input {rel} changed while the action ran; not recording", [])
 ```
 
-This is a different mechanism from `Need`: the task cannot ask for headers before it runs, because only the preprocessor knows them, so they are learned from the action's own report, the way Ninja's `deps = gcc` reads a depfile "right after compilation" and then deletes it (Ninja manual).
+This is a different mechanism from `Need`: the task cannot ask for headers before it runs, because only the preprocessor knows them, so they are learned from the action's own report, the way Ninja's `deps = gcc` processes the depfile "immediately after the compilation finishes, then delete[s] the .d file" (Ninja manual, v1.13.1 page, as of 2026-11).
 It is sound for the same reason Make's `-M` trick is sound: a header the compiler did not read cannot affect this output, and on the first build there is no output, so the missing knowledge costs nothing.
 
 The parser in `depfile.py` follows the rules that Ninja's `src/depfile_parser.in.cc` documents for what GCC and Clang emit:
@@ -475,6 +480,8 @@ The parser in `depfile.py` follows the rules that Ninja's `src/depfile_parser.in
 - A space preceded by 2N+1 backslashes is N backslashes followed by a literal space; a space preceded by 2N backslashes is 2N backslashes at the end of a name.
 - `\#` is `#`, and `$$` is `$`; all other backslashes stay.
 - A name ending in `:` before whitespace is a target; content with no colon is an error (`expected ':' in depfile`).
+
+Ninja's code goes slightly past its own comment: it also de-escapes `\:` not followed by whitespace and keeps the extra backslashes of a multi-backslash `\\#`; the lab's parser implements only the documented rules, which is all `toycc` emits.
 
 GCC's own flags explain the shape: `-MD` writes the file as a side effect of compiling and names it after `-o` with a `.d` suffix, `-MMD` omits system headers, `-MT` sets the target verbatim while `-MQ` quotes Make specials such as `$`, and `-MP` adds "a phony target for each dependency other than the main file" to "work around errors" Make gives when a header is removed (GCC preprocessor options).
 On the recording host, Apple clang 21 with `-MMD -MP` listed a non-header input too, the SDK's `SDKSettings.json`, as an absolute path:
@@ -490,7 +497,8 @@ a.h:
 That block is real output of `/usr/bin/cc -MMD -MP -MF a.d -c a.c -o a.o` on macOS 27.3 (as of 2026-11, macOS); a production engine must classify such absolute paths as toolchain inputs, or every machine with a different Xcode path gets different keys.
 
 **The race.** Recording the depfile's headers by hashing them after the action leaves a window: if an editor saves a header after the compiler read it but before the engine hashes it, the trace pairs the new header digest with an object compiled from the old one, and that stale object then verifies forever.
-The engine closes the window by rejecting any discovered input whose `ctime` is later than the action's start; the result is not recorded, so the next build reruns.
+The engine narrows the window by rejecting any discovered input whose `ctime` is later than the action's start; the result is not recorded, so the next build reruns.
+It does not close it completely: the check runs on the worker thread, the digests are taken later on the loop thread, and an edit that lands between the two is still paired with the old object; re-checking `ctime` after hashing, or hashing a sandboxed snapshot of the inputs, closes that gap.
 
 **Verification.** Scenarios 6, 15, 16, and 19.
 
@@ -540,7 +548,8 @@ round trip 'back\\ slash.h': ok
 ```
 
 Scenario 6 edits a header whose name contains a space and which only `include/util.h` includes, so the engine knows about it only through the escaped depfile entry.
-Scenario 16 is the case `-MP` exists for: a deleted header now hashes to `missing`, which mismatches the trace and reruns the compile, instead of failing the way a Make rule naming a vanished prerequisite does.
+Scenario 16 is the case `-MP` exists for, and the engine survives it without phony rules: the edited `src/main.c` mismatches group 1, so the rebuilder stops before the depfile group and never needs the vanished header, instead of failing the way a Make rule naming a vanished prerequisite does.
+Had verification reached that group, the deleted header would hash to `missing`, which is a mismatch, not an error.
 The printed lists in scenario 19 use Python `repr`, so each `\\` there is one backslash.
 
 ### Step M8: Self-tracking and declared environment
@@ -578,9 +587,9 @@ The declared rule invalidates through `env:TOYCC_OPT`, and because the action's 
 
 The lab does not `fsync`.
 The Python documentation's recipe for getting bytes to disk is `f.flush()` then `os.fsync(f.fileno())`.
-The Linux `fsync(2)` manual page states that `fsync()` "does not necessarily ensure that the entry in the directory containing the file has also reached disk" and that "an explicit fsync() on a file descriptor for the directory is also needed" (as of 2026-11).
-So a durable replace is: write and `fsync` the temporary file, `os.replace` it, then `fsync` a descriptor for the containing directory.
-UNVERIFIED: the manual page speaks of a file's directory entry and does not mention `rename`, so that the directory fsync also covers a rename's durability is the standard reading, not a quoted guarantee.
+The Linux `fsync(2)` manual page states that `fsync()` "does not necessarily ensure that the entry in the directory containing the file has also reached disk" and that "an explicit fsync() on a file descriptor for the directory is also needed" (as of 2026-11, Linux).
+POSIX.1-2024 (IEEE Std 1003.1-2024) states under `fsync` Application Usage that "an application that modifies a directory, for example, by creating a file in the directory, can invoke fsync() on the directory to ensure that the directory's entries and file attributes are synchronized", adding that for most applications this "should not be necessary"; the 2017 edition's `fsync` page has no such text.
+Because `os.replace` (`rename(2)`) mutates the directory entries of the containing directory by replacing the destination entry with the temporary file inode, a durable replace requires three operations: write and `fsync` the temporary file, `os.replace` it into the target path, and then `fsync` an open directory file descriptor for the containing directory.
 For a cache, losing the last write is acceptable; for a trace store that a release process relies on, it is not.
 
 ### Step M10: A restarting scheduler, for contrast
@@ -647,6 +656,7 @@ A run killed mid-way leaves a `minibuild-lab-*` directory in the system temporar
 ```bash
 python3 -c 'import tempfile; print(tempfile.gettempdir())'
 rm -rf "$(python3 -c 'import tempfile; print(tempfile.gettempdir())')"/minibuild-lab-*
+ls -d "$(python3 -c 'import tempfile; print(tempfile.gettempdir())')"/minibuild-lab-* 2>/dev/null
 ```
 
 **Check:** the `ls` of that pattern finds nothing.
@@ -669,7 +679,7 @@ Delete the key's traces and rebuild instead.
 | Stale output after a flag or env change | Scenario 13 | Undeclared input; declare it as `env:` or `tool:` and run actions with a scrubbed environment. |
 | Everything rebuilds after a harmless refactor of `rules.py` | Every key's group 0 mismatches | Rule digest covers the whole function source; split recipe constants from code, or hash the constructed action instead of the source. |
 | No cache hits across machines | Scenario 10 executes everything | Absolute paths in keys or depfiles (for example `SDKSettings.json`); map toolchain paths to `tool:` keys or relative paths. |
-| Downstream always rebuilds | `unchanged results: -` after a no-op rerun | A non-deterministic action; fix it with `SOURCE_DATE_EPOCH`, path remapping, or sorted outputs ([[Hermetic-and-Reproducible-Builds]]). |
+| Downstream always rebuilds | `unchanged results: -` after a no-op rerun | A non-deterministic action; fix it with `SOURCE_DATE_EPOCH`, path remapping, or sorted outputs ([[Hermetic-and-Reproducible-Builds\|Hermetic-and-Reproducible-Builds]]). |
 | Build fails with `input ... changed while the action ran` | Scenario 15 | An editor, formatter, or code generator wrote an input mid-build; rerun, and serialize generators before compiles. |
 | `CycleError` | Scenario 17 | A real cycle in the rules; break it, or split the key that both sides need. |
 | `corrupt CAS blobs detected` | Scenario 11 | Disk or transport corruption, or a bad writer; the blob is quarantined and the action reruns, and repeated corruption means checking the disk or the cache writers. |
@@ -765,7 +775,8 @@ The toy maps one-to-one onto production systems; what changes with 1,000 to 50,0
 > > [!success]- Answer
 > > `-MD` writes a Make-syntax dependency file as a side effect of compiling, named after `-o` with a `.d` suffix; `-MMD` does the same but omits headers from system header directories.
 > > `-MP` adds an empty phony rule for every dependency other than the main source, so that when a header is deleted Make finds a rule for it instead of failing with no rule to make the target.
-> > A hash engine records the header as a dependency key; a deleted file hashes to `missing`, which mismatches the trace and reruns the compile, which is what scenario 16 shows, so it needs no phony rules.
+> > A hash engine records the header as a dependency key, and a deleted file hashes to `missing`, which mismatches the trace and reruns the compile rather than failing, so it needs no phony rules.
+> > Scenario 16 shows the build surviving the deletion; there the edited source already mismatches an earlier group, so verification stops before it reaches the header.
 
 > [!question] L5 (predict the output)
 > Starting from a no-op state, you change only a comment in `src/main.c`.
@@ -866,6 +877,8 @@ The toy maps one-to-one onto production systems; what changes with 1,000 to 50,0
   How a suspending verifying-trace system persists dependency groups.
 - PEP 342, https://peps.python.org/pep-0342/.
   The generator protocol the lab's tasks are built on.
+- IEEE Std 1003.1-2024 (POSIX.1-2024), fsync specification, https://pubs.opengroup.org/onlinepubs/9799919799/functions/fsync.html.
+  Directory descriptor fsync semantics and directory entry durability.
 
 ## Related
 

@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "The Bazel Authors, Bazel 9.0 release announcement, Bazel Blog, 2026-01-20, https://blog.bazel.build/2026/01/20/bazel-9.html"
@@ -39,6 +39,12 @@ sources:
   - "The Cargo Team, cargo-build(1) (--locked, --offline, --frozen), The Cargo Book, 2026, https://doc.rust-lang.org/cargo/commands/cargo-build.html"
   - "The pip developers, Secure installs (hash-checking mode), pip documentation, 2026, https://pip.pypa.io/en/stable/topics/secure-installs/"
   - "Kitware, FetchContent module, CMake 4.5.0 Documentation, 2026, https://cmake.org/cmake/help/latest/module/FetchContent.html"
+  - "Apple Inc., Software License Agreement for Xcode and Apple SDKs (Section 2: Internal Use License and Restrictions), apple.com/legal/sla, 2026, https://www.apple.com/legal/sla/"
+  - "Apple Inc., Xcode and Apple SDKs Agreement (Sections 2.2, 2.5, 2.7), PDF read 2026-11-15, https://www.apple.com/legal/sla/docs/xcode.pdf"
+  - "bazel-contrib, toolchains_llvm toolchain/extensions/llvm.bzl (sysroot tag class), read 2026-11-15, https://raw.githubusercontent.com/bazel-contrib/toolchains_llvm/master/toolchain/extensions/llvm.bzl"
+  - "The rules_rust Authors, rules_rust Bzlmod setup (default stable and nightly toolchains), read 2026-11-15, https://bazelbuild.github.io/rules_rust/"
+  - "Kitware, cmake --help-module FetchContent and --help-policy CMP0170, CMake 4.5.0 local run, 2026-11-15, https://cmake.org/cmake/help/latest/policy/CMP0170.html"
+  - "The Bazel Authors, bazel help build --long, Bazel 9.3.2, independent local run on macOS 27.3 arm64, 2026-11-15, https://bazel.build/reference/command-line-reference"
 ---
 
 # Playbook: Migrate a Polyglot Codebase to Hermetic Builds
@@ -136,7 +142,7 @@ Every flag default quoted in this note was read from `bazel help build --long` o
 Bazel 9 is the baseline this playbook assumes, and it changes the migration materially:
 - Bazel 8 disabled `WORKSPACE` by default and Bazel 9.0 (announced 2026-01-20 as an LTS release) removed the code; `--enable_bzlmod` and `--enable_workspace` are no-ops, so every external dependency goes through `MODULE.bazel`.
 - All C++ rules moved out of Bazel into `rules_cc`, and `--incompatible_autoload_externally` defaults to empty in 9.0, so every `cc_library`, `py_binary`, and similar rule needs an explicit `load()`.
-- `--incompatible_strict_action_env` was flipped to true in 9.0 (bazelbuild/bazel issue 26587), which removes the single largest source of cross-machine cache misses by default.
+- `--incompatible_strict_action_env` was flipped to true in 9.0 (bazelbuild/bazel PR 26587, per the 9.0.0 release notes), which removes the single largest source of cross-machine cache misses by default.
 - The `bazel sync` command was removed; `bazel fetch --all` replaces it.
 - `--incompatible_sandbox_hermetic_tmp` was removed; mount the whole `/tmp` explicitly with `--sandbox_add_mount_pair=/tmp` if an action needs it.
 
@@ -247,7 +253,7 @@ cmake -S cpp -B build/pin -DFETCHCONTENT_FULLY_DISCONNECTED=ON
 cmake --build build/pin
 ```
 
-The CMake FetchContent documentation says "it is advisable to use a hash for `GIT_TAG` rather than a branch or tag name", and `FETCHCONTENT_FULLY_DISCONNECTED` is meant to be turned on only after the first configure has populated the sources; since CMake 3.30 (policy CMP0170) it enforces that the source directory is already populated, so a first configure with it set fails instead of silently misbehaving.
+The CMake FetchContent documentation says "it is advisable to use a hash for `GIT_TAG` rather than a branch or tag name", and `FETCHCONTENT_FULLY_DISCONNECTED` is meant to be turned on only after the first configure has populated the sources; since CMake 3.30, when policy CMP0170 is `NEW` (for example under `cmake_minimum_required(VERSION 3.30)`), it enforces that the source directory is already populated, so a first configure with it set fails instead of silently skipping population.
 `--only-binary :all:` refuses sdists, so no package's build backend runs on the CI host; packages that ship only sdists become an explicit list to prebuild into wheels (see [[Python-Wheels-Platform-Tags-Manylinux-and-ABI3]]).
 Pin the compiler too: record `cc --version`, `rustc --version`, and `python3 --version` in CI logs and fail when they differ from a checked-in expectation.
 
@@ -357,7 +363,7 @@ python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(python_version = "3.12")
 ```
 
-rules_python's toolchain docs say a system interpreter is still used to "bootstrap" Python targets by default; the `bootstrap_impl` setting has `system_python` as its default and `script` as the alternative that starts programs with a shell script and needs the toolchain's `PyRuntimeInfo`.
+rules_python's toolchain docs say a system interpreter is still used to "bootstrap" Python targets by default; the `bootstrap_impl` setting (added in rules_python 0.33.0) has `system_python` as its default, a bootstrap "that requires a system Python available in order to start programs", and `script` as the alternative that uses "an arbitrary executable script (usually a shell script)".
 Set `--@rules_python//python/config_settings:bootstrap_impl=script` in `.bazelrc` once your targets pass with it, so no host `python3` participates at run time.
 The "autodetecting" Python toolchain is misnamed: per the docs "it doesn't autodetect anything" and only runs `python3` from the environment, so it must never be the registered toolchain.
 
@@ -387,15 +393,17 @@ crate.from_cargo(
 )
 crate.annotation(
     crate = "openssl-sys",
-    gen_build_script = True,
+    gen_build_script = "on",
 )
 use_repo(crate, "crates")
 ```
 
 First-party targets depend on `@crates//:serde` style labels or on the `all_crate_deps()` macro from `@crates//:defs.bzl`.
-The crate_universe docs describe repinning with `CARGO_BAZEL_REPIN=1` and `CARGO_BAZEL_REPIN_ONLY` as an allowlist; their example command still uses `bazel sync --only=crates`, but the Bazel 9.0 release notes list `bazel sync` as removed and name `bazel fetch --all` as the replacement, so that command cannot run on the Bazel 9 baseline of this playbook.
-The repin variables are read when the `crates` repository rule is evaluated, so any command that forces that evaluation with the variable set is the mechanism, and the documented spelling is stale.
-UNVERIFIED: the exact repin invocation for crate_universe on Bazel 9 (for example `CARGO_BAZEL_REPIN=1 bazel fetch --force @crates//...`); neither the rules_rust page nor the Bazel release notes give it, so test it against the rules_rust release you pin before writing it into onboarding docs.
+The crate_universe Bzlmod page (read 2026-11-15) still documents repinning as `CARGO_BAZEL_REPIN=1 bazel sync --only=crates`, with `CARGO_BAZEL_REPIN_ONLY` as "a comma-delimited allowlist for rules to execute repinning" when several crate universes are declared.
+The Bazel 9.0 release notes state that "The `bazel sync` command has been removed. Use `bazel fetch --all` instead", so that documented command fails on Bazel 9.
+The same page says that "the `CARGO_BAZEL_REPIN` (or `REPIN`) environment variables can be used to force the rule to update dependencies", but the rules_rust docs show no Bazel 9 invocation, and an attempt to run `CARGO_BAZEL_REPIN=1 bazel fetch --all` on Bazel 9.3.2 (2026-11-15, macOS arm64) did not finish within the time limit, so this note does not endorse a specific replacement command.
+Treat the repin command as a Step 2 decision: try the variable with `bazel fetch` on your pinned Bazel and the pinned rules_rust release, and record the command that works in the migration runbook.
+If `crate.from_cargo` sets `lockfile` ("The path to a file to use for reproducible renderings"), repinning rewrites that file; commit it together with `MODULE.bazel.lock` when CI runs under `--lockfile_mode=error`.
 Every `-sys` crate with a build script is an H3 item: its `build.rs` probes the host for a C library unless an annotation points it at a Bazel-built one.
 
 On Buck2 the equivalent is Reindeer: `reindeer vendor` downloads crate sources into the repository, `reindeer buckify` "will analyze the Cargo dependencies and (re)generate the BUCK file", and per-crate `fixups.toml` entries such as `buildscript.run = true`, `cargo_env`, `rustc_flags`, and `extra_srcs` replace what a build script would have done.
@@ -415,7 +423,7 @@ use_repo(pip, "pypi")
 
 rules_python also accepts `uv_lock = "//:uv.lock"` in place of `requirements_lock`, and recommends `@pypi//numpy` style labels in new code.
 Hashes are not required by `pip.parse`, so keep the Step 1 `--require-hashes` lock as the input and do not regress to an unhashed one.
-Wheels and sdists are fetched with Bazel's downloader, so the credential helper and `--downloader_config` apply.
+The docs state that the `pip` extension "will ensure that the bazel downloader is used for downloading the wheels", so the credential helper and `--downloader_config` apply to wheels; they do not say the same for sdists.
 `download_only = True` makes pip ignore sdists, and the docs warn this "will not work for sdists with C extensions"; an sdist that must be built is built during repository fetch, which is outside the action cache and outside remote execution, so prebuild such packages into wheels in a separate, pinned pipeline.
 
 C++ third-party: prefer a Bazel Central Registry module (`bazel_dep`) when one exists; otherwise wrap the project's own CMake build with `rules_foreign_cc` as a transitional shim:
@@ -520,13 +528,16 @@ llvm.sysroot(
 ```
 
 The `sysroot` tag class in `toolchain/extensions/llvm.bzl` on the main branch (read 2026-11-15) takes `name` (default `llvm_toolchain`, must match a `llvm.toolchain` tag or the extension fails), `targets` (a list of target strings; empty means all), `label` (the sysroot's files with the package path as the sysroot path), and `path` (an absolute path).
-Each tag must set exactly one of `label` or `path`; the source does not document the accepted `targets` strings, so confirm `linux-x86_64` against the release you pin.
+Each tag must set exactly one of `label` or `path` (the extension calls `fail()` otherwise); the tag's own doc does not list target strings, but the README documents exact OS/architecture keys such as `linux-x86_64` and `darwin-aarch64` (`aarch64`, not `arm64`), so confirm the key against the release you pin.
 A path on the user's system is not hermetic; only the label form is.
 The README suggests building a sysroot with `docker export` of a base image or with the Chromium sysroot scripts; the construction details belong to [[Cross-Compilation-and-Sysroots]].
 The toolchains_llvm README also notes that "bundled LLD is preferable for hermetic or remote builds", because a host linker is an execution-platform dependency.
 
-macOS cannot be encapsulated the same way: the SDK ships inside Xcode or the Command Line Tools, and Apple's license terms restrict redistributing it (UNVERIFIED: the Xcode license text was not fetched for this note; check it with your legal team before mirroring an SDK).
-The practical rule is to pin the Xcode version per runner image, make it part of the execution platform's identity (so two Xcode versions never share cache entries), and use an Apple-aware C++ toolchain such as the one in the apple_support module; rules_cc itself disabled its autodetected macOS toolchain by default in commit 0c36f2bb (2026-07-20, PR 755), with `--repo_env=BAZEL_USE_LEGACY_MACOS_TOOLCHAIN=1` as a temporary escape hatch.
+macOS cannot be encapsulated through a downloadable sysroot tarball in the same way.
+Section 2 ("Internal Use License and Restrictions") of Apple's Xcode and Apple SDKs Agreement licenses installation only "on Apple-branded computers that are owned or controlled by You" (2.2A); it permits copying "only the entire package" and expressly prohibits "separately using the Apple SDKs" (2.5); and it bars making the software "available over a network where they could be run or used by multiple computers at the same time" and agreeing to "upload to or host on any website or server, sell, redistribute, or sublicense" it (2.7).
+An extracted SDK tarball served from an artifact mirror is a separated, server-hosted copy of exactly that kind, so macOS builds cannot package the SDK as an `@sysroot` repository; this is a reading of the agreement text, not legal advice.
+The practical engineering rule is to pin the Xcode version and build number per runner image, make the Xcode build identifier part of the execution platform's identity (ensuring runners with differing Xcode builds never share cache entries), and use an Apple-aware toolchain such as `apple_support`.
+Furthermore, rules_cc disabled its autodetected macOS toolchain by default in commit 0c36f2bb (2026-07-20, PR 755), with `--repo_env=BAZEL_USE_LEGACY_MACOS_TOOLCHAIN=1` provided as a transitional escape hatch.
 
 **Verification:**
 
@@ -680,6 +691,7 @@ e //:stable key=c9bb95f1995e cacheHit=True out=5891b5b522d5
 ```
 
 Run F's `clock` output digest prefix was `170c5b65074d` and its `stable` output was again `5891b5b522d5`; F's entries had no action `digest` field.
+An independent re-run on 2026-11-15 on the same host reproduced all six `INFO:` lines, every action key prefix above, the `stable` digest, the action `PATH` values, and the missing `digest` field in F; `clock` produced new output digests on each execution, as a non-deterministic action should.
 
 What the run proves:
 - **Strict environment makes keys independent of the client `PATH`.** A and B have identical keys, so B is served entirely from cache although its client `PATH` differed.
@@ -799,7 +811,7 @@ flowchart LR
 > 2. Replace `echo $$$$` with `echo fixed` and show that `clock` now has one output digest across A, C, D, and F.
 > 3. Add `--action_env=TZ=UTC` and show that it changes the key of both actions exactly once, then stays stable.
 > 4. Set `--sandbox_default_allow_network=false` and add a genrule that runs `curl https://example.com`; confirm it fails on Linux, and record what happens on macOS.
-> 5. Stretch: write the comparator that joins two logs by `targetLabel` and output path and prints key agreement and output agreement per mnemonic.
+> 5. As a stretch goal, write the comparator that joins two logs by `targetLabel` and output path and prints key agreement and output agreement per mnemonic.
 > Target time: 30 minutes for steps 1 to 4.
 
 ## Interview Questions
@@ -848,7 +860,7 @@ flowchart LR
 > > Capture `--execution_log_compact_file` on a developer machine and on CI for the same commit after `bazel clean`, convert both with the execlog parser, and diff one action that should match.
 > > Look first at `environmentVariables`, then at input paths and the toolchain repository names, then at `platform` properties.
 > > Typical culprits are a `--noincompatible_strict_action_env` or `--action_env=PATH` in a user or system bazelrc (the measured Bazelisk download directory then appears in every developer key), a different Xcode or host toolchain because autodetection was left on, or `--remote_instance_name` differing between configs.
-> > Check which rc files applied with `--announce_rc`, and check `remote_accept_cached` in the canonical command line in a `--build_event_text_file`, as the Bazel cache debugging guide describes.
+> > Check which rc files applied with `--announce_rc`, and, as the Bazel cache debugging guide describes, check `remote_accept_cached` in the canonical command line in a `--build_event_text_file`.
 
 > [!question] L6
 > Design the shadow-mode verification for a new remote cache.
@@ -931,6 +943,8 @@ flowchart LR
   A 4.5-year migration with coexistence, a custom BUILD generator, pilot teams, deploy validation numbers, and a Gradle fallback.
 - Dropbox, Continuous integration and deployment with Bazel, https://dropbox.tech/infrastructure/continuous-integration-and-deployment-with-bazel.
   What the finished graph buys: affected-test selection, rollups, and per-package release tests.
+- Apple Inc., Xcode and Apple SDKs Agreement, https://www.apple.com/legal/sla/docs/xcode.pdf.
+  Section 2 (2.2, 2.5, 2.7): installation on Apple-branded computers you own or control, no separate use of the SDKs, and no hosting or redistribution.
 
 ## Related
 

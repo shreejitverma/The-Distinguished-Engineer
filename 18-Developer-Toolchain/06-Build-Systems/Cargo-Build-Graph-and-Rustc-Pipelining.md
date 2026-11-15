@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "The Cargo Team, Cargo source: src/compiler/job_queue/mod.rs (Artifact::Metadata, JobQueue::enqueue), branch rust-1.99.0, GitHub rust-lang/cargo, 2026, https://github.com/rust-lang/cargo/blob/rust-1.99.0/src/compiler/job_queue/mod.rs"
@@ -24,8 +24,15 @@ sources:
   - "The Rust Release Team, Announcing Rust 1.38.0 (Pipelined compilation), Rust Blog, 2019-09-26, https://blog.rust-lang.org/2019/09/26/Rust-1.38.0/"
   - "Alex Crichton, Evaluating pipelined rustc compilation, Rust Internals forum, 2019-05-17, https://internals.rust-lang.org/t/evaluating-pipelined-rustc-compilation/10199"
   - "The Rust Release Team, Announcing Rust 1.90.0 (LLD default on x86_64-unknown-linux-gnu), Rust Blog, 2025-09-18, https://blog.rust-lang.org/2025/09/18/Rust-1.90.0/"
-  - "Thomas Kluyver and Nathaniel J. Smith, PEP 517 - A build-system independent format for source trees, Python Enhancement Proposals, 2015, https://peps.python.org/pep-0517/"
+  - "Nathaniel J. Smith and Thomas Kluyver, PEP 517 - A build-system independent format for source trees, Python Enhancement Proposals, 2015, https://peps.python.org/pep-0517/"
   - "PyO3 contributors, maturin 1.16.0 source: src/compile.rs (compile_targets, compile_target, configure_macos_pyo3_linker_args) and src/commands/pep517.rs, GitHub PyO3/maturin, 2026, https://github.com/PyO3/maturin/blob/v1.16.0/src/compile.rs"
+  - "The Bazel Authors, rules_rust: Rust Rules for Bazel (pipelined_compilation setting, Rustc and RustcMetadata actions), 2026, https://github.com/bazelbuild/rules_rust"
+  - "Meta Open Source, Buck2 Prelude: Rust Rules (prelude/rust/ metadata-only actions and rmeta compilation), 2026, https://github.com/facebook/buck2"
+  - "The Cargo Team, Cargo source: src/ops/resolve.rs (resolve_with_registry, CliFeatures::new_all for the lock file), branch rust-1.99.0, GitHub rust-lang/cargo, 2026, https://github.com/rust-lang/cargo/blob/rust-1.99.0/src/ops/resolve.rs"
+  - "The Cargo Team, The Cargo Book: Build Scripts (rustc-link-lib and rustc-link-search scope), branch rust-1.99.0, 2026, https://github.com/rust-lang/cargo/blob/rust-1.99.0/doc/book/src/reference/build-scripts.md"
+  - "The Cargo Team, The Cargo Book: Dependency Resolution (resolver versions), branch rust-1.99.0, 2026, https://github.com/rust-lang/cargo/blob/rust-1.99.0/doc/book/src/reference/resolver.md"
+  - "The Bazel Authors, rules_rust source: rust/settings/BUILD.bazel and rust/private/rustc.bzl (pipelined_compilation, RustcMetadata mnemonic), GitHub bazelbuild/rules_rust, 2026, https://github.com/bazelbuild/rules_rust/blob/main/rust/private/rustc.bzl"
+  - "Meta Open Source, Buck2 Prelude source: prelude/rust/build.bzl (metadata-fast and metadata-full emits), GitHub facebook/buck2, 2026, https://github.com/facebook/buck2/blob/main/prelude/rust/build.bzl"
 ---
 
 # Cargo Build Graph and rustc Pipelining
@@ -91,7 +98,7 @@ The same target can appear as several units, for example a library built once no
 
 The feature resolver in `src/resolver/features.rs` is a second pass that can only narrow what the dependency resolver selected.
 Its `FeatureOpts` carries `decouple_host_deps` (build dependencies and proc macros get their own feature namespace), `decouple_dev_deps` (dev-dependency features stay off unless dev units are built), and `ignore_inactive_targets` (features from `[target.'cfg(...)'.dependencies]` for other platforms are ignored).
-Resolver `"2"` turns all three on; resolver `"3"`, the default for edition 2024 since Cargo 1.84, changes only version selection (`incompatible-rust-versions = "fallback"`), not feature unification.
+Resolver `"2"` turns all three on; resolver `"3"`, stable since Cargo 1.84 and the default for edition 2024, changes only version selection (`incompatible-rust-versions = "fallback"`), not feature unification.
 Features are keyed by `(PackageId, FeaturesFor)`, where `FeaturesFor` is `NormalOrDev`, `HostDep`, or `ArtifactDep(target)`, so the same package can legitimately resolve to two different feature sets in one build.
 
 Without `--target`, host and target are the same machine, and Cargo would like to build a shared dependency once.
@@ -101,7 +108,7 @@ The same pass turns debuginfo off for host-only dependencies, which is the `debu
 That profile difference is enough to split a unit: in the lab, `common` with feature `beta` is compiled once as fa's build dependency (debuginfo 0) and again as fb's normal dependency (debuginfo 2), with identical features.
 
 The nightly `--unit-graph` flag (`cargo +nightly build --unit-graph -Z unstable-options`, tracking issue #8002, format `version: 1`) prints this graph without building it.
-On the lab workspace, `-p fa` produced 5 units: `common` lib with `beta` and debuginfo 0, `common` lib with `alpha` and debuginfo 2, the `fa` binary, the `fa` build script compile, and its `run-custom-build` unit (hand run on cargo 1.101.0-nightly 2026-10-23, macOS arm64, as of 2026-11; not part of the golden file).
+On the lab workspace, `-p fa` produced 5 units: `common` lib with `beta` and debuginfo 0, `common` lib with `alpha` and debuginfo 2, the `fa` binary, the `fa` build script compile, and its `run-custom-build` unit (hand run on cargo 1.101.0-nightly 2026-10-23, macOS arm64, and re-run with the same 5 units and debuginfo levels during fact-checking, as of 2026-11; not part of the golden file).
 `cargo metadata` cannot show this, because the docs note it "fundamentally cannot represent the relationship of features between different dependency kinds".
 
 ### Two identities: the Metadata hash and the Fingerprint
@@ -113,9 +120,9 @@ Cargo gives every unit two different digests, and most surprising rebuild behavi
 - `c_metadata`, passed as `-C metadata=<16 hex>`, which rustc mixes into mangled symbols so two versions of one crate can link into the same binary.
 - Flags for whether the filename and the package directory carry the hash at all.
 
-`compute_metadata` hashes, in order: a `METADATA_VERSION` constant, the package id (relative to the workspace root, so renaming the checkout keeps the cache), enabled features, profile, mode, LTO setting, compile kind, target name and kind, the rustc version, the workspace wrapper for members (so `clippy` output stays separate), `__CARGO_DEFAULT_LIB_METADATA`, `is_std`, and whether host rustflags differ from target rustflags.
+`compute_metadata` hashes, in order: a `METADATA_VERSION` constant, the package id (relative to the workspace root, so renaming the checkout keeps the cache), enabled features, profile, mode, LTO setting, compile kind, target name and kind, the rustc version, the workspace wrapper for members (so `clippy` output stays separate), `__CARGO_DEFAULT_LIB_METADATA`, `is_std`, and, for host units when `target-applies-to-host` is off, whether their flags or `links` overrides differ from the host configuration.
 It then forks: `c_metadata` adds the dependencies' `c_metadata`, while `unit_id` adds the dependencies' `unit_id`, the `cargo rustc` extra arguments, and `RUSTFLAGS`, each skipped if it might contain `--remap-path-prefix`.
-For stable compilers the full `rustc -vV` text is hashed, so 1.98 and 1.99 artifacts sit side by side; for nightly and beta only the channel name is hashed, so updating nightly overwrites rather than accumulates.
+For stable compilers the full `rustc -vV` text is hashed, so 1.98 and 1.99 artifacts sit side by side; for nightly and beta only the channel name (plus the host triple for host units) is hashed (`hash_rustc_version`), so updating nightly overwrites rather than accumulates.
 
 The `Fingerprint` is a separate 16-hex-digit hash stored in `<build-dir>/debug/.fingerprint/<unit dir>/`, next to a JSON file that exists only to explain why a unit is dirty, a binary dep-info file, and an `invoked.timestamp` file.
 The fingerprint module's comparison table, abridged:
@@ -149,7 +156,7 @@ Staleness has two mtime checks (`fingerprint/mod.rs`):
 rustc's `--emit=dep-info` writes a Makefile-style `.d` file, and Cargo translates it into a binary form in the fingerprint directory, also reading `# env-var:` comments so that `env!` and `option_env!` inputs (including `CARGO_PKG_*` values) are tracked.
 Registry and git packages contribute no source paths to dep-info, so their freshness rests on the package id alone.
 A dependency's fresh-or-dirty status propagates because each Fingerprint embeds its dependencies' Fingerprints through shared `Arc`s.
-The lab's touched `heavy/src/lib.rs` printed the three reasons in order: `the file ... has changed`, then `the dependency heavy was rebuilt`, then `the dependency mid was rebuilt`.
+The lab's touched `heavy/src/lib.rs` printed the three reasons in order: `the file heavy/src/lib.rs has changed`, then `the dependency heavy was rebuilt`, then `the dependency mid was rebuilt`.
 
 The module's own caveats are worth knowing by heart.
 Docker zeroes the nanosecond part of mtimes in cached layers, which is why Cargo never hashes an mtime value and only compares them.
@@ -168,7 +175,7 @@ So the `.rmeta` is complete and type-checked before a single LLVM function is ge
 Cargo passes `--error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat` to every rustc, and its output parser in `src/compiler/mod.rs` treats any `artifact` message whose path ends in `.rmeta` as the signal: "looks like metadata finished early!", then `state.rmeta_produced()`.
 The Rust 1.38 release (2019-09-26) turned pipelining on by default, reporting "10-20% compilation speed increases for optimized, clean builds of some crate graphs", while noting other graphs "did not improve much".
 Alex Crichton's May 2019 evaluation thread collected user measurements such as wasmtime clean debug 39.5 s to 33.8 s and Lark clean release 71 s to 52 s, with some graphs, such as elefren on a 2016 laptop, within noise.
-The config `build.pipelining` (added 1.36) was deprecated in Cargo 1.60, and the 1.99 configuration reference says it is "deprecated and unused. Cargo always has pipelining enabled."
+The config `build.pipelining` (added 1.36) was deprecated in Cargo 1.60, and the 1.99 configuration reference notes that it is deprecated and unused because Cargo always has pipelining enabled.
 
 ### Pipelining, Cargo side: Metadata edges and synthesized All edges
 
@@ -240,7 +247,7 @@ The nightly `-Zany-build-script-metadata` (Cargo 1.94) lets any build script pub
 
 rustc, not Cargo, runs the linker, and on Unix targets the rustc book says the C compiler (`cc` or `clang`) is used "as the linker here, serving as a linker driver"; `-C linker=` overrides it.
 Since Rust 1.90, `x86_64-unknown-linux-gnu` links with LLD by default, with `-C linker-features=-lld` as the opt-out.
-`cargo::rustc-link-search=native=DIR` and `cargo::rustc-link-lib=static=shim` become `-L native=DIR -l static=shim` on the package's library unit only, because every other target in the package links that library.
+`cargo::rustc-link-search=native=DIR` and `cargo::rustc-link-lib=static=shim` become `-L native=DIR` and `-l static=shim`; the Build Scripts chapter passes the `-l` flag only to the package's library target (when it has one), because every other target in the package links that library, while `-L` is simply passed to the compiler.
 rustc bundles a static native library into the rlib by default, and the lab finds `shim.o` as a member of `libcshim-<hash>.rlib`, so the final binary link needs no `-lshim` and downstream builds need no access to `OUT_DIR`.
 In the other direction, a `staticlib` crate is a self-contained archive of the crate and all its Rust dependencies, but not of system libraries, and `rustc --print native-static-libs` prints the flags the foreign linker must add: `-lSystem -lc -lm` for the lab on macOS arm64 (as of 2026-11).
 The lab compiles a C++ `main.cpp` with `c++`, links `librstatic.a` plus those flags, and the C++ program calls the Rust function.
@@ -292,7 +299,7 @@ Cargo 1.94 removed the unstable `--timings=<FMT>` values and points machine-read
 | `CARGO_LOG=cargo::compiler::fingerprint=trace` | full fingerprint comparison log (as of 2026-11) | Both | Module path in the 1.99 source layout. |
 | `cargo +nightly build --unit-graph -Z unstable-options` | unit graph JSON, `version: 1`, builds nothing (as of 2026-11) | Both | Tracking issue #8002. |
 | `cargo tree -e features -i <pkg>` | why a feature is on (as of 2026-11) | Both | Plus `cargo tree --duplicates` for multiply built packages. |
-| `rustc --print native-static-libs` | `-lSystem -lc -lm` for the lab staticlib (as of 2026-11) | macOS | rustc 1.99, aarch64-apple-darwin; Linux lists `-lgcc_s`, `-lc`, and others. |
+| `rustc --print native-static-libs` | `-lSystem -lc -lm` for the lab staticlib (as of 2026-11) | macOS | rustc 1.99, aarch64-apple-darwin; the list is target-specific, so print it for the target you link against rather than copying this one. |
 | Default linker on x86_64 Linux | LLD since Rust 1.90; opt out with `-C linker-features=-lld` (as of 2026-11) | Linux | Other Unix targets use `cc` as the link driver. |
 
 ## Multi-Language Comparison: Who Waits for What
@@ -300,9 +307,9 @@ Cargo 1.94 removed the unstable `--timings=<FMT>` values and points machine-read
 | Concern | C++ (CMake and Ninja) | Python native extension (PEP 517, setuptools or scikit-build-core) | Rust (Cargo and rustc) |
 |---|---|---|---|
 | Unit of compilation | translation unit (`.cpp` to `.o`) | whatever the backend schedules; setuptools compiles extension sources itself | crate (one rustc per unit), often thousands of lines |
-| Interface artifact that unblocks dependents | headers are source, so a dependent TU never waits for upstream objects; with C++20 modules a BMI plays the `.rmeta` role ([[Cpp-Modules-in-Build-Systems]]) | none inside one extension; the frontend sees one opaque hook call | `.rmeta`, written after type and borrow checking and before codegen |
+| Interface artifact that unblocks dependents | headers are source, so a dependent TU never waits for upstream objects; with C++20 modules a BMI plays the `.rmeta` role ([[Cpp-Modules-in-Build-Systems\|Cpp-Modules-in-Build-Systems]]) | none inside one extension; the frontend sees one opaque hook call | `.rmeta`, written after type and borrow checking and before codegen |
 | Who waits for objects | the link step only | the link step inside the backend | every linking unit, including tests, `cdylib`, and proc macros |
-| Change detection | depfiles plus mtime (`.ninja_deps`) ([[Make-and-Ninja-Mechanics]]) | setuptools `build_ext` mtime check on outputs | dep-info plus mtime, Fingerprint hash, optional nightly checksums |
+| Change detection | depfiles plus mtime (`.ninja_deps`) ([[Make-and-Ninja-Mechanics\|Make-and-Ninja-Mechanics]]) | setuptools `build_ext` mtime check on outputs | dep-info plus mtime, Fingerprint hash, optional nightly checksums |
 | Configuration that splits artifacts | each build tree is one configuration | one build per interpreter and tag | features, profile, kind, and `RUSTFLAGS` in `unit_id` give side-by-side variants in one tree |
 | Configuration unification | none: every target gets its own compile definitions | none | features are unioned over selected packages, so `-p` changes artifacts |
 | Code that runs at build time | custom commands, configure-time scripts | the backend itself | `build.rs`, rerun only by its declared inputs, or by any package file when none are declared |
@@ -424,14 +431,14 @@ Every later feature flip rebuilt `ext` with `the list of features changed`, beca
 The `RUSTFLAGS` rows show the other side: `fb` and `common[beta]` compiled once under the new flag and were fresh when it flipped back and forth, while `ext` rebuilt on every flip.
 
 Section 6 is the old-style versus new-style rerun rule, and it shows that an old-style rerun also recompiled the library it feeds.
-Section 7 shows the C handoff end to end: the build script's `-L` and `-l` lines reach only `cshim`'s rustc invocation, the archive is bundled into the rlib, the dependent's build script sees `DEP_SHIM_INCLUDE`, and the C++ program links the Rust `staticlib` with exactly the flags rustc printed.
+Section 7 shows the C handoff end to end: the build script's `-L` and `-l` lines reach `cshim`'s rustc invocation, the archive is bundled into the rlib, the dependent's build script sees `DEP_SHIM_INCLUDE`, and the C++ program links the Rust `staticlib` with exactly the flags rustc printed.
 
 ### What would change the output
 
 - With `-j 1`, `mid` could not start before `heavy` finished in section 1, because the only token is `heavy`'s, so the overlap lines would read like section 2 even though the edge stays `Metadata` (reasoned from the jobserver model; not run here).
 - With a `cdylib` in `heavy` instead of `mid`, `mid` would wait for all of `heavy`, because `only_requires_rmeta` also requires that the dependency not require upstream objects (read from the source; not run here).
 - With `cargo::rerun-if-changed=build.rs` added to `script_old`, the first line of section 6 would list no build scripts.
-- Under the nightly `resolver.feature-unification = "workspace"`, section 4 would compile `common[alpha,beta]` on the first `-p fa` and nothing new later (expected from the unstable docs; not run here).
+- Under the nightly `resolver.feature-unification = "workspace"`, section 4 would compile `common[alpha,beta]` (next to the build-script `common[beta]`) on the first `-p fa` and no new `common` variant later (expected from the unstable docs; not run here).
 
 ## Pitfalls
 
@@ -477,7 +484,9 @@ Section 7 shows the C handoff end to end: the build script's `-L` and `-l` lines
 For one developer, the build graph mostly matters through two habits: declare build-script inputs and read `cargo build --timings` before blaming the compiler.
 For a team, the cost moves to cache churn: several tools (editor, `cargo test`, maturin, `clippy`) sharing one target directory with different flags and features, each rebuilding what the others overwrote.
 For 1,000 to 50,000 engineers, Cargo often stops being the outer build system, and Bazel or Buck2 run rustc directly ([[Bazel-Skyframe-Bzlmod-and-Execution-Model]], [[Buck2-DICE-Starlark-and-BXL]]).
-Whether those rules split metadata and link actions the way Cargo does depends on the rule set and its version; check it before assuming pipelining survives the migration (UNVERIFIED: the Bazel and Buck2 Rust rules were not read for this note).
+Both major enterprise build systems support pipelining by splitting compilation into separate metadata actions.
+In Bazel, `rules_rust` enables pipelined compilation via `--@rules_rust//rust/settings:pipelined_compilation=True`, emitting `.rmeta` with `--emit=metadata` in a `RustcMetadata` action so downstream crates compile without waiting for LLVM codegen (`rust/settings/BUILD.bazel` and `rust/private/rustc.bzl` on `main`, as of 2026-11).
+In Buck2, `prelude/rust/build.bzl` defines corresponding `metadata-fast` and `metadata-full` emits to unblock consumers as soon as interface signatures are checked (`main`, as of 2026-11).
 
 The critical path is what pipelining shortens.
 In a chain of rlibs, a dependent can start at its dependency's `.rmeta`, so the chain costs roughly the sum of frontends plus the last codegen, instead of the sum of full compiles.
@@ -582,6 +591,8 @@ Decision rules:
 - The rustc book, JSON Output and Command-line Arguments: artifact notifications and `--emit` kinds.
 - Announcing Rust 1.38.0 and Alex Crichton's "Evaluating pipelined rustc compilation": the original rationale and user-reported numbers.
 - PEP 517 and maturin's `src/compile.rs`: the contract a Python backend fulfills and how maturin consumes Cargo's JSON.
+- Bazel `rules_rust` documentation: `pipelined_compilation` setting and `RustcMetadata` action design.
+- Buck2 `prelude/rust/`: action model for metadata-only compilation and rmeta decoupling.
 
 ## Related
 
