@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a deterministic 500-commit repository with a non-linear DAG."""
+"""Generate a deterministic 501-commit repository with a non-linear DAG."""
 
 import os
 import subprocess

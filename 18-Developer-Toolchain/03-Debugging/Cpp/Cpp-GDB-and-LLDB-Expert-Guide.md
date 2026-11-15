@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished, low-latency, quant-dev]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Free Software Foundation, Debugging with GDB: Debugging Multiple Inferiors Connections and Programs (section 4.9), sourceware.org, GDB 18.1 era online manual, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Inferiors-Connections-and-Programs.html"
@@ -34,6 +34,28 @@ sources:
   - "LLVM Project, Release llvmorg-23.1.5 (2026-11-03), GitHub, 2026, https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.5"
   - "Python Software Foundation, Debugging C API extensions and CPython Internals with GDB (python-gdb.py, py-bt), Python HOWTOs, 2026, https://docs.python.org/3/howto/gdb_helpers.html"
   - "The Rust Project Developers, src/etc/rust-gdb wrapper script, rust-lang/rust, 2026, https://github.com/rust-lang/rust/blob/main/src/etc/rust-gdb"
+  - "Free Software Foundation, Debugging with GDB: Non-Stop Mode (section 5.5.2), sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Non_002dStop-Mode.html"
+  - "Free Software Foundation, Debugging with GDB: Background Execution (section 5.5.3), sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Background-Execution.html"
+  - "Free Software Foundation, Debugging with GDB: Interrupted System Calls (section 5.5.5), sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Interrupted-System-Calls.html"
+  - "Free Software Foundation, Debugging with GDB: Observer Mode (section 5.5.6), sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Observer-Mode.html"
+  - "Free Software Foundation, Debugging with GDB: Skipping Over Functions and Files, sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Skipping-Over-Functions-and-Files.html"
+  - "Free Software Foundation, Debugging with GDB: Convenience Variables, sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Convenience-Vars.html"
+  - "LLVM Project, lldb/source/Breakpoint/Watchpoint.cpp (VariableWatchpointDisabler) at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/Breakpoint/Watchpoint.cpp"
+  - "LLVM Project, lldb/source/Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.cpp (qSupported fork-events+) at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/Plugins/Process/gdb-remote/GDBRemoteCommunicationClient.cpp"
+  - "LLVM Project, lldb/source/Commands/Options.td at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/Commands/Options.td"
+  - "GNU Binutils and GDB Developers, gdb/infcall.c (call_function_by_hand_dummy) and gdb/dummy-frame.c, sourceware.org, 2026, https://sourceware.org/git/?p=binutils-gdb.git;a=blob_plain;f=gdb/infcall.c;hb=refs/tags/gdb-18.1-release"
+  - "LLVM Project, lldb/source/Target/ThreadPlanCallFunction.cpp at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/Target/ThreadPlanCallFunction.cpp"
+  - "GCC Developers, libstdc++-v3/libsupc++/eh_throw.cc (SDT throw probe) at releases/gcc-14.2.0, gcc.gnu.org, 2026, https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=libstdc%2B%2B-v3/libsupc%2B%2B/eh_throw.cc;hb=refs/tags/releases/gcc-14.2.0"
+  - "GCC Developers, libstdc++-v3/libsupc++/eh_catch.cc (SDT catch probe) at releases/gcc-14.2.0, gcc.gnu.org, 2026, https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=libstdc%2B%2B-v3/libsupc%2B%2B/eh_catch.cc;hb=refs/tags/releases/gcc-14.2.0"
+  - "GCC Developers, libstdc++-v3/ChangeLog-2013 (2013-03-15 PROBE2 entry), gcc.gnu.org, 2026, https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=libstdc%2B%2B-v3/ChangeLog-2013;hb=refs/tags/releases/gcc-14.2.0"
+  - "GCC Developers, libstdc++-v3/libsupc++/eh_throw.cc at releases/gcc-4.8.0 (PROBE2 present), gcc.gnu.org, 2026, https://gcc.gnu.org/git/?p=gcc.git;a=blob_plain;f=libstdc%2B%2B-v3/libsupc%2B%2B/eh_throw.cc;hb=refs/tags/releases/gcc-4.8.0"
+  - "GDB Developers, gdb/process-stratum-target.h at gdb-18.1-release, binutils-gdb.git, 2026, https://sourceware.org/git/?p=binutils-gdb.git;a=blob_plain;f=gdb/process-stratum-target.h;hb=refs/tags/gdb-18.1-release"
+  - "GDB Developers, gdb/cp-abi.c (value_rtti_type) at gdb-18.1-release, binutils-gdb.git, 2026, https://sourceware.org/git/?p=binutils-gdb.git;a=blob_plain;f=gdb/cp-abi.c;hb=refs/tags/gdb-18.1-release"
+  - "GDB Developers, gdb/syscalls/aarch64-linux.xml at gdb-18.1-release, binutils-gdb.git, 2026, https://sourceware.org/git/?p=binutils-gdb.git;a=blob_plain;f=gdb/syscalls/aarch64-linux.xml;hb=refs/tags/gdb-18.1-release"
+  - "GDB Developers, gdb/linux-fork.c (checkpoint: can't checkpoint multiple threads) at gdb-18.1-release, binutils-gdb.git, 2026, https://sourceware.org/git/?p=binutils-gdb.git;a=blob_plain;f=gdb/linux-fork.c;hb=refs/tags/gdb-18.1-release"
+  - "LLVM Project, lldb/source/ValueObject/ValueObject.cpp (ValueObject::GetDynamicValue) at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/ValueObject/ValueObject.cpp"
+  - "LLVM Project, lldb/source/Plugins/Process/Linux/NativeProcessLinux.cpp and FreeBSD/NativeProcessFreeBSD.cpp (MonitorClone) at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/Plugins/Process/Linux/NativeProcessLinux.cpp"
+  - "LLVM Project, lldb/source/Target/ThreadPlanStack.cpp at llvmorg-23.1.5, llvm-project, 2026, https://github.com/llvm/llvm-project/blob/llvmorg-23.1.5/lldb/source/Target/ThreadPlanStack.cpp"
 ---
 
 # C++ GDB and LLDB Expert Guide
@@ -94,22 +116,22 @@ Behavior marked "observed" was reproduced by hand with the probe program in the 
 ### 1. Two object models
 
 GDB represents each execution as an **inferior**: usually a process, but an inferior exists before `run` and survives process exit, so its breakpoints and settings persist across reruns.
-Each inferior lives in a **program space** (an executable and its symbols) and is bound to a **target connection** (`native`, `core`, `remote`, `extended-remote`); `info inferiors` lists all three columns and `info connections` lists the connections.
+Each inferior lives in a **program space** (an executable and its symbols, managed via `struct program_space` in `gdb/progspace.h`) and is bound to a **target connection** (`native`, `core`, `remote`, `extended-remote`, backed by `process_stratum_target` in `gdb/process-stratum-target.h`); `info inferiors` lists all three columns and `info connections` lists the connections.
 Threads get two identifiers: a per-inferior number used as the qualified ID `inferior.thread` (`2.1`), and a global ID that is unique across all inferiors (`info threads -gid`).
 GDB hides the inferior prefix until a second inferior exists, which is why thread IDs suddenly become `1.1` and breakpoints become `1.1` and `1.2` locations after a fork with `detach-on-fork off` (observed).
 `add-inferior [-copies n] [-exec file] [-no-connection]` and `clone-inferior` add inferiors by hand, `remove-inferiors` deletes stopped ones, and `detach inferiors` and `kill inferiors` act on inferiors other than the current one.
 GDB 18 changed `add-inferior` and `clone-inferior` to warn and create the new inferior without a connection when the current connection cannot be shared, such as a core file or a `target remote` connection, because sharing them "would usually lead to GDB crashing" (NEWS for GDB 18).
 The convenience variables `$_inferior`, `$_thread`, `$_gthread`, and (since GDB 13) `$_inferior_thread_count` let breakpoint conditions and scripts branch on these identities.
 
-LLDB's top-level object is the **debugger**, which holds a list of **targets** (`target create`, `target list`, `target select`).
-A target is an executable plus its settings and breakpoints, and it owns at most one **process** at a time.
-So LLDB has no "hold both sides of a fork" mode: `ProcessGDBRemote::DidFork` in LLVM 23.1.5 picks the side to follow from `target.process.follow-fork-mode` (default `parent`), disables software breakpoints and hardware traps in the other side, and detaches it.
-During an expression evaluation the same function forces follow-parent even when `follow-fork-mode` is `child`, because following the child would make the expression's thread vanish.
+LLDB's top-level object is the **debugger** (`lldb::SBDebugger`), which holds a list of **targets** (`lldb_private::Target` in `lldb/Target/Target.h`, managed via `target create`, `target list`, `target select`).
+A target is an executable plus its settings and breakpoints, and it owns at most one **process** (`lldb_private::Process` in `lldb/Target/Process.h`) at a time.
+So LLDB has no "hold both sides of a fork" mode: `ProcessGDBRemote::DidFork` in LLVM 23.1.5 (`ProcessGDBRemote.cpp`) picks the side to follow from `target.process.follow-fork-mode` (default `parent`), removes software breakpoints from the other side (and hardware traps as well when it follows the child), and detaches it; the one trap it keeps is the expression-return trap at `_start` in a child forked by the expression itself, so that child dies on `SIGTRAP` instead of running `_start` on a corrupted stack (`DidForkSwitchSoftwareBreakpoints`).
+During an expression evaluation the same function forces follow-parent even when `follow-fork-mode` is `child`, because following the child would make the expression's thread vanish; if a different thread forked, the child is detached but asked to stay stopped.
 LLDB learns about forks only from a server that advertises `fork-events+` and `vfork-events+` in `qSupported`, which `lldb-server` implements for Linux and FreeBSD (`NativeProcessLinux::MonitorClone`, `NativeProcessFreeBSD::MonitorClone`).
 On macOS the probe set `follow-fork-mode child` with a breakpoint in the child, and LLDB never stopped in the child (observed); the child never printed its marker line, which matches the GDB manual's description of an untraced child that executes an inherited breakpoint trap and dies of `SIGTRAP`, though the probe could not read the child's exit status (see the `EINTR` pitfall).
 
-Each LLDB thread executes a **thread plan stack**: `next` pushes a step-over plan, and if a breakpoint inside a called function interrupts it, new commands push on top and a later `continue` resumes the original step-over (LLDB tutorial).
-Hand-called expressions are plans on the same stack, which is why `thread plan list` and `thread plan discard` exist and why an interrupted expression can be finished with `continue` or abandoned with `thread return -x`.
+Each LLDB thread executes a **thread plan stack** (`ThreadPlanStack` in `lldb/source/Target/ThreadPlanStack.cpp`): `next` pushes a step-over plan (`ThreadPlanStepOverRange`), and if a breakpoint inside a called function interrupts it, new commands push on top and a later `continue` resumes the original step-over (LLDB tutorial).
+Hand-called expressions are plans (`ThreadPlanCallFunction` in `lldb/source/Target/ThreadPlanCallFunction.cpp`) on the same stack, which is why `thread plan list` and `thread plan discard` exist and why an interrupted expression can be finished with `continue` or abandoned with `thread return -x`.
 
 ### 2. Who runs while you look: stop modes and scheduling
 
@@ -134,7 +156,7 @@ LLDB has no non-stop mode; its tutorial lists "thread centric debugging", where 
 What LLDB does have is a per-step run mode, `thread step-in|step-over|until --run-mode this-thread|all-threads|while-stepping`:
 
 - The default is `while-stepping` (`eOnlyDuringStepping` in `CommandObjectThread.cpp`), unless `target.process.run-all-threads` (default `false`) forces `all-threads`.
-- `ThreadPlanStepRange::StopOthers()` returns `!m_found_calls` for that mode: other threads are held while LLDB steps through a line, and released when the line contains a call, because the source comment notes "a call can execute arbitrary code which might for instance take a lock that's held by another thread".
+- `ThreadPlanStepRange::StopOthers()` in `ThreadPlanStepRange.cpp` returns `!m_found_calls` for that mode: LLDB steps a line one stretch at a time, up to the next branch, and holds other threads for a stretch without a call but releases them for a stretch that contains one, because the source comment notes "a call can execute arbitrary code which might for instance take a lock that's held by another thread".
 - `target.process.thread.single-thread-plan-timeout` (default 1000 ms) resumes all threads if a single-thread plan makes no progress, "to resolve any potential deadlock".
 - `target.process.always-run-thread-names` lists threads, such as a watchdog, that always run during single-thread steps.
 
@@ -161,9 +183,9 @@ LLDB stops on exec by default (`target.process.stop-on-exec`, default `true`).
 `catch` stops on runtime events (section 5.1.3), and `tcatch` sets a one-shot catchpoint:
 
 - `throw [regexp]`, `rethrow [regexp]`, `catch [regexp]`: the C++ exception lifecycle, for the `gnu-v3` C++ ABI only.
-  The type filter and the `$_exception` convenience variable rely on SDT probes in libstdc++, first shipped in GCC 4.8 and present only if that libstdc++ was built with them; `$_exception` is valid only at the catchpoint's own instruction.
+  The type filter and the `$_exception` convenience variable rely on Static Defined Tracing (SDT) probes in libstdc++, added on 2013-03-15 and first shipped in GCC 4.8.0 (libstdc++ `ChangeLog-2013`), and defined in `libstdc++-v3/libsupc++/eh_throw.cc` (`PROBE2 (throw, obj, tinfo)` and `PROBE2 (rethrow, ...)`) and `eh_catch.cc` (`PROBE2 (catch, ...)` in `__cxa_begin_catch`); `$_exception` is valid only at the catchpoint's own instruction.
   The stop lands in the runtime (observed: `__cxa_throw () from libstdc++.so.6`), so `up` reaches the throwing frame.
-- `syscall [name | number | group:name]`: entry to and return from system calls, with names from GDB's per-architecture XML database; a number works when that database lags the kernel.
+- `syscall [name | number | group:name]`: entry to and return from system calls, with names from GDB's per-architecture XML database (`gdb/syscalls/`, for example `aarch64-linux.xml`); a number works when that database lags the kernel.
 - `fork`, `vfork`, `exec`, and `load [regexp]` and `unload [regexp]` for shared libraries.
 - `signal [signal... | all]`: with no argument it catches every signal except `SIGTRAP` and `SIGINT`, which GDB uses itself; unlike `handle`, a catchpoint can carry a condition and commands.
 
@@ -178,7 +200,7 @@ LLDB expresses the same events as breakpoints and settings:
 ### 5. Watchpoints: data breakpoints
 
 A watchpoint stops when an expression's value changes (`watch`), is read (`rwatch`), or is accessed (`awatch`).
-GDB uses a hardware watchpoint when it can, which reports the exact instruction, and falls back to a software watchpoint, which single-steps the program and is "hundreds of times slower than normal execution" (section 5.1.2).
+GDB uses a hardware watchpoint when it can via `target_insert_watchpoint()` in `gdb/target.c`, which reports the exact instruction, and falls back to a software watchpoint, which single-steps the program and is "hundreds of times slower than normal execution" (section 5.1.2).
 Rules from the manual that bite in practice:
 
 - `rwatch` and `awatch` are hardware-only, because a read that does not change the value is invisible to software watching.
@@ -189,14 +211,16 @@ Rules from the manual that bite in practice:
 - `set can-use-hw-watchpoints 0` forces software watchpoints for watchpoints created afterwards.
 
 LLDB's `watchpoint set variable` defaults to type `modify` and the variable's size, and `watchpoint set expression -- <addr>` defaults to the pointer size unless `-s` is given; `-w read|write|modify|read_write` selects the access type, and `watchpoint modify -c` adds a condition.
+When watching a local variable, LLDB's `Watchpoint::VariableWatchpointDisabler` (`Watchpoint.cpp`) automatically disables the watchpoint when the owning stack frame is popped.
 On the Apple M-series machine used for the probe, `watchpoint list` reported `Number of supported hardware watchpoints: 4` (observed, darwin-arm64).
 How those slots map to x86 debug registers or Arm watchpoint registers belongs to [[How-Debuggers-Work-ptrace-Mach-and-Breakpoints]].
 
 ### 6. Inferior function calls: the dummy frame
 
 `print f(x)`, `call f(x)`, a breakpoint condition that calls a function, and LLDB's `expression` all run code in the real process.
-GDB pushes a **dummy frame**: it saves the registers, builds a call per the platform ABI with a return address that lands on a breakpoint GDB owns, resumes the inferior, and restores everything when that breakpoint is hit.
+GDB pushes a **dummy frame** (`call_function_by_hand_dummy` in `gdb/infcall.c`, tracked via `struct dummy_frame` in `gdb/dummy-frame.c`): it saves the registers, builds a call per the platform ABI with a return address that lands on a breakpoint GDB owns, resumes the inferior, and restores everything when that breakpoint is hit.
 Anything that stops the inferior before that breakpoint leaves the dummy frame on the stack, shown as `<function called from gdb>` (observed).
+In LLDB, the call is managed on the plan stack via `ThreadPlanCallFunction` (`lldb/source/Target/ThreadPlanCallFunction.cpp`).
 
 ```mermaid
 stateDiagram-v2
@@ -242,7 +266,7 @@ LLDB's controls are per-command options with target-wide defaults:
 The hazards that follow from running code inside a stopped process:
 
 - **Debugger-made deadlock.** With `scheduler-locking on`, a call that needs a lock held by another thread can never finish (observed: `locked_read()` blocked in `pthread_mutex_lock` until the 2 s `direct-call-timeout`).
-  The same call in LLDB's default mode waited for the holder thread to release the lock, which in the probe took more than 20 s of wall time with every thread running (observed).
+  The same call in LLDB's default mode waited for the holder thread to release the lock, which in the probe took about 30 s of wall time with every thread running (observed).
 - **State drift.** Any mode that lets other threads run during a call lets them change the very data you are about to print.
 - **Re-entrancy.** Calling `malloc`, `printf`, or a logging function while the stopped thread is inside the allocator or holds the stdio lock can deadlock or corrupt state, for the same reason those functions are not async-signal-safe; pretty-printers that call methods inherit the hazard, which [[Cpp-Debugger-Scripting-and-Pretty-Printers]] addresses.
 - **Nested calls.** A call left on the stack by `unwind-on-signal off` stays there, and the next call is pushed above it.
@@ -268,7 +292,7 @@ Tracepoints (chapter 13) collect data at a location and let the program continue
 The workflow is `trace LOCATION [if COND]`, `actions` with `collect EXPRS` and `while-stepping N`, `tstart`, run, `tstop`, then `tfind start`, `tfind`, and `tfind end`.
 They work only on remote targets whose stub implements trace collection; the manual still says no stub shipped with GDB supports them, but NEWS records that GDBserver gained tracepoints and fast tracepoints in GDB 7.2, so treat that manual sentence as stale.
 `ftrace` sets a fast tracepoint that patches a jump instead of a trap where the instruction is long enough (on 32-bit x86 the manual cites 5 bytes, or 4 with low memory available for trampolines).
-GDB 17 removed UST static tracepoint support from GDBserver, and GDB 18 removed Common Trace Format output, so `tsave` now writes only GDB's own `tfile` format.
+GDB 17 removed UST static tracepoint support from GDBserver, and GDB 18 removed Common Trace Format output, so `tsave` now writes only GDB's own `tfile` format (`gdb/tracefile-tfile.c`).
 
 `dprintf LOCATION,"format",ARGS...` is a breakpoint that prints and continues, so it adds a log line without recompiling.
 `set dprintf-style gdb` (default) formats in GDB, `call` calls `dprintf-function` (default `printf`) in the program, with an optional `dprintf-channel` first argument such as a `FILE *`, and `agent` hands the work to a remote agent.
@@ -279,7 +303,7 @@ LLDB's equivalent is `breakpoint set ... -C "CMD" -G true`, a breakpoint with a 
 
 - Overloaded functions produce a breakpoint menu or multiple locations; spell one out as `b func(int)`, and use `rbreak REGEX` or LLDB `breakpoint set -r REGEX` for families.
 - GDB ignores template parameter lists when matching, so `b Foo<int>::bar` and `b Foo::bar` both work, and `-qualified` forces an exact match; ABI tags such as `[abi:cxx11]` can be omitted.
-- `set print object` defaults to `off`, so GDB prints the declared type unless told to read the vtable; LLDB's `target.prefer-dynamic-value` defaults to `no-run-target` and shows the dynamic type whenever that needs no code execution.
+- `set print object` defaults to `off`, so GDB prints the declared type unless told to read the vtable pointer (`_vptr`) via `value_rtti_type()`, defined in `gdb/cp-abi.c` and called from `gdb/valops.c`; LLDB's `target.prefer-dynamic-value` defaults to `no-run-target` and shows the dynamic type via `ValueObject::GetDynamicValue()` in `lldb/source/ValueObject/ValueObject.cpp` whenever that needs no code execution.
 - `info vtbl EXPR` dumps the virtual tables of an object, and `set overload-resolution` (default `on`) applies C++ conversion rules in expressions.
 - LLDB's `target.process.thread.step-avoid-regexp` defaults to `^std::`, so `step` does not stop inside the standard library; GDB needs `skip -gfi '/usr/include/c++/*'` or `skip -rfu '^std::'`, and `thread step-in -t NAME` (`sif NAME`) steps into one named callee.
 
@@ -351,7 +375,7 @@ Every LLDB command below is from the LLDB command map or was checked with `help`
 | Fork policy | `set follow-fork-mode child`, `set detach-on-fork off` | `settings set target.process.follow-fork-mode child`; no detach-on-fork |
 | Multiple programs | `add-inferior -exec ./b`, `inferior 2` | `target create ./b`, `target select 1` |
 | Threads | `info threads`, `thread 2` | `thread list`, `thread select 2` |
-| All backtraces | `thread apply all bt` | `thread backtrace all` (`bt all`); `bt unique` groups identical stacks |
+| All backtraces | `thread apply all bt` | `thread backtrace all` (`bt all`); `thread backtrace unique` groups identical stacks (`bt unique` is rejected by the `_regexp-bt` alias) |
 | Locals without running code | `info locals`, `info args` | `frame variable` (`fr v`) |
 | Globals | `print g` | `target variable g` |
 | Evaluate, may run code | `print f(x)`, `call f(x)` | `expression -- f(x)` |
@@ -382,7 +406,7 @@ Both engines are native debuggers; Python and Rust support is layered on top of 
 | Inferior call hazard | Dummy frame, locks held by other threads | Calling into the interpreter needs the GIL or thread state the stopped thread may hold | Same as C++, plus panics that unwind into the dummy frame |
 | Owning note | [[Cpp-Debugger-Scripting-and-Pretty-Printers]] | [[Python-Debugging-Hung-Processes-and-C-Extensions]] | [[Rust-GDB-LLDB-Panics-and-Backtraces]] |
 
-The `rust-gdb` script adds the printer directory with `--directory` and `add-auto-load-safe-path`, and maps `/rustc/<commit-hash>` to the local `rust-src` with `set substitute-path`, so a Rust user is running plain GDB with three extra flags.
+The `rust-gdb` script adds the printer directory with `--directory` and `add-auto-load-safe-path`, maps `/rustc/<commit-hash>` to the local `rust-src` with `set substitute-path`, and appends the printer directory to `PYTHONPATH`, so by default a Rust user is running plain GDB with three extra flags (on nightly, `RUST_GDB_TRIM_PATHS=unstable` adds one more script).
 
 ## Worked Example
 
@@ -568,12 +592,13 @@ The process has been returned to the state before expression evaluation.
 
 LLDB's defaults are the opposite of GDB's for a faulting call: it unwinds unless told `-u false`.
 The `-a false -t 2000000` call ran only the current thread and was abandoned after 2 s, but the error text named the thread's earlier stop reason (`breakpoint 1.1`, a breakpoint already deleted) rather than a timeout, so read the outcome from the "returned to the state before" line, not from the reason (observed on `lldb-2103.0.34.407`).
-The default `expression -- locked_read()` returned the right value only after more than 20 s, because after the 250 ms single-thread phase LLDB resumed every thread and waited for the holder to finish its sleep and release the lock.
+The default `expression -- locked_read()` returned the right value only after about 30 s, the holder thread's whole sleep (measured 30 s in a re-run on `lldb-2103.0.34.407`, darwin-arm64), because after the 250 ms single-thread phase LLDB resumed every thread and waited for the holder to finish its sleep and release the lock.
+Type `thread return -x` as its own command: in a re-run that fed it back to back from a command file right after the faulting expression, it still showed `deref` as frame 0 with the expression frames in place, and the same command typed in an interactive session, or after a pause or a `bt`, landed in `checkpoint_here(stage=2)` as shown above.
 
 ### Step 5: what a debugger does to `waitpid` (darwin-arm64)
 
 With only a breakpoint on `debit`, deleted before `continue`, the program's own check printed `waitpid ok=0 errno=4` under LLDB, and `waitpid ok=1 errno=0` without a debugger.
-Errno 4 is `EINTR` on macOS: the debugger's handling of the fork interrupted the parent's blocking call, which is exactly the GDB manual's warning in "Interrupted System Calls", and it applies to LLDB as well.
+Errno 4 is `EINTR` on macOS: the debugger's handling of the fork interrupted the parent's blocking call, the same premature return that the GDB manual's "Interrupted System Calls" section warns about for multi-threaded programs, and it applies to LLDB as well.
 
 ## Pitfalls
 
@@ -595,7 +620,7 @@ Errno 4 is `EINTR` on macOS: the debugger's handling of the fork interrupted the
 
 > [!warning] Pitfall: trusting `step` to freeze other threads
 > In GDB's default all-stop mode, `step` and `next` let every thread run, and the step can finish in a different thread that hit a breakpoint.
-> Use `set scheduler-locking step` to step one thread, and remember that LLDB's default `while-stepping` mode releases all threads whenever the line contains a call.
+> Use `set scheduler-locking step` to step one thread, and remember that LLDB's default `while-stepping` mode releases all threads whenever the stretch of the line it is stepping contains a call.
 
 > [!warning] Pitfall: `watch` on a local that goes out of scope
 > `watch obj.field` on a local is deleted when the frame returns, so a corruption that happens later is never seen.
@@ -651,7 +676,7 @@ Decision rules:
 > > `watch x` watches the expression in its scope: GDB re-evaluates it and deletes the watchpoint when execution leaves the block of any local the expression uses.
 > > `watch -l x` evaluates `x` once, takes the address of the result, and watches that memory with the result's size, so it survives scope exit.
 > > It matters for corruption of a heap object or a member reached through a local pointer or reference: the scoped form vanishes when the function returns, exactly before the corrupting write happens.
-> > In LLDB, `watchpoint set variable` is the scoped form and `watchpoint set expression -- &obj.field` watches the address.
+> > In LLDB, `watchpoint set variable` is the scoped form (on a local, `Watchpoint::VariableWatchpointDisabler` disables it when the frame exits) and `watchpoint set expression -- &obj.field` watches the address.
 
 > [!question] L5: You `print compute()` at a breakpoint and GDB reports a SIGSEGV inside `compute`; what state are you in, and how do you get back?
 >

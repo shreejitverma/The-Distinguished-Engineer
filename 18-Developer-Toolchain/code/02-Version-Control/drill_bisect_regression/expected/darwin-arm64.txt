@@ -16,12 +16,22 @@ bisect_steps=8
 
 --- 3. Naive Automated Bisect Run (Build Breakage Trap) ---
 Naive bisection culprit: 78cd8b9 wip(17): incomplete refactoring commit 8
-Status: FALSE POSITIVE (unbuildable intermediate commit accused instead of regression)
+Naive session: 9 revisions tested: 5 good, 4 bad, 0 skip
+Verdict: FALSE POSITIVE (culprit does not compile, so it cannot have introduced a latency regression)
 
 --- 4. Robust Automated Bisect Run (Exit Code 125 Skipping) ---
 Robust bisection culprit: 28a3f78 feat(routing): switch order lookup to dynamic linked list
-Status: SUCCESS (exact regression commit pinpointed in 10 bisection steps)
+Robust session: 10 revisions tested: 5 good, 4 bad, 1 skip
+Verdict: CORRECT (culprit is the regression commit)
 
 --- 5. Mainline Integration Bisect (--first-parent) ---
 First-parent mainline culprit: 7032045 merge feature_17 into main
-Status: SUCCESS (fast pull-request / merge-commit isolation in 5 steps)
+First-parent session: 5 revisions tested: 3 good, 2 bad, 0 skip
+Verdict: CORRECT (culprit is the trunk merge that brought in the regression)
+
+--- 6. Merge-Base Check (good is not an ancestor of bad) ---
+Prompt 'a merge base must be tested': yes
+First revision checked out is a merge base: yes (d53e4cb9cf)
+Marking that merge base bad: exit status 3
+The merge base <hash> is bad.
+This means the bug has been fixed between <hash> and [<hash>].

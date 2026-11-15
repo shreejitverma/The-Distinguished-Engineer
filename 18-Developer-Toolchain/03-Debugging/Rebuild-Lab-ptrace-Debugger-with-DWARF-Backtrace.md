@@ -2,7 +2,7 @@
 type: playbook
 track: [sde, distinguished, low-latency]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "Michael Kerrisk et al., ptrace(2): process trace, Linux man-pages project, 2026, https://man7.org/linux/man-pages/man2/ptrace.2.html"
@@ -28,6 +28,12 @@ sources:
   - "perf developers, perf-record(1) (--call-graph fp, dwarf, lbr), Linux man-pages project, 2026, https://man7.org/linux/man-pages/man1/perf-record.1.html"
   - "GNU Binutils project, The SFrame Format (version 3), sourceware.org, 2026, https://sourceware.org/binutils/docs/sframe-spec.html"
   - "Canonical, Performance engineering on Ubuntu leaps forward with frame pointers by default in Ubuntu 24.04 LTS, ubuntu.com blog, 2023, https://ubuntu.com/blog/ubuntu-performance-engineering-with-frame-pointers-by-default"
+  - "Ubuntu developers, Launchpad bug 2064539: Revert back frame pointers for ppc64el (dpkg build defaults), Launchpad, 2024, https://bugs.launchpad.net/ubuntu/+source/linux/+bug/2064539"
+  - "Ubuntu developers, Launchpad bug 2064538: Revert back frame pointers for s390x, Launchpad, 2024, https://bugs.launchpad.net/bugs/2064538"
+  - "Free Software Foundation, Using the GNU Compiler Collection: Optimize Options (-fomit-frame-pointer), gcc.gnu.org, 2026, https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html"
+  - "Free Software Foundation, Using the GNU Compiler Collection: AArch64 Options (-momit-leaf-frame-pointer), gcc.gnu.org, 2026, https://gcc.gnu.org/onlinedocs/gcc/AArch64-Options.html"
+  - "Arm Ltd, Procedure Call Standard for the Arm 64-bit Architecture (AAPCS64, callee-saved r19-r29 and SP), ARM-software/abi-aa, 2026, https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst"
+  - "Free Software Foundation, Debugging with GDB: Maintenance Commands (set displaced-stepping auto), sourceware.org, 2026, https://sourceware.org/gdb/current/onlinedocs/gdb.html/Maintenance-Commands.html"
 ---
 
 # Rebuild Lab: ptrace Debugger with DWARF Backtrace
@@ -160,9 +166,9 @@ readelf -SW target | grep -E ' \.(eh_frame|eh_frame_hdr|symtab) '
 
 `target.c` calls `main -> outer_layer -> middle_layer -> leaf_compute` twice, with inputs from `volatile` globals and GCC's `noipa` attribute so the optimizer cannot fold, inline, or clone the functions.
 The build has no `-g`: the debugger needs only `.symtab` for names and `.eh_frame` for unwinding.
-`-fno-omit-frame-pointer` is explicit because `gcc -Q -O2 --help=optimizers` in the lab image reports `-fomit-frame-pointer [enabled]`, although Canonical's announcement says its GCC package enables frame pointers by default on 64-bit platforms from Ubuntu 24.04.
-UNVERIFIED: whether Ubuntu applies that default through package build flags rather than the compiler driver; either way, pass the flag when you need frame pointers.
-On AArch64, `-momit-leaf-frame-pointer` is also `[enabled]` in that image, so `leaf_compute` gets no frame record even with the flag.
+`-fno-omit-frame-pointer` is explicit because GCC documents `-fomit-frame-pointer` as "Enabled by default at -O1 and higher" (GCC Optimize Options), so an `-O2` build omits frame pointers unless asked.
+Ubuntu 24.04 LTS delivered its frame-pointer default through modified build defaults in Ubuntu's `dpkg` package, which is where the later ppc64el and s390x reverts landed (Launchpad bugs 2064539 and 2064538), so a direct compiler invocation outside a package build does not get it.
+On AArch64, `-momit-leaf-frame-pointer` is the GCC default (GCC AArch64 Options), so `leaf_compute` gets no frame record even with the flag.
 
 **Verification:** `.eh_frame` and `.eh_frame_hdr` have flag `A` (allocated, so they are loaded at run time and `strip` keeps them), and `.symtab` has none; the lab printed, with runs of spaces squeezed:
 
@@ -307,7 +313,9 @@ Three rules make this correct, and each is a classic bug when missing:
 - Look up a caller at the return address minus 1: a call to a `noreturn` function can be the last instruction of a function, so the return address belongs to the next function or to no function (DWARF 5 section 6.4.4).
 - Set the caller's stack pointer to the CFA, because DWARF defines the CFA as the value of the stack pointer at the call site in the previous frame (DWARF 5 section 6.4).
 - Treat "never mentioned" as "same value", and only an explicit `DW_CFA_undefined` on the return-address column as the end of the stack.
-  DWARF 5 says the default rule is undefined, but the AArch64 CIE never mentions `x30`, so a strict reading ends every backtrace at a leaf; libgcc's `uw_update_context` and the aadwarf64 rule for callee-saved registers both default to same value, and glibc's `_start` marks the true end with `cfi_undefined (x30)` on AArch64 and `cfi_undefined (rip)` on x86-64 (`sysdeps/*/start.S`).
+  DWARF 5 says the default rule is undefined, but the AArch64 CIE never mentions `x30`, so a strict reading ends every backtrace at a leaf.
+  The aadwarf64 consumer rule does not rescue it: it defaults callee-saved registers to same value and "other registers as if by `DW_CFA_undefined`", and `x30` is not callee-saved (AAPCS64 lists r19-r29 and SP).
+  What makes leaf unwinds work is libgcc's `uw_update_context`, which "doesn't make any distinction between undefined and same_value rule", so an unmentioned `x30` keeps its value, and only `DW_CFA_undefined` on the return-address column marks the outermost frame; GDB also unwinds the leaf, as the lab's GDB cross-check shows; glibc's `_start` marks the true end with `cfi_undefined (x30)` on AArch64 and `cfi_undefined (rip)` on x86-64 (`sysdeps/*/start.S`).
 
 On AArch64 with return-address signing (`-mbranch-protection=standard`), the FDEs also carry `DW_CFA_AARCH64_negate_ra_state`, and a return address loaded from the stack has a pointer authentication code in its high bits.
 The unwinder toggles a flag on that opcode and clears the bits in `insn_mask` from the `NT_ARM_PAC_MASK` regset, which the kernel exposes only when the CPU has pointer authentication (kernel `pointer-authentication.rst`).
@@ -400,7 +408,7 @@ What the output proves and what it does not:
 
 ### Verified output
 
-Recorded by `python3 -m _harness.verify --record` on linux-aarch64 on 2026-11-08, in the pinned `toolchain-labs` image on OrbStack (kernel 7.2.12), and re-verified ten consecutive times with `PASS` after the final source change; the file is `code/03-Debugging/ptrace_debugger/expected/linux-aarch64.txt`.
+Recorded by `python3 -m _harness.verify --record` on linux-aarch64 on 2026-11-08, in the pinned `toolchain-labs` image on OrbStack (kernel 7.2.12), as of 2026-11; this block is byte-identical to the file `code/03-Debugging/ptrace_debugger/expected/linux-aarch64.txt`.
 
 ```text
 === Target sections and raw CFI (readelf) ===
@@ -549,8 +557,8 @@ A debugger changes another process's code and registers, so undoing it means put
 > That error is silent and biased toward short leaf functions, which are often the hottest code.
 
 > [!warning] The DWARF default rule is not the unwinder default
-> DWARF 5 section 6.4.1 makes "undefined" the default for every column, and the AArch64 ABI then requires consumers to default callee-saved registers to "same value" because producers may omit them.
-> An unwinder written straight from DWARF 5 fails on the first AArch64 leaf; one written straight from libgcc fails only if a producer relies on the strict default.
+> DWARF 5 section 6.4.1 makes "undefined" the default for every column, and the AArch64 ABI (aadwarf64) requires consumers to default callee-saved registers to "same value" but other registers, `x30` included, to "undefined".
+> An unwinder written straight from DWARF 5 or aadwarf64 fails on the first AArch64 leaf; one written straight from libgcc, which treats every unmentioned column as same value, fails only if a producer relies on the strict default.
 
 ## At Scale
 
@@ -559,7 +567,8 @@ At fleet scale nobody single-steps production; the rebuild matters because every
 - **Frame pointers versus CFI in profilers.**
   `perf record --call-graph fp` is the default for user space and follows frame pointers; `--call-graph dwarf` uses CFI and dumps 8192 bytes of user stack per sample by default for later unwinding (perf-record(1), as of 2026-11, Linux).
   Frame-pointer walks are cheap but drop callers in prologues and leaves and fail on code built without frame pointers; DWARF mode is accurate within the copied window but costs memory bandwidth and storage per sample.
-  Canonical's 13 December 2023 announcement made frame pointers the GCC default for 64-bit Ubuntu from 24.04 to make that cheap mode useful, keeping them omitted where the impact is high, such as the Python interpreter.
+  Canonical's 13 December 2023 announcement said the GCC package would enable frame pointers by default for 64-bit Ubuntu from 24.04 to make that cheap mode useful, keeping them omitted where the impact is high, such as the Python interpreter.
+  The change shipped as `dpkg` build defaults for archive packages and was later reverted on ppc64el and s390x (Launchpad bugs 2064539 and 2064538, as of 2026-11, Linux).
 - **Compact unwind tables.**
   SFrame (format version 3) records only what is needed to recover the CFA, frame pointer, and return address, in a loaded `.sframe` section for AMD64, AAPCS64, and s390x, to give stack tracers "a simple, fast and low-overhead mechanism to generate stack traces" (SFrame specification, as of 2026-11).
 - **Out-of-process capture.**
@@ -577,7 +586,7 @@ Decision rules:
 > [!tip] Practice Drill: Extend minidbg and predict each diff first
 > Run `cd code && make verify LAB=03-Debugging/ptrace_debugger/` and confirm `PASS`.
 > Then copy the lab to a scratch directory, make one change at a time, predict the output, and explain the difference.
-> 1. On AArch64 add `-mbranch-protection=standard` to the target's flags: frames 1 to 3 gain ` (signed)` after their RA rule because their FDEs now toggle `RA_SIGN_STATE`, and the backtrace still matches GDB; on the recording VM, whose CPU reports no pointer authentication, that build still ran and unwound correctly, consistent with the kernel documentation's note that the HINT-space subset of these instructions behaves as NOPs on such CPUs; there the `NT_ARM_PAC_MASK` regset is absent, so the mask is 0.
+> 1. On AArch64 add `-mbranch-protection=standard` to the target's flags: frames 1 to 3 gain ` (signed)` after their RA rule because their FDEs now toggle `RA_SIGN_STATE`, and the backtrace still matches GDB; the kernel documentation notes that the HINT-space subset of these instructions behaves as NOPs on CPUs without pointer authentication, so the build should still run there, and on such a CPU the `NT_ARM_PAC_MASK` regset is absent, so the mask is 0.
 > 2. Move the breakpoint to the `ret` of `middle_layer` (the offset from `objdump -d`): predict the CFA rule printed for frame 0 and whether the frame-pointer walk now agrees.
 > 3. Load `libc.so.6`'s `.eh_frame` from `/proc/PID/maps` with its own bias, and unwind past `main` until glibc's explicit `DW_CFA_undefined` ends the stack.
 > 4. Replace the linear FDE scan with a binary search over `.eh_frame_hdr`, whose header is `version, eh_frame_ptr_enc, fde_count_enc, table_enc` (`unw_eh_frame_hdr` in libgcc); dump it with `readelf -x .eh_frame_hdr`, predict the four header bytes from the encodings GCC uses, and check that the FDE count equals the lab's `FDEs: 10`.
@@ -649,7 +658,7 @@ Decision rules:
 > > [!success]- Answer
 > > DWARF 5 section 6.4.1 says the default rule for every column before the CIE's initial instructions is undefined, and an undefined return-address rule means the end of the stack (section 6.4.4).
 > > GCC's AArch64 CIE only says `DW_CFA_def_cfa: sp+0` and never mentions `x30`, so a strict unwinder treats `x30` as undefined in every frameless leaf.
-> > The AArch64 DWARF ABI requires consumers to default callee-saved registers to same value, and libgcc treats every unmentioned column as same value; only an explicit `DW_CFA_undefined` on the return-address column, as in glibc's `_start`, marks the outermost frame.
+> > The AArch64 DWARF ABI does not cover it: it defaults only callee-saved registers to same value, and `x30` is not callee-saved; libgcc treats every unmentioned column as same value and GDB unwinds the leaf too, and only an explicit `DW_CFA_undefined` on the return-address column, as in glibc's `_start`, marks the outermost frame.
 > > Fix: track "unset" separately from "undefined".
 
 > [!question] L6

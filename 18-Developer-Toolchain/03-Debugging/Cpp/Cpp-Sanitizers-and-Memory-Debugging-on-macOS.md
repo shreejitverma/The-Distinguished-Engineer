@@ -2,7 +2,7 @@
 type: concept
 track: [sde, distinguished]
 level:
-status: draft
+status: solid
 last_reviewed:
 sources:
   - "The Clang Team, AddressSanitizer, Clang Documentation, LLVM Project, 2026, https://clang.llvm.org/docs/AddressSanitizer.html"
@@ -86,7 +86,8 @@ flowchart TD
 
 This note owns what is different on macOS.
 How shadow memory, redzones, and quarantine work is owned by [[Cpp-AddressSanitizer-and-LeakSanitizer-Internals]]; vector clocks and MSan's bit-exact shadow are owned by [[Cpp-ThreadSanitizer-and-MemorySanitizer-Internals]]; tag-based detection is owned by [[Cpp-HWASan-and-Hardware-Memory-Tagging]].
-Every "observed" statement below comes from commands run on macOS 27.2 (build 26B123), arm64, with Xcode 27.2 (Apple clang 21.0.0, `clang-2100.4.1.1`) and Homebrew LLVM 23.1.5 on 2026-11-08; this note has no recorded lab, so addresses and PIDs in excerpts are elided and anything observed should be re-run before it is relied on.
+Every "observed" statement below comes from commands run on macOS arm64, with Xcode 27.2 (Apple clang 21.0.0, `clang-2100.4.1.1`) and Homebrew LLVM 23.1.5 as of 2026-11; this note has no recorded lab, so addresses and PIDs in excerpts are elided and anything observed should be re-run before it is relied on.
+An independent verification pass re-ran the driver checks, the worked example, the scribble table, and the Guard Malloc and Probabilistic Guard Malloc observations on macOS 27.3 arm64 on 2026-11-15 and got the same results.
 
 ### 1. Two toolchains, two runtime inventories
 
@@ -104,16 +105,18 @@ Listing `$(clang -print-resource-dir)/lib/darwin/` for each shows the difference
 | `tysan` (TypeSanitizer) | no | yes |
 | `msan`, `hwasan`, `dfsan`, `safestack` | no | no |
 
-For other Apple targets, Apple clang 21 ships `tsan` for macOS, the iOS, tvOS, watchOS, and visionOS simulators, and `xros`, but not for iOS, tvOS, or watchOS devices; Apple's documentation is stricter and says Thread Sanitizer cannot diagnose apps running on an iOS, iPadOS, tvOS, visionOS, or watchOS device, so the `xros` device runtime is `UNVERIFIED: present on disk, but Apple does not document device support for it`.
+For other Apple operating systems, Apple clang ships `asan` and `ubsan` dylibs for both the devices and the Simulators of iOS, tvOS, watchOS, and visionOS (`libclang_rt.asan_ios_dynamic.dylib`, `libclang_rt.ubsan_watchos_dynamic.dylib`, and so on), but `tsan` only for the Simulators plus one device runtime for visionOS (`libclang_rt.tsan_xros_dynamic.dylib`) (observed, as of 2026-11, macOS).
+Apple's documentation ("Diagnosing memory, thread, and crash issues early") says "You can't use Thread Sanitizer to diagnose iOS, iPadOS, tvOS, visionOS, and watchOS apps running on a device", and limits it to 64-bit macOS apps and apps running in Simulator.
+So the visionOS device dylib on disk is not a supported workflow, and Thread Sanitizer has no supported device path on physical Apple hardware outside macOS.
 The driver checks the target before linking, so the missing ones fail early (observed with `clang++ -fsanitize=<name> t.cpp`, as of 2026-11, macOS):
 
 ```text
-Apple clang:    -fsanitize=leak       error: unsupported option '-fsanitize=leak' for target 'arm64-apple-darwin27.2.0'
-Apple clang:    -fsanitize=memory     error: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin27.2.0'
-Apple clang:    -fsanitize=hwaddress  error: unsupported option '-fsanitize=hwaddress' for target 'arm64-apple-darwin27.2.0'
+Apple clang:    -fsanitize=leak       error: unsupported option '-fsanitize=leak' for target 'arm64-apple-darwin27.3.0'
+Apple clang:    -fsanitize=memory     error: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin27.3.0'
+Apple clang:    -fsanitize=hwaddress  error: unsupported option '-fsanitize=hwaddress' for target 'arm64-apple-darwin27.3.0'
 Apple clang:    -fsanitize=type       ld: file cannot be open()ed ... libclang_rt.tysan_osx_dynamic.dylib
-Homebrew 23.1.5: -fsanitize=memory    error: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin27.2.0'
-Homebrew 23.1.5: -fsanitize=hwaddress error: unsupported option '-fsanitize=hwaddress' for target 'arm64-apple-darwin27.2.0'
+Homebrew 23.1.5: -fsanitize=memory    error: unsupported option '-fsanitize=memory' for target 'arm64-apple-darwin27.3.0'
+Homebrew 23.1.5: -fsanitize=hwaddress error: unsupported option '-fsanitize=hwaddress' for target 'arm64-apple-darwin27.3.0'
 Both:           -fsanitize=address,thread  error: ... '-fsanitize=address' not allowed with '-fsanitize=thread'
 ```
 
@@ -148,7 +151,7 @@ Upstream compiler-rt can find leaks on Apple Silicon, and the Clang LeakSanitize
 `lsan_common.h` at llvmorg-23.1.5 defines `CAN_SANITIZE_LEAKS 1` when `(SANITIZER_LINUX || SANITIZER_APPLE) && (SANITIZER_WORDSIZE == 64)` and the CPU is one of `__x86_64__`, `__mips64`, `__aarch64__`, `__powerpc64__`, `__s390x__`.
 `sanitizer_flags.inc` sets the default as `COMMON_FLAG(bool, detect_leaks, !SANITIZER_APPLE, ...)`, so leak checking is off by default on every Apple platform, and the Clang ASan documentation says it "can be enabled using `ASAN_OPTIONS=detect_leaks=1` on macOS".
 
-Apple's runtime is built without it.
+Apple's runtime behaves as if built with `CAN_SANITIZE_LEAKS 0` (inferred from its error message below; Apple's compiler-rt build configuration is not public).
 `asan_flags.cpp` validates the flag with `if (!CAN_SANITIZE_LEAKS && common_flags()->detect_leaks)`, prints `detect_leaks is not supported on this platform.`, and calls `Die()`.
 Observed with the same leaking program (as of 2026-11, macOS arm64):
 
@@ -158,10 +161,10 @@ Observed with the same leaking program (as of 2026-11, macOS arm64):
 | Apple clang `-fsanitize=address` | `detect_leaks=1` | `==PID==AddressSanitizer: detect_leaks is not supported on this platform.` | 134 (abort) |
 | Homebrew `-fsanitize=address` | unset | no report | 0 |
 | Homebrew `-fsanitize=address` | `detect_leaks=1` | `ERROR: LeakSanitizer: detected memory leaks`, direct leak with allocation stack | 1 |
-| Homebrew `-fsanitize=leak` | n/a | standalone `libclang_rt.lsan_osx_dynamic.dylib`, same report | nonzero |
+| Homebrew `-fsanitize=leak` | n/a | standalone `libclang_rt.lsan_osx_dynamic.dylib`, same report (`SUMMARY: LeakSanitizer:`) | 23 |
 
 Apple documents the gap from its side: "Address Sanitizer doesn't detect memory leaks, attempts to access uninitialized memory, or integer overflow errors."
-The supported Apple path to leaks is the `leaks` tool in section 7.
+The supported Apple path to leaks is the `leaks` tool in section 8.
 Rust inherits a different boundary: the Unstable Book lists LeakSanitizer for `x86_64-apple-darwin` but not `aarch64-apple-darwin` (as of 2026-11).
 
 ### 4. MSan, HWASan, and hardware tagging
@@ -170,9 +173,10 @@ MemorySanitizer is documented for Linux, NetBSD, and FreeBSD only, and it "requi
 The HWASan design document targets AArch64 Top Byte Ignore on Linux and Android, with a heap-only page-aliasing mode on x86_64, and does not mention Darwin.
 Arm64 macOS does use the top pointer bits, for pointer authentication on `arm64e` code, which [[Hardware-Security-ABIs-PAC-BTI-CET-and-RELRO]] covers.
 
-Apple's hardware tagging route is Memory Integrity Enforcement, announced on 2025-09-09: secure allocators plus EMTE in synchronous mode and Tag Confidentiality Enforcement, shipping on A19 and A19 Pro iPhones, with EMTE exposed to developers through Xcode's Enhanced Security feature.
-The announcement does not mention Macs, so whether any Mac exposes EMTE to third-party processes is `UNVERIFIED: no Apple primary source found for macOS hardware support as of 2026-11`.
-[[Cpp-HWASan-and-Hardware-Memory-Tagging]] owns the tag-checking mechanism.
+Apple's hardware memory tagging architecture is Memory Integrity Enforcement (announced 2025-09-09), which couples secure allocators with Enhanced Memory Tagging Extension (EMTE) in synchronous mode and Tag Confidentiality Enforcement (TCE).
+That technology is targeted at A19 and A19 Pro silicon on iOS devices, exposed to developers via Xcode's Enhanced Security setting.
+On macOS and Apple Silicon Mac hardware (as of 2026-11), hardware-assisted memory tagging (ARMv8.5-A MTE / HWASan) is not exposed to third-party user-space processes: both Apple clang and upstream LLVM reject `-fsanitize=hwaddress` for Darwin targets, and `MallocReportConfig=1` reports `MTE (enabled/data/max size): 0/0/0`.
+The companion note [[Cpp-HWASan-and-Hardware-Memory-Tagging]] covers the underlying ARM MTE tag generation, hardware registers, and tag-check fault mechanics.
 
 For uninitialized reads on macOS, the practical options are allocation-time scribbling (section 5, `0xaa`), libgmalloc's `MALLOC_FILL_SPACE` (`0x55`), UBSan's `-fsanitize=bool,enum` checks for invalid values, or a Linux MSan build of the same code in a container.
 
@@ -180,7 +184,8 @@ For uninitialized reads on macOS, the practical options are allocation-time scri
 
 libmalloc reads its configuration from the environment at the first allocation.
 `MallocHelp=1` prints the list the running library honors (observed: `MallocLogFile`, `MallocGuardEdges`, `MallocDoNotProtectPrelude`, `MallocDoNotProtectPostlude`, `MallocStackLogging`, `MallocStackLoggingNoCompact`, `MallocStackLoggingDirectory`, `MallocScribble`, `MallocCheckHeapStart`, `MallocCheckHeapEach`, `MallocCheckHeapSleep`, `MallocCheckHeapAbort`, `MallocCorruptionAbort`, `MallocErrorAbort`, `MallocTracing`, `MallocZeroOnFree`, `MallocCheckZeroOnFreeCorruption`, `MallocHelp`).
-The macOS 27.2 SDK's `malloc(3)` documents the semantics:
+libmalloc writes these messages to stderr only when stderr is a terminal and otherwise discards them, so in CI, under `make`, or through a pipe, `MallocHelp` and `MallocReportConfig` print nothing unless `MallocDebugReport=stderr` is also set (documented in `malloc(3)`, observed, as of 2026-11, macOS).
+The macOS SDK's `malloc(3)` documents the semantics:
 
 - `MallocScribble` fills newly allocated memory with `0xaa` and freed memory with `0x55`, and warns that "the 0x55 pattern may not appear in some parts of a deallocated memory block".
 - `MallocGuardEdges` adds a guard page before and after each large block; the two `DoNotProtect` variables remove one side.
@@ -194,7 +199,7 @@ The allocator behind those variables has changed.
 The same file skips the nano allocator when `MALLOC_DO_SCRIBBLE` is set, with the comment "MallocScribble is enabled, which nanov2 does not implement".
 libmalloc's own `malloc_scribble_check` test checks only the `0xaa` fill on allocation; its comment says checking `0x55` on free is something "we can't rely on ... always working in an integration test".
 
-Observed with a program that fills a block with `0x11`, frees it, and reads it back (default allocator, as of 2026-11, macOS 27.2 arm64; reading freed memory is undefined behavior and is done here only to observe the allocator):
+Observed with a program that fills a block with `0x11`, frees it, and reads it back (default allocator, as of 2026-11, macOS arm64; reading freed memory is undefined behavior and is done here only to observe the allocator):
 
 | Block size | No variables | `MallocScribble=1` | `MallocZeroOnFree=0` |
 | :--- | :--- | :--- | :--- |
@@ -209,7 +214,7 @@ The lesson is not the table, which will change with libmalloc releases, but the 
 
 `src/pgm_malloc.c` in libmalloc-812.100.31 implements a sampling guarded allocator, the same idea as GWP-ASan.
 A sampled allocation goes into a slot with its own guard pages, and the slot metadata keeps allocating and freeing thread IDs, timestamps, and a compressed stack trace buffer of 216 bytes ("~62 frames").
-`should_activate()` turns it on by default only for platform binaries, for about 1 in 1,000 processes (1 in 250 on internal builds), unless the main image has a `__DATA,__pgm_opt_out` section.
+`should_activate()` turns it on by default only for platform binaries, for about 1 in 1,000 processes (1 in 250 on internal builds), unless the main image has a `__DATA,__pgm_opt_out` section, and never in a process that has already transitioned to the MTE-backed secure allocator (`malloc_has_sec_transition` under `CONFIG_MTE`).
 `MallocProbGuard=1` forces it on for any process, and `MallocProbGuardSampleRate`, `MallocProbGuardAllocations`, `MallocProbGuardMemoryBudgetInKB`, and related variables tune it; the default sample rate is a random value from 500 to 5,000.
 Observed: with `MallocProbGuard=1 MallocProbGuardSampleRate=1`, a one-byte read after `free()` of a 32-byte block terminated with `SIGBUS` (exit status 138), while the default run printed a stale value and exited 0.
 These variables are absent from `malloc(3)` and `MallocHelp`, so treat them as an internal interface that can change without notice.
@@ -231,7 +236,8 @@ The variable does not survive the protected process either: `DYLD_INSERT_LIBRARI
 
 ### 8. `leaks`, `heap`, `malloc_history`, and `vmmap`
 
-`leaks(1)` attaches to a process through its task port and does a conservative mark phase: any malloc block reachable from a pointer in writable global memory (`__DATA`), a register, or a stack is in use, and so is anything reachable from a reachable block.
+`leaks(1)` attaches to a process through its task port and does a mark phase from the process roots: any malloc block reachable from a pointer in writable global memory (`__DATA`), a register, or a stack is in use, and so is anything reachable from a reachable block.
+It uses type information where it has it (Objective-C and Swift objects), and `-conservative` makes it "ignore type information and scan byte-by-byte for pointers"; untyped C and C++ blocks are scanned conservatively either way.
 Unreachable blocks are leaks, and `leaks` groups them into "root leaks" (no other block references them) and "root cycles".
 `leaks -atExit -- ./prog` launches the program, runs the scan when it exits, and sets `MallocStackLogging=lite` automatically so each root leak has its allocation stack; the exit status is 0 for no leaks, 1 for leaks, and greater than 1 for an error, which makes it a CI gate.
 `leaks pid -outputGraph f.memgraph` saves a memory graph that `leaks`, `heap`, `malloc_history`, `vmmap`, and the Xcode Memory Graph Debugger can open later.
@@ -239,7 +245,7 @@ Unreachable blocks are leaks, and `leaks` groups them into "root leaks" (no othe
 Two observed details matter in practice:
 
 - For a 4,096-byte `malloc()` the report said `1 leak for 5120 total leaked bytes`: `leaks` reports the size of the block the allocator handed out, not the size requested.
-- For an ad-hoc signed binary, `leaks` warns `Process ... is not debuggable. Due to security restrictions, leaks can only show or save contents of readonly memory of restricted processes.`; detection still worked, but leaked-block contents are withheld.
+- For an ad-hoc signed binary, `leaks` warns that the target process is not debuggable due to security restrictions, restricting inspection to readonly memory contents; detection still worked, but leaked-block contents are withheld.
 
 `leaks` needs the zone introspection that libmalloc provides, so it does not work on an ASan build, whose zone is the sanitizer's.
 Observed: `leaks -atExit -- ./asan_binary` fails with `unable to inspect heap ranges of target process; it may be using a malloc replacement library without the required support`.
@@ -276,6 +282,7 @@ The ASan documentation says "on macOS you may need to run `dsymutil` on your bin
 | `MallocCheckHeapSleep` | default 100 s | macOS (as of 2026-11) | Time to attach a debugger on corruption |
 | `MallocCorruptionAbort` | always set on 64-bit | macOS (as of 2026-11) | Double free and corruption abort |
 | `MallocReportConfig=1` | prints xzone enablement | macOS (as of 2026-11) | Not in `malloc(3)`; read from libmalloc source |
+| `MallocDebugReport` | `stderr`, `none`, or `crash`; unset = stderr only if it is a terminal | macOS (as of 2026-11) | Makes `Malloc*` messages visible in CI and pipes |
 | `MallocProbGuard=1` | forces Probabilistic Guard Malloc | macOS (as of 2026-11) | Not in `malloc(3)`; default sample rate 500 to 5,000 |
 | `DYLD_INSERT_LIBRARIES=/usr/lib/libgmalloc.dylib` | page per allocation, 16-byte slack | macOS (as of 2026-11) | Stripped by SIP-protected binaries |
 | `MALLOC_PROTECT_BEFORE` | guard page before the block | macOS (as of 2026-11) | Underrun detection under libgmalloc |
@@ -336,7 +343,7 @@ fi
 cd / && rm -rf "$WORK"
 ```
 
-Excerpts observed on macOS 27.2 arm64 (Apple clang 21.0.0, Homebrew LLVM 23.1.5), not a recorded lab:
+Excerpts observed on macOS arm64 (Apple clang 21.0.0, Homebrew LLVM 23.1.5), not a recorded lab:
 
 ```text
 # step 1
@@ -434,7 +441,7 @@ At 1,000 to 50,000 engineers, macOS is usually one CI platform among several, an
 > > For uninitialized reads, use `MallocScribble` (new memory is `0xaa`) or libgmalloc's `MALLOC_FILL_SPACE` to make them fail loudly, UBSan's `bool` and `enum` checks for invalid values, or an MSan build of the same code in a Linux container.
 > > For tag-style detection, Apple's equivalent is EMTE through Memory Integrity Enforcement on supported hardware, not HWASan.
 
-> [!question] L6: Predict the output: a program fills a 64-byte block with `0x11`, frees it, and prints byte 40 of the freed block; it runs with `MallocScribble=1` on macOS 27.2 arm64.
+> [!question] L6: Predict the output: a program fills a 64-byte block with `0x11`, frees it, and prints byte 40 of the freed block; it runs with `MallocScribble=1` on macOS arm64.
 >
 > > [!success]- Answer
 > > The textbook answer is `0x55`, and it is wrong on this platform.
@@ -489,7 +496,7 @@ At 1,000 to 50,000 engineers, macOS is usually one CI platform among several, an
 > > The allocator is now both a mitigation and a moving target: freed small blocks read as zero, so many use-after-free bugs show up as null-pointer crashes rather than garbage, and debugging patterns tuned to `0x55` or stale data stop matching.
 > > Crash reports from the field may come from sampled guard-page faults or synchronous tag-check faults, which point at the exact faulting access instead of a later corruption symptom, so symbolication and crash clustering become more valuable than local reproduction.
 > > Locally, use `MallocZeroOnFree=0` to restore the old behavior when you need to see stale contents, and `MallocProbGuard=1` with a sample rate of 1 to make sampled detection deterministic in a test run.
-> > Because none of the internal variables are a public contract, wrap their use in scripts that verify they took effect (for example `MallocReportConfig=1` output or the `GuardMalloc` banner) and revalidate those scripts on each macOS release.
+> > Because none of the internal variables are a public contract, wrap their use in scripts that verify they took effect (for example `MallocReportConfig=1` output, which needs `MallocDebugReport=stderr` when stderr is not a terminal, or the `GuardMalloc` banner) and revalidate those scripts on each macOS release.
 
 ## Further Reading
 
@@ -498,7 +505,7 @@ At 1,000 to 50,000 engineers, macOS is usually one CI platform among several, an
 - compiler-rt at llvmorg-23.1.5, `lsan_common.h`, `sanitizer_flags.inc`, `asan_flags.cpp`: where the macOS leak-detection boundary is decided, and the abort that Apple's runtime hits.
 - compiler-rt `interception.h` and `sanitizer_malloc_mac.inc`: Darwin interposition and malloc zone replacement in source.
 - Apple, "Diagnosing memory, thread, and crash issues early": what each Xcode sanitizer covers, its documented overhead, and the device restriction on TSan.
-- `malloc(3)` in the macOS 27.2 SDK and `MallocHelp=1`: the authoritative list of `Malloc*` variables for the libmalloc you are actually running.
+- `malloc(3)` in the macOS SDK and `MallocHelp=1`: the authoritative list of `Malloc*` variables for the libmalloc you are actually running.
 - libmalloc-812.100.31 `src/malloc.c`, `src/pgm_malloc.c`, and `tests/scribble_tests.c`: xzone selection, Probabilistic Guard Malloc, and why free-time scribbling is not guaranteed.
 - `libgmalloc(3)`, `leaks(1)`, `malloc_history(1)`, and `dyld(1)`: Guard Malloc semantics, leak scanning and exit codes, allocation history, and the SIP rule for `DYLD_*` variables.
 - Apple Security Research, "Memory Integrity Enforcement" (2025): Apple's hardware memory tagging direction and what Xcode exposes to developers.
