@@ -1,0 +1,98 @@
+stage 0: naive build, no fixes
+  identical: 0 of 10 artifacts
+  gen/manifest.h     FEATURES order differs (set iteration under PYTHONHASHSEED); GENERATED_ON differs (wall clock and TZ)
+  obj/main.o         embeds the build directory
+  obj/seed.o         embeds the build directory
+  obj/stamp.o        embeds the build directory; embeds __DATE__ __TIME__
+  obj/table.o        embeds the build directory
+  obj/zone.o         embeds the build directory
+  out/libapp.a       embeds the build directory; embeds __DATE__ __TIME__; member order differs; member mtime differs; member mode differs
+  out/app            embeds the build directory; embeds __DATE__ __TIME__; function layout differs (link order); debug map N_OSO entries record object mtimes
+  out/version.pyc    embeds the build directory; pyc header records the source mtime (flags=0, timestamp mode)
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: app, libapp.a, manifest.h, version.pyc
+
+stage 1: +export SOURCE_DATE_EPOCH (compiler dates, generator date, hash-based .pyc)
+  identical: 0 of 10 artifacts
+  gen/manifest.h     FEATURES order differs (set iteration under PYTHONHASHSEED); GENERATED_ON differs: A 2023-11-14 10:13:20 -1200 | B 2023-11-15 12:13:20 +1400
+  obj/main.o         embeds the build directory
+  obj/seed.o         embeds the build directory
+  obj/stamp.o        embeds the build directory
+  obj/table.o        embeds the build directory
+  obj/zone.o         embeds the build directory
+  out/libapp.a       embeds the build directory; member order differs; member mtime differs; member mode differs
+  out/app            embeds the build directory; function layout differs (link order); debug map N_OSO entries record object mtimes
+  out/version.pyc    embeds the build directory
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: app, libapp.a, manifest.h, version.pyc
+
+stage 2: +export TZ=UTC0
+  identical: 0 of 10 artifacts
+  gen/manifest.h     FEATURES order differs (set iteration under PYTHONHASHSEED)
+  obj/main.o         embeds the build directory
+  obj/seed.o         embeds the build directory
+  obj/stamp.o        embeds the build directory
+  obj/table.o        embeds the build directory
+  obj/zone.o         embeds the build directory
+  out/libapp.a       embeds the build directory; member order differs; member mtime differs; member mode differs
+  out/app            embeds the build directory; function layout differs (link order); debug map N_OSO entries record object mtimes
+  out/version.pyc    embeds the build directory
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: app, libapp.a, manifest.h, version.pyc
+
+stage 3: +export LC_ALL=C (object list order)
+  identical: 0 of 10 artifacts
+  gen/manifest.h     FEATURES order differs (set iteration under PYTHONHASHSEED)
+  obj/main.o         embeds the build directory
+  obj/seed.o         embeds the build directory
+  obj/stamp.o        embeds the build directory
+  obj/table.o        embeds the build directory
+  obj/zone.o         embeds the build directory
+  out/libapp.a       embeds the build directory; member mtime differs; member mode differs
+  out/app            embeds the build directory; debug map N_OSO entries record object mtimes
+  out/version.pyc    embeds the build directory
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: app, libapp.a, manifest.h, version.pyc
+
+stage 4: +sorted() in the generator (set order)
+  identical: 1 of 10 artifacts
+  obj/main.o         embeds the build directory
+  obj/seed.o         embeds the build directory
+  obj/stamp.o        embeds the build directory
+  obj/table.o        embeds the build directory
+  obj/zone.o         embeds the build directory
+  out/libapp.a       embeds the build directory; member mtime differs; member mode differs
+  out/app            embeds the build directory; debug map N_OSO entries record object mtimes
+  out/version.pyc    embeds the build directory
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: app, libapp.a, version.pyc
+
+stage 5: +path maps: -ffile-prefix-map, -oso_prefix on macOS, py_compile dfile
+  identical: 7 of 10 artifacts
+  out/libapp.a       member mtime differs; member mode differs
+  out/app            debug map N_OSO entries record object mtimes
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: app, libapp.a
+
+stage 6: +deterministic ar (ZERO_AR_DATE=1 on macOS, the D modifier elsewhere)
+  identical: 8 of 10 artifacts
+  out/libapp.a       member mode differs
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs; tar member mode differs; contents differ: libapp.a
+
+stage 7: +umask 022 for every build (Apple ar and libtool -D copy each member's mode)
+  identical: 9 of 10 artifacts
+  out/bundle.tar.gz  gzip header mtime differs; tar member mtime differs
+
+stage 8: +normalized tarball: sorted names, clamped mtimes, owner 0, fixed modes, gzip mtime 0
+  identical: 10 of 10 artifacts
+
+Final artifacts are bit-for-bit identical across both builds.
+  app prints   stamp: Nov 14 2023 22:13:20
+  app prints   file: src/main.c
+  app prints   features: huge-pages,io-uring,lto,numa,pgo,simd,tls,zstd
+  app prints   generated: 2023-11-14 22:13:20 +0000
+  version.pyc  flags word = 3 (1 = hash-based, 2 = check_source)
+  bundle       gzip mtime field = 0
+  bundle       app          mode 755 uid 0 gid 0 mtime 1700000000
+  bundle       libapp.a     mode 644 uid 0 gid 0 mtime 1700000000
+  bundle       manifest.h   mode 644 uid 0 gid 0 mtime 1700000000
+  bundle       version.pyc  mode 644 uid 0 gid 0 mtime 1700000000
+  libapp.a     __.SYMDEF SORTED   mtime 0 uid 0 gid 0 mode 100644
+  libapp.a     seed.o             mtime 0 uid 0 gid 0 mode 644
+  libapp.a     stamp.o            mtime 0 uid 0 gid 0 mode 644
+  libapp.a     table.o            mtime 0 uid 0 gid 0 mode 644
+  libapp.a     zone.o             mtime 0 uid 0 gid 0 mode 644

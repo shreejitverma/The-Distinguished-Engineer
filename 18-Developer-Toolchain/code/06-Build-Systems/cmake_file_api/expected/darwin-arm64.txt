@@ -1,0 +1,151 @@
+== 1. Presets (cmake 4.5)
+Available configure presets:
+
+  "dev"   - Developer (Debug, Ninja)
+  "rel"
+  "cross"
+
+Available build presets:
+
+  "dev"
+  "cross"
+
+Available test presets:
+
+  "dev"
+  "cross"
+
+Available workflow presets:
+
+  "dev"
+(windows-only is absent: its condition is false on this host)
+
+preset dev -> binaryDir <work>/out/dev
+  CMAKE_BUILD_TYPE = Debug (STRING)
+  LAB_TAG          = dev (UNINITIALIZED)
+  LAB_TYPED        = typed-dev (STRING)
+  LAB_OPT          = from-base (UNINITIALIZED)
+preset rel -> binaryDir <work>/out/rel
+  CMAKE_BUILD_TYPE = Release (STRING)
+  LAB_TAG          = rel (UNINITIALIZED)
+  LAB_TYPED        = typed-rel (STRING)
+  LAB_OPT          = from-command-line (UNINITIALIZED)
+preset cross -> binaryDir <work>/out/cross
+  CMAKE_BUILD_TYPE = Debug (STRING)
+  LAB_TAG          = cross (UNINITIALIZED)
+  LAB_TYPED        = typed-cross (STRING)
+  LAB_OPT          = (not in cache)
+
+environment: configure saw LAB_PATH = /opt/lab/bin + ':' + parent PATH ($penv{PATH}): yes
+environment: LAB_PATH stored in CMakeCache.txt: 0 entries
+
+[cmake --preset windows-only] exit status non-zero
+    CMake Error: Cannot use disabled configure preset in <work>/src: "windows-only"
+[presets version 99] exit status non-zero
+    CMake Error: Could not read presets from <work>/bad-version:
+    CMakePresets.json:1: Unrecognized "version" 99: must be >=1 and <=13
+    {"version": 99, "configurePresets": [{"name": "a"}]}
+                ^
+[inheritance cycle] exit status non-zero
+    CMake Error: Could not read presets from <work>/bad-cycle:
+    Cyclic preset inheritance for configure preset "a"
+[same name in CMakePresets.json and CMakeUserPresets.json] exit status non-zero
+    CMake Error: Could not read presets from <work>/bad-dup:
+    Duplicate preset: "a"
+[cmakeMinimumRequired 5.0] exit status non-zero
+    CMake Error: Could not read presets from <work>/bad-min:
+    CMakePresets.json:1: "cmakeMinimumRequired" major version 5 must be less than 4
+    {"version": 6, "cmakeMinimumRequired": {"major": 5}, "configurePresets": [{"name": "a", "binaryDir": "x"}]}
+                                                     ^
+
+cache stickiness (preset dev, -B <work>/sticky overrides binaryDir):
+  after 'cmake --preset dev -DLAB_STICKY=1':  LAB_STICKY = 1 (UNINITIALIZED)
+  after 'cmake --preset dev' (no -D):         LAB_STICKY = 1 (UNINITIALIZED)
+  after 'cmake --preset dev --fresh':         LAB_STICKY = (not in cache)
+
+workflow preset dev:
+  Executing workflow step 1 of 3: configure preset "dev"
+  Executing workflow step 2 of 3: build preset "dev"
+  Executing workflow step 3 of 3: test preset "dev"
+  100% tests passed out of 1
+
+== 2. Toolchain files
+reads of counting.cmake, fresh configure (count, context, LAB_TC_MODE seen):
+  2 main LAB_TC_MODE=[alpha]
+  2 try_compile LAB_TC_MODE=[]
+reads on re-configure of the same tree:
+  1 main LAB_TC_MODE=[alpha]
+CMakeSystem.cmake re-includes the toolchain: include("${_CMAKE_SYSTEM_TOOLCHAIN_FILE}")
+reads with CMAKE_TRY_COMPILE_PLATFORM_VARIABLES=LAB_TC_MODE:
+  2 main LAB_TC_MODE=[alpha]
+  2 try_compile LAB_TC_MODE=[alpha]
+
+preset cross: CMAKE_SYSTEM_NAME equals CMAKE_HOST_SYSTEM_NAME: yes
+preset cross: set(CMAKE_CROSSCOMPILING "TRUE")
+preset dev:   set(CMAKE_CROSSCOMPILING "FALSE")
+  app.launchers: type=emulator command=toolchains/../emu.sh arguments=['--quiet']
+  cross ctest: 100% tests passed out of 1
+  emulator log: emu.sh ran app
+  dev ctest:   100% tests passed out of 1
+  emulator log after dev ctest: 0 lines
+
+== 3. File API (build tree of preset dev)
+index: generator=Ninja multiConfig=False cmake=4.5
+objects written:
+  codemodel v2.12
+  configureLog v1.0
+  cache v2.0
+  toolchains v1.1
+reply mirror of query/:
+  bogus-v1: error: unknown query file
+  client-lab/query.json client={"lab": "cmake_file_api"}
+    asked toolchains [3, 1] -> toolchains v1.1
+    asked cache 2 -> cache v2.0
+    asked configureLog {"major": 1, "minor": 0} -> configureLog v1.0
+    asked nope 1 -> error: unknown request kind 'nope'
+  codemodel-v2: codemodel v2.12
+codemodel: configurations=['Debug'] directories=1 projects=['PresetsLab']
+  buildsystem targets: app, core
+  abstract targets: iface
+  target app: type=EXECUTABLE nameOnDisk=app
+  target core: type=STATIC_LIBRARY nameOnDisk=libcore.a
+  target iface: type=INTERFACE_LIBRARY abstract
+  app.dependencies (build order): core
+  app.linkLibraries: core, iface
+  app.compileGroups[0]: language=CXX standard=20 (from CMakeLists.txt:23 target_link_libraries())
+    define CORE_LEVEL=3 (from CMakeLists.txt:23 target_link_libraries())
+  app.link.commandFragments roles: flags, libraries
+  app.backtrace: CMakeLists.txt:22 add_executable()
+toolchains: language=CXX compiler.id=AppleClang has path=True has version=True implicit keys=['includeDirectories', 'linkDirectories', 'linkFrameworkDirectories', 'linkLibraries']
+cache: LAB_LEVEL=3 type=STRING
+cache: CMAKE_GENERATOR=Ninja type=INTERNAL
+configureLog: path=<build>/CMakeFiles/CMakeConfigureLog.yaml eventKindNames=['message-v1', 'try_compile-v1', 'try_run-v1', 'find-v1', 'find_package-v1']
+  YAML documents=1 (closed with '...': 1) event kinds present=['find-v1', 'message-v1', 'try_compile-v1']
+  lab message event logged: True
+  try_compile event for LAB_HAVE_TRIVIAL: True
+reply names: 8 files named by SHA3-256(content)[:20], 1 timestamped index
+
+re-configure with no changes:
+  unchanged names: cache-v2, codemodel-v2, configureLog-v1, directory-.-Debug, target-app-Debug, target-core-Debug, target-iface-Debug, toolchains-v1
+  new names:       index-<time>
+  removed names:   index-<time>
+re-configure with -DLAB_LEVEL=4 (changes one compile definition):
+  unchanged names: configureLog-v1, directory-.-Debug, target-iface-Debug, toolchains-v1
+  new names:       cache-v2, codemodel-v2, index-<time>, target-app-Debug, target-core-Debug
+  removed names:   cache-v2, codemodel-v2, index-<time>, target-app-Debug, target-core-Debug
+reply names: 8 files named by SHA3-256(content)[:20], 1 timestamped index
+index files present: 1
+
+== 4. Error index (CMake >= 4.1)
+after a successful configure:
+  reply files: codemodel-v2, configureLog-v1, directory-., index-<time>, target-core
+  current index is index-<time>
+  objects: codemodel v2.12, configureLog v1.0
+  reply[codemodel-v2]: codemodel ok
+  reply[configureLog-v1]: configureLog ok
+after a failed configure (-DLAB_BREAK=ON):
+  reply files: codemodel-v2, configureLog-v1, directory-., error-<time>, index-<time>, target-core
+  current index is error-<time>
+  objects: configureLog v1.0
+  reply[codemodel-v2]: error: no buildsystem generated
+  reply[configureLog-v1]: configureLog ok

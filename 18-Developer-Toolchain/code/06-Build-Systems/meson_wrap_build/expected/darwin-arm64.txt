@@ -1,0 +1,47 @@
+meson 1.12.1, ninja 1.13.2
+
+=== 1. The DSL is typed and checked at configure time ===
+Message: immutability: a has 1 element(s), b has 2
+Message: dict keys: lto opt
+Message: foreach total: 7
+dsl_typeerr/meson.build:2:16: ERROR: The `+` operator of str does not accept objects of type int (1)
+dsl_kwarg/meson.build:2:0: ERROR: executable got unknown keyword arguments "sourcez" (did you mean "sources"?)
+
+=== 2. WrapDB fallback, the package cache, and sha256 pinning ===
+nodownload, empty cache: ERROR: Automatic wrap-based subproject downloading is disabled
+Run-time dependency mylib found: NO  (tried pkg-config, framework and cmake)
+mylib| Using subprojects/mylib/subprojects/zlib.wrap
+mylib| Building fallback subproject with default_library=static
+mylib| Dependency zlib for host machine found: YES 1.3.1 (overridden)
+Dependency mylib for host machine found: YES 0.3.0 (overridden)
+main subprojects/zlib.wrap written by Meson:
+  [wrap-redirect]
+  filename = mylib/subprojects/zlib.wrap
+cache holds: zlib-1.3.1.tar.gz zlib_1.3.1-3_patch.zip
+cached source sha256 matches wrap: yes
+hash of wrap recorded in subprojects/zlib-1.3.1/.meson-subproject-wrap-hash.txt: sha256 of the wrap file
+MYLIB_FEATURE reached main.c through declare_dependency: 1
+zlib version seen by mylib: 1.3.1
+deflate/inflate round trip: ok
+app links a libz dylib: no (static fallback)
+nodownload, warm cache: mylib| Using zlib source from cache.
+tampered cache: ERROR: Incorrect hash for source:
+edited wrap on reconfigure: WARNING: Subproject zlib's revision may be out of date; its wrap file has changed since it was first configured
+
+=== 3. A dead primary URL: retries, fallback URL, and leftovers ===
+retry warnings before giving up on source_url: 5
+fallback used: 1
+temporary files left in the package cache: 6
+
+=== 4. Unity builds: block assignment decides whether static names clash ===
+unity=off unity_size=4: compile commands=3; builds, a+b=3
+unity=on unity_size=4: compile commands=1; u-unity0.c=[a.c main.c b.c]; fails: redefinition of 'helper'
+unity=on unity_size=2: compile commands=2; u-unity0.c=[a.c main.c] u-unity1.c=[b.c]; builds, a+b=3
+
+=== 5. Cross file: build machine runs the generator, host machine runs the app ===
+Message: is_cross_build=true can_run_host_binaries=false
+Message: build_machine=darwin/aarch64 host_machine=darwin/x86_64
+gen (native: true) arch: arm64
+app (host) arch: x86_64
+with a second cross file setting needs_exe_wrapper = false:
+Message: is_cross_build=true can_run_host_binaries=true

@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.25)
+project(BrokenLab LANGUAGES CXX)
+add_library(core STATIC core.cpp)
+if(LAB_BREAK)
+  message(FATAL_ERROR "lab: forced configure failure")
+endif()

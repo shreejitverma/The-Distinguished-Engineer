@@ -1,0 +1,55 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceParentDir}/out/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "LAB_TAG": "${presetName}",
+        "LAB_TYPED": { "type": "STRING", "value": "typed-${presetName}" },
+        "LAB_OPT": "from-base"
+      },
+      "environment": { "LAB_PATH": "/opt/lab/bin${pathListSep}$penv{PATH}" }
+    },
+    {
+      "name": "release-flags",
+      "hidden": true,
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "LAB_OPT": "from-release-flags" }
+    },
+    { "name": "dev", "inherits": "base", "displayName": "Developer (Debug, Ninja)" },
+    { "name": "rel", "inherits": [ "release-flags", "base" ] },
+    {
+      "name": "cross",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/toolchains/cross-host.cmake",
+      "cacheVariables": { "LAB_OPT": null }
+    },
+    {
+      "name": "windows-only",
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "cross", "configurePreset": "cross" }
+  ],
+  "testPresets": [
+    { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
+    { "name": "cross", "configurePreset": "cross" }
+  ],
+  "workflowPresets": [
+    {
+      "name": "dev",
+      "steps": [
+        { "type": "configure", "name": "dev" },
+        { "type": "build", "name": "dev" },
+        { "type": "test", "name": "dev" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,89 @@
+== Versions
+ninja 1.13.2
+GNU Make 4.4.1
+jobserver-fifo in .FEATURES: jobserver-fifo
+
+== 1. dyndep: discovering module dependencies during the build
+-- clean build at -j8; execution order from compile.log:
+  scan b.src a.src
+  compile a.src
+  compile b.src
+-- generated dyndep file mods.dd:
+  ninja_dyndep_version = 1
+  build b.o: dyndep | m.mod
+  build a.o | m.mod: dyndep
+    restat = 1
+-- second run:
+  ninja: no work to do.
+-- edit a.src outside its exports (m.mod content unchanged, restat = 1):
+  scan b.src a.src
+  compile a.src
+  b.o rebuilt: no
+-- edit a.src exports (m.mod content changes):
+  scan b.src a.src
+  compile a.src
+  compile b.src
+  b.o rebuilt: yes
+-- same graph without the dyndep bindings, clean build at -j1:
+  FAILED: [code=1] b.o 
+  modc: b.src: error: module 'm' not found (m.mod missing)
+  ninja: build stopped: subcommand failed.
+  ninja exit status: 1
+
+== 2. deps = gcc: the binary .ninja_deps log and the command-hash .ninja_log
+  [1/1] CC main.o
+  depfile main.o.d left on disk: no
+-- .ninja_deps decoded by depslog.py:
+  signature '# ninjadeps', version 4
+  5 path records, 1 deps records, 1 live outputs
+  main.o: mtime stored=yes; deps: <SDK>/SDKSettings.json main.c config.h util.h
+-- ninja -t deps (mtime scrubbed):
+  main.o: #deps 4, deps mtime N (VALID)
+      <SDK>/SDKSettings.json
+      main.c
+      config.h
+      util.h
+-- .ninja_log header and fields per entry:
+  # ninja log v7
+  tab-separated fields per entry: 5 
+-- change cflags only, then ninja -d explain:
+  ninja explain: command line changed for main.o
+-- second run:
+  ninja: no work to do.
+-- delete util.h and stop including it:
+  [1/1] CC main.o
+  ninja exit status: 0
+-- deps after the rebuild:
+  5 path records, 3 deps records, 1 live outputs
+  main.o: mtime stored=yes; deps: <SDK>/SDKSettings.json main.c config.h
+
+== 3. GNU Make: the same header deletion with -MMD, then with -MMD -MP
+-- DEPFLAGS = -MMD; main.d:
+  main.o: <SDK>/SDKSettings.json main.c config.h util.h
+  make: *** No rule to make target 'util.h', needed by 'main.o'.  Stop.
+  make exit status after deleting util.h: 2
+-- DEPFLAGS = -MMD -MP; main.d:
+  main.o: <SDK>/SDKSettings.json main.c config.h util.h <SDK>/SDKSettings.json: config.h: util.h:
+  make exit status after deleting util.h: 0
+
+== 4. GNU Make: one recipe with two outputs, ':' versus '&:'
+  rule 'gen.h gen.c :' at -j1: recipe ran 1 time(s)
+  rule 'gen.h gen.c :' at -j4: recipe ran 2 time(s)
+  rule 'gen.h gen.c &:' at -j1: recipe ran 1 time(s)
+  rule 'gen.h gen.c &:' at -j4: recipe ran 1 time(s)
+
+== 5. Ninja as a GNU Make jobserver client
+-- make -j3, plain recipe, ninja with no -j (joins the fifo jobserver)
+  MAKEFLAGS jobserver words: --jobserver-auth=fifo:PATH 
+  ninja: Jobserver mode detected: s -j3 --jobserver-auth=fifo:PATH
+  edges: 9, max concurrent: 3
+-- make -j3, plain recipe, ninja -j8 (an explicit -j disables the client)
+  MAKEFLAGS jobserver words: --jobserver-auth=fifo:PATH 
+  edges: 9, max concurrent: 8
+-- make -j3 --jobserver-style=pipe, plain recipe (make hides the pipe)
+  MAKEFLAGS jobserver words: --jobserver-auth=R,W --jobserver-auth=-2,-2 
+  edges: 9, more than 3 at once: yes (Ninja's own default is nproc + 2)
+-- make -j3 --jobserver-style=pipe, '+' recipe (ninja sees the pipe and declines it)
+  MAKEFLAGS jobserver words: --jobserver-auth=R,W 
+  ninja: warning: Ignoring jobserver: Pipe-based protocol is not supported! [s -j3 --jobserver-auth=R,W]
+  edges: 9, more than 3 at once: yes (Ninja's own default is nproc + 2)
