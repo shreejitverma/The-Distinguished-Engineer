@@ -1,0 +1,31 @@
+# Model solution. Three changes against broken.ninja, each marked FIX.
+ninja_required_version = 1.11
+python = python3
+cc = cc
+cflags = -O1 -Wall -Igen
+
+rule schemagen
+  command = $python tools/schemagen.py --root . $in $out $out.d
+  depfile = $out.d
+  deps = gcc
+  # FIX: the generator leaves an unchanged header untouched; restat lets Ninja prune consumers.
+  restat = 1
+  description = GEN $out
+
+rule cc
+  command = $cc $cflags -MD -MF $out.d -c $in -o $out
+  depfile = $out.d
+  deps = gcc
+  description = CC $out
+
+rule link
+  command = $cc $in -o $out
+  description = LINK $out
+
+# FIX: the generator script is an input; editing it must regenerate.
+build gen/order.h: schemagen schemas/order.schema | tools/schemagen.py
+# FIX: every compile in the target waits for the generated header (order-only), the static
+# edge that the depfile cannot provide on a clean build or for a newly added #include.
+build build/main.o: cc src/main.c || gen/order.h
+build build/report.o: cc src/report.c || gen/order.h
+build app: link build/main.o build/report.o

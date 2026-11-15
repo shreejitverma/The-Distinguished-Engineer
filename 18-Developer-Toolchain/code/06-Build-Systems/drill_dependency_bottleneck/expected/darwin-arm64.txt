@@ -1,0 +1,99 @@
+ninja 1.13.2, cmake 4.5.0, -j8, codegen 3 s, each TU 1 s plus real compile time
+
+== A: monolith core, umbrella header (baseline) ==
+  clean build: ok
+  edges run: 29 (24 compiles)
+  compiles with a graph path to the code generator: 24 of 24
+  code generator waits for: nothing
+  order-only chain: CMakeFiles/net.dir/net/net_0.cpp.o || cmake_object_order_depends_target_net || cmake_object_order_depends_target_core || gen/core/schema.h
+  slot model: W 27 s, T_inf 4 s, W/p 3.375 s, makespan at p=8: 6 s
+  slot model critical path: codegen -> compile -> archive -> archive -> link
+  measured: most jobs running alongside the code generator: 0 of 7
+  measured: code generator started at least 1 s into the build: no
+  measured: wall clock within 3.5 s above the slot model: yes
+  measured: max(W/p, T_inf) <= wall <= W/p + T_inf: yes
+  after adding a schema field: 23 TUs recompiled
+
+== B: monolith core, precise includes (header hygiene only) ==
+  clean build: ok
+  edges run: 29 (24 compiles)
+  compiles with a graph path to the code generator: 24 of 24
+  code generator waits for: nothing
+  order-only chain: CMakeFiles/net.dir/net/net_0.cpp.o || cmake_object_order_depends_target_net || cmake_object_order_depends_target_core || gen/core/schema.h
+  slot model: W 27 s, T_inf 4 s, W/p 3.375 s, makespan at p=8: 6 s
+  slot model critical path: codegen -> compile -> archive -> archive -> link
+  measured: most jobs running alongside the code generator: 0 of 7
+  measured: code generator started at least 1 s into the build: no
+  measured: wall clock within 3.5 s above the slot model: yes
+  measured: max(W/p, T_inf) <= wall <= W/p + T_inf: yes
+  after adding a schema field: 1 TUs recompiled
+
+== C: split targets, umbrella header kept, global gen include dir ==
+  clean build: FAILED (missing header core/schema.h)
+  second ninja run in the same tree: ok
+  ninja -t missingdeps: 21 object files read schema.h with no path to its generator
+
+== D: split targets, umbrella header kept, gen include dir scoped to core_schema ==
+  clean build: FAILED (missing header core/schema.h)
+  second ninja run in the same tree: FAILED (missing header core/schema.h)
+
+== E: split targets, precise includes, core_schema links core_util ==
+  clean build: ok
+  edges run: 30 (24 compiles)
+  compiles with a graph path to the code generator: 2 of 24
+  code generator waits for: libcore_util.a
+  order-only chain: CMakeFiles/net.dir/net/net_0.cpp.o || cmake_object_order_depends_target_net || cmake_object_order_depends_target_core_util
+  slot model: W 27 s, T_inf 5 s, W/p 3.375 s, makespan at p=8: 5 s
+  slot model critical path: compile -> archive -> codegen -> compile -> archive -> link
+  measured: most jobs running alongside the code generator: 7 of 7
+  measured: code generator started at least 1 s into the build: yes
+  measured: wall clock within 3.5 s above the slot model: yes
+  measured: max(W/p, T_inf) <= wall <= W/p + T_inf: yes
+
+== H: monolith core kept, precise includes, PUBLIC FILE_SET + CMP0154 NEW (CMake 3.28+) ==
+  clean build: ok
+  edges run: 29 (24 compiles)
+  compiles with a graph path to the code generator: 7 of 24
+  code generator waits for: nothing
+  order-only chain: CMakeFiles/net.dir/net/net_0.cpp.o || cmake_object_order_depends_target_net || cmake_object_order_depends_target_core
+  slot model: W 27 s, T_inf 4 s, W/p 3.375 s, makespan at p=8: 4 s
+  slot model critical path: codegen -> compile -> archive -> archive -> link
+  measured: most jobs running alongside the code generator: 7 of 7
+  measured: code generator started at least 1 s into the build: no
+  measured: wall clock within 3.5 s above the slot model: yes
+  measured: max(W/p, T_inf) <= wall <= W/p + T_inf: yes
+  after adding a schema field: 1 TUs recompiled
+  ninja -t missingdeps: no missing dependencies
+
+== G: as E, plus CMAKE_ADD_CUSTOM_COMMAND_DEPENDS_EXPLICIT_ONLY=ON (CMake 3.27+) ==
+  clean build: ok
+  edges run: 30 (24 compiles)
+  compiles with a graph path to the code generator: 2 of 24
+  code generator waits for: nothing
+  order-only chain: CMakeFiles/net.dir/net/net_0.cpp.o || cmake_object_order_depends_target_net || cmake_object_order_depends_target_core_util
+  slot model: W 27 s, T_inf 4 s, W/p 3.375 s, makespan at p=8: 4 s
+  slot model critical path: codegen -> compile -> archive -> link
+  measured: most jobs running alongside the code generator: 7 of 7
+  measured: code generator started at least 1 s into the build: no
+  measured: wall clock within 3.5 s above the slot model: yes
+  measured: max(W/p, T_inf) <= wall <= W/p + T_inf: yes
+
+== F: split targets, precise includes, generator target is a leaf (the fix) ==
+  clean build: ok
+  edges run: 30 (24 compiles)
+  compiles with a graph path to the code generator: 2 of 24
+  code generator waits for: nothing
+  order-only chain: CMakeFiles/net.dir/net/net_0.cpp.o || cmake_object_order_depends_target_net || cmake_object_order_depends_target_core_util
+  slot model: W 27 s, T_inf 4 s, W/p 3.375 s, makespan at p=8: 4 s
+  slot model critical path: codegen -> compile -> archive -> link
+  measured: most jobs running alongside the code generator: 7 of 7
+  measured: code generator started at least 1 s into the build: no
+  measured: wall clock within 3.5 s above the slot model: yes
+  measured: max(W/p, T_inf) <= wall <= W/p + T_inf: yes
+  after adding a schema field: 1 TUs recompiled
+  ninja -t missingdeps: no missing dependencies
+
+== Measured comparison ==
+  G faster than A: yes
+  F faster than A: yes
+  H faster than A: yes

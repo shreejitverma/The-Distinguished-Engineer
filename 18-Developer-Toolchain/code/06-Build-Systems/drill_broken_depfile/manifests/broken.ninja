@@ -1,0 +1,26 @@
+# Drill starting point: the manifest as shipped. It builds, and a clean -j1 build is usually right.
+ninja_required_version = 1.11
+python = python3
+cc = cc
+cflags = -O1 -Wall -Igen
+
+rule schemagen
+  command = $python tools/schemagen.py --root . $in $out $out.d
+  depfile = $out.d
+  deps = gcc
+  description = GEN $out
+
+rule cc
+  command = $cc $cflags -MD -MF $out.d -c $in -o $out
+  depfile = $out.d
+  deps = gcc
+  description = CC $out
+
+rule link
+  command = $cc $in -o $out
+  description = LINK $out
+
+build gen/order.h: schemagen schemas/order.schema
+build build/main.o: cc src/main.c
+build build/report.o: cc src/report.c
+build app: link build/main.o build/report.o

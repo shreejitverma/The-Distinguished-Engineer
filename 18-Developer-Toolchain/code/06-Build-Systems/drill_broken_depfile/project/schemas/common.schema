@@ -1,0 +1,2 @@
+import schemas/version.schema
+const PRICE_SCALE 10000

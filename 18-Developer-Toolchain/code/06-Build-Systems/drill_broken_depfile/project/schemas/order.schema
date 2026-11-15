@@ -1,0 +1,5 @@
+# Order wire format
+import schemas/common.schema
+struct Order
+field price int64_t
+field qty int32_t
