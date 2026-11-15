@@ -1,0 +1,8 @@
+21 1 8:2 / / rw,relatime shared:1 - ext4 /dev/sda2 rw
+22 21 0:22 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw
+30 21 8:17 / /mnt/my\040disk rw,relatime shared:7 - ext4 /dev/sdb1 rw
+42 41 0:42 / /srv rw,relatime - tmpfs top rw
+40 21 0:40 / /srv rw,relatime - tmpfs bottom rw
+41 40 0:41 / /srv rw,relatime master:7 - tmpfs middle rw
+50 42 8:2 /home/a /srv/data rw,relatime unbindable - ext4 /dev/sda2 rw
+60 21 8:2 /var/x /back\134slash ro,relatime - ext4 /dev/sda2 rw
