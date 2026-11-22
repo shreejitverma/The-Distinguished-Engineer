@@ -1,0 +1,96 @@
+== 1. Closed-form capacity of a serial queue that retries a failed batch whole ==
+per-PR survival s = 1 - f = 0.970, hazard a = -ln s = 0.030459
+useful PRs per build slot g(k) = k * s^k, peaks at k* = 1/a = 32.83 with g(k*) = 1/(e*a) = 12.08
+     k      P(pass)         g(k)
+     1       0.9700        0.970
+     5       0.8587        4.294
+    10       0.7374        7.374
+    20       0.5438       10.876
+    33       0.3660       12.078
+    50       0.2181       10.903
+   100       0.0476        4.755
+   200       0.0023        0.452
+best integer batch size = 33, g = 12.078
+arrivals per build slot (lambda*T) = 20.0, utilisation at the optimum = 1.66
+largest flake rate a retry-whole serial queue survives at lambda*T = 20: f_max = 0.0182
+peak g(k*) by flake rate f and real-defect rate d, s = (1-f)(1-d):
+       f        d       k*       peak
+   0.030    0.000     32.8      12.08
+   0.003    0.000    332.8     122.44
+   0.000    0.020     49.5      18.21
+   0.003    0.020     43.1      15.85
+   0.030    0.020     19.7       7.26
+speculative window w, expected merges per round E = (1-f)(1-(1-f)^w)/f at f = 0.030:
+  w= 1  E=  0.97  merges per build=0.970
+  w= 5  E=  4.57  merges per build=0.914
+  w=10  E=  8.49  merges per build=0.849
+  w=20  E= 14.75  merges per build=0.738
+  w=32  E= 20.13  merges per build=0.629
+  w=40  E= 22.77  merges per build=0.569
+smallest window with E >= lambda*T: w_min = 32
+check g(k) maximum is at the integer nearest 1/a                     PASS
+check optimum peak is below lambda*T (collapse is unavoidable for any k) PASS
+== 2. Diagnose the regime from telemetry: does failure grow with batch size? ==
+ batch   builds   passed  pass rate    -ln(rate)/k
+     1      100       98      0.980         0.0202
+     2      100       97      0.970         0.0152
+     4      100       89      0.890         0.0291
+     8      100       83      0.830         0.0233
+    16      100       56      0.560         0.0362
+    32      100       38      0.380         0.0302
+H1 additive exposure P(pass) = s^k : s_hat = 0.9705, log-likelihood = -240.9
+H2 shared suite     P(pass) = p    : p_hat = 0.7683, log-likelihood = -324.8
+log-likelihood gap H1 - H2 = 83.9, implied per-PR flake rate f = 1 - s_hat = 0.0295
+check fitted s is within 0.015 of the true per-PR survival           PASS
+check additive exposure beats shared-suite by more than 20 nats      PASS
+== 3. The collapse: take-everything batching (cap 100), retry the whole batch ==
+ round   queued    batch    P(pass)   result
+     0       24       24     0.4814   FAILED
+     1       39       39     0.3049   FAILED
+     2       56       56     0.1816   FAILED
+     3       70       70     0.1186   FAILED
+     4       94       94     0.0571   FAILED
+     5      112      100     0.0476   FAILED
+     6      134      100     0.0476   FAILED
+     7      154      100     0.0476   merged
+   ...
+    97     1231      100     0.0476   FAILED
+    98     1243      100     0.0476   FAILED
+    99     1268      100     0.0476   FAILED
+builds=100 passed=12 arrived=1984 merged=716 backlog=1268
+== 4. Policy comparison on one arrival stream (100 rounds of 30 min, lambda*T = 20) ==
+policy                                    f  merged  backlog  p50 min  p95 min  builds  build/PR
+naive take-all, cap 100               0.030     716     1268      150      870     100      0.14
+fixed batch k*=33, retry whole        0.030    1188      796      540     1170     100      0.08
+batch 8 + bisect                      0.030     536     1448     1110     2130     100      0.19
+batch 32 + bisect                     0.030     888     1096      810     1620     100      0.11
+speculative window 20                 0.030    1490      494      510      720    2000      1.34
+speculative window 40                 0.030    1984        0       60       90    3050      1.54
+quarantine + naive cap 100            0.003    1984        0       30       60     100      0.05
+quarantine + batch 32 + bisect        0.003    1984        0       30       90     100      0.05
+quarantine + speculative window 20    0.003    1888       96      120      180    2000      1.06
+arrived = 1984 in every row
+queue depth sampled every 10 rounds (PRs waiting):
+ round        naive      spec-40   quarantine
+     0           24           24           24
+    10          108           54           18
+    20           46           24           24
+    30          123           25           25
+    40          228           40           24
+    50          381           19           19
+    60          474           21           20
+    70          669           29           22
+    80          890           26           12
+    90         1089           36           23
+check naive take-all merges under 40 percent of arrivals             PASS
+check fixed optimal batch still leaves a backlog above 300 PRs       PASS
+check batch+bisect cannot fix a flake-only capacity problem          PASS
+check quarantine alone clears the queue (backlog under 60)           PASS
+check batch 8 + bisect merges fewer PRs than the naive policy        PASS
+check quarantine queue depth never exceeds 25 at any sample          PASS
+check a window of 40 merges more than a window of 20                 PASS
+check window 20 burns more builds per merged PR than quarantine      PASS
+== 5. Monte Carlo cross-check of P(pass) for k=20 ==
+closed form 0.5438, simulated 0.5402 over 20000 builds
+check simulated pass rate within 0.02 of s^k                         PASS
+all checks passed
