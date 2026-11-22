@@ -1,0 +1,16 @@
+# Fixture: a "pwn request" - privileged trigger, fork code checked out, then executed.
+name: pr-triage
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Greet
+        run: echo "Testing ${{ github.event.pull_request.title }}"
+      - uses: example-org/lint-action@v1
+      - run: make test

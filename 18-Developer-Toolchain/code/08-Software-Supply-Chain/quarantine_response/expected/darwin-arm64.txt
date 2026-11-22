@@ -1,0 +1,107 @@
+=== 1. Advisory fixture (OSV-shaped, modelled on public records) ===
+MAL-2026-2307 axios@0.30.4,1.14.1
+MAL-2026-2306 plain-crypto-js@4.2.1
+IoC hosts: 142.11.206.73, sfrclak.com
+CHECK OSV id prefix is MAL for malware records                   PASS
+
+=== 2. Blast radius: lockfiles and SBOMs ===
+image-frontend.cdx.json      axios@1.14.1           via image-frontend > @acme/http-client@2.3.1 > axios@1.14.1
+image-frontend.cdx.json      plain-crypto-js@4.2.1  via image-frontend > @acme/http-client@2.3.1 > axios@1.14.1 > plain-crypto-js@4.2.1
+image-gateway.cdx.json       clean
+legacy-report/package-lock.json axios@0.30.4           via legacy-report > legacy-pdf@1.2.0 > axios@0.30.4
+legacy-report/package-lock.json plain-crypto-js@4.2.1  via legacy-report > legacy-pdf@1.2.0 > axios@0.30.4 > plain-crypto-js@4.2.1
+svc-api/package-lock.json    clean
+svc-web/package-lock.json    axios@1.14.1           via svc-web > @acme/http-client@2.3.1 > axios@1.14.1
+svc-web/package-lock.json    plain-crypto-js@4.2.1  via svc-web > @acme/http-client@2.3.1 > axios@1.14.1 > plain-crypto-js@4.2.1
+Affected artifacts: 3 of 5
+Direct-dependency-only scan, lockfiles: 0 affected
+Top-level node_modules-only scan, lockfiles: 1 affected
+Full-graph scan, lockfiles: 2 affected
+CHECK transitive hit reported with full chain                    PASS
+CHECK nested duplicate found only by full-graph scan             PASS
+CHECK direct-only scan misses every transitive case              PASS
+CHECK clean lockfile and clean SBOM stay clean                   PASS
+CHECK scoped purl %40 decodes to scoped name                     PASS
+
+=== 3. Exposure window: who actually installed it ===
+R-101 svc-web       npm install lock=none  via=public 03-31T01:10Z  EXPOSED: inside the publish window
+R-102 svc-web       npm ci      lock=bad   via=public 03-31T02:00Z  EXPOSED: inside the publish window
+R-103 svc-web       npm ci      lock=bad   via=public 03-31T09:00Z  failed: tarball already removed from the public registry (install 404, build red)
+R-104 svc-web       npm ci      lock=bad   via=mirror 03-31T09:30Z  EXPOSED: served from mirror cache after removal
+R-201 svc-api       npm install lock=clean via=public 03-31T01:30Z  clean: no malicious version in the installed set
+R-301 svc-batch     npm install lock=none  via=public 03-31T02:30Z  EXPOSED: inside the publish window
+R-302 svc-batch     npm install lock=none  via=public 03-30T20:00Z  clean: no malicious version in the installed set
+R-303 svc-batch     npm install lock=none  via=public 03-31T05:00Z  clean: no malicious version in the installed set
+R-401 legacy-report npm ci      lock=bad   via=public 03-31T01:40Z  EXPOSED: inside the publish window
+Exposed runs: R-101, R-102, R-104, R-301, R-401
+A 3-day release-age cooldown would have protected: R-101, R-301
+A 3-day release-age cooldown would not have protected: R-102, R-104, R-401
+CHECK run before the publish time is clean                       PASS
+CHECK run after removal on the public registry fails, not exposed PASS
+CHECK run after removal through a mirror is exposed              PASS
+CHECK clean lockfile blocks a range-admitted bad version         PASS
+CHECK unlocked install inside the window is exposed              PASS
+CHECK cooldown protects resolution, not lock-driven installs     PASS
+
+=== 4. Secrets and egress ===
+Baseline egress allow-list from 3 clean runs: api.github.com:443, github.com:443, registry.npmjs.org:443
+R-101 sfrclak.com:8000             allow IOC
+R-102 sfrclak.com:8000             allow IOC
+R-104 artifacts.internal.example:443 allow unknown-new
+R-104 sfrclak.com:8000             allow IOC
+R-401 sfrclak.com:8000             deny  IOC
+R-101 priority P0 (C2 connection allowed)
+R-102 priority P0 (C2 connection allowed)
+R-104 priority P0 (C2 connection allowed)
+R-301 priority P0 (exfil unknown (no egress log))
+R-401 priority P1 (egress enforced, C2 denied)
+Rotation order (priority, tier, name):
+  P0 T0 NPM_PUBLISH_TOKEN          publish      revoke then reissue [R-101]
+  P0 T0 SIGNING_KEY_PASSPHRASE     signing      revoke then reissue [R-301]
+  P0 T1 AWS_ACCESS_KEY_ID          cloud        revoke then reissue [R-101,R-102,R-401]
+  P0 T1 AWS_SECRET_ACCESS_KEY      cloud        revoke then reissue [R-101,R-102,R-401]
+  P0 T3 READONLY_ARTIFACT_TOKEN    other        revoke then reissue [R-104]
+  P0 T3 SLACK_WEBHOOK_URL          other        revoke then reissue [R-104,R-301]
+  P0 T9 GITHUB_TOKEN               ephemeral    no rotation, expires at job end [R-101,R-102]
+Secrets in scope: 7 of 8 seen across all runs
+CHECK only secrets of exposed runs are in scope                  PASS
+CHECK publish token ranks before cloud keys                      PASS
+CHECK no egress log means P0                                     PASS
+CHECK enforced egress with denied C2 is P1, not exempt           PASS
+CHECK mirror host is flagged unknown-new, not IOC                PASS
+
+=== 5. Provenance regression in registry metadata ===
+axios@0.30.3: no trusted publisher and no earlier baseline on major 0
+axios@0.30.4: no trusted publisher and no earlier baseline on major 0
+axios@1.14.1: no trusted publisher, but 1.14.0 on the same major line had one
+CHECK 1.x release without OIDC provenance is flagged             PASS
+CHECK signal is silent where the line never had provenance       PASS
+
+=== 6. Emergency override and rollback verification ===
+package.json overrides: {"overrides": {"axios": "1.14.0"}}
+Removed: axios@1.14.1, plain-crypto-js@4.2.1
+Added: axios@1.14.0
+Unchanged: 1, collateral upgrades: 0
+Control, lock deleted and re-resolved: collateral @acme/http-client 2.3.1->2.4.0
+Malicious tarball integrity values left in new lock: 0
+Registry that keeps the removed version: range override ^1.14.0 -> axios 1.14.1, exact pin -> axios 1.14.0
+Gate svc-web (fixed)  PASS
+Gate svc-api          PASS
+Gate legacy-report    FAIL axios@0.30.4, plain-crypto-js@4.2.1, integrity:sha512-1rrqoBt, integrity:sha512-OReQcID
+CHECK override removes both malicious packages                   PASS
+CHECK lock-preserving fix changes only axios                     PASS
+CHECK deleting the lock causes collateral upgrades               PASS
+CHECK range override re-admits a retained bad version            PASS
+CHECK gate fails an unremediated nested lock                     PASS
+
+=== 7. Downstream notice (OpenVEX 0.2.0) ===
+svc-web@1.0.0  affected  -
+svc-web@1.0.1  fixed     -
+svc-api@1.0.0  not_affected component_not_present
+OpenVEX validation problems: 0
+CHECK valid document passes the validator                        PASS
+CHECK affected without action_statement is rejected              PASS
+CHECK not_affected without justification is rejected             PASS
+
+=== Summary ===
+Failures: 0

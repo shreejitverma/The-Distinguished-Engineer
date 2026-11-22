@@ -1,0 +1,35 @@
+# Fixture: a release workflow that grew over time and carries the flaws this playbook removes.
+name: release
+on:
+  push:
+    tags: ["v*"]
+env:
+  PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Announce
+        run: echo "Releasing ${{ github.event.head_commit.message }}"
+      - name: Build
+        run: |
+          python -m pip install build
+          python -m build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: .
+          include-hidden-files: true
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

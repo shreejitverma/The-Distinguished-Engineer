@@ -1,0 +1,71 @@
+### 1. parser contract
+{"jobs": {"a": {"steps": [{"uses": "x/y@abc"}, {"env": {"K": "it's"}, "run": "echo \"a: b # not a comment\"\necho done\n"}]}}, "on": {"push": {"tags": ["v*"]}}, "permissions": {}}
+rejected: anchors, aliases, and tags are not supported: &anchor 1
+rejected: line 2: tab indentation is not valid YAML
+rejected: line 2: duplicate key 'a'
+
+### 2. audit the vulnerable fixtures
+== fixtures/before/pr-triage.yml: 6 finding(s)
+  CRITICAL GHA003 jobs.test.steps[0]         pull_request_target workflow checks out untrusted pull request code (${{ github.event.pull_request.head.sha }})
+  HIGH     GHA001 workflow                   no top-level permissions and no job-level permissions in test: they get the repository default token
+  HIGH     GHA002 jobs.test.steps[0]         actions/checkout is not pinned to a 40-hex commit SHA (ref 'v7' is mutable)
+  HIGH     GHA002 jobs.test.steps[2]         example-org/lint-action is not pinned to a 40-hex commit SHA (ref 'v1' is mutable)
+  HIGH     GHA004 jobs.test.steps[1]         untrusted ${{ github.event.pull_request.title }} is interpolated into a script body
+  MEDIUM   GHA005 jobs.test.steps[0]         checkout leaves the token on disk (persist-credentials is not false)
+== fixtures/before/release.yml: 16 finding(s)
+  HIGH     GHA001 jobs.release               permissions: write-all grants every scope
+  HIGH     GHA002 jobs.release.steps[0]      actions/checkout is not pinned to a 40-hex commit SHA (ref 'v7' is mutable)
+  HIGH     GHA002 jobs.release.steps[1]      actions/setup-python is not pinned to a 40-hex commit SHA (ref 'v6' is mutable)
+  HIGH     GHA002 jobs.release.steps[4]      actions/upload-artifact is not pinned to a 40-hex commit SHA (ref 'v7' is mutable)
+  HIGH     GHA002 jobs.release.steps[5]      pypa/gh-action-pypi-publish is not pinned to a 40-hex commit SHA (ref 'release/v1' is mutable)
+  HIGH     GHA002 jobs.release.steps[6]      softprops/action-gh-release is not pinned to a 40-hex commit SHA (ref 'v2' is mutable)
+  HIGH     GHA004 jobs.release.steps[2]      untrusted ${{ github.event.head_commit.message }} is interpolated into a script body
+  HIGH     GHA006 workflow.env.PYPI_TOKEN    secret exposed to every step of every job through workflow-level env
+  HIGH     GHA007 jobs.release               job holds publish-class permissions and also checks out or builds code (steps 0,3)
+  HIGH     GHA008 jobs.release.steps[1]      cache restore or save inside a job with publish-class permissions
+  HIGH     GHA010 jobs.release.steps[4]      artifact includes hidden files from the whole workspace (path '.')
+  MEDIUM   GHA005 jobs.release.steps[0]      checkout leaves the token on disk (persist-credentials is not false)
+  MEDIUM   GHA009 jobs.release               publishing job has no environment, so no required-reviewer or branch-rule gate
+  MEDIUM   GHA011 jobs.release.steps[5]      publishing with long-lived secret PYPI_API_TOKEN: use trusted publishing (OIDC) where the registry supports it
+  MEDIUM   GHA012 workflow                   release workflow emits no provenance attestation
+  LOW      GHA001 workflow                   no top-level permissions; every job sets its own, but a new job would inherit the repository default
+summary: critical=1, high=15, medium=5, low=1, info=0
+exit status: 1
+
+### 3. pin every action from the offline map
+release.yml: pinned 5, unresolved 0
+  actions/checkout@v7 -> 3d3c42e5aac5... (v7.0.1)
+  actions/setup-python@v6 -> ece7cb06caef... (v6)
+  actions/upload-artifact@v7 -> cf430e030ddb... (v7.0.2)
+  pypa/gh-action-pypi-publish@release/v1 -> 7245906fb61f... (v1.14.3)
+  softprops/action-gh-release@v2 -> 3bb12739c298... (v2)
+pr-triage.yml: pinned 1, unresolved 1
+  actions/checkout@v7 -> 3d3c42e5aac5... (v7.0.1)
+  UNRESOLVED example-org/lint-action@v1
+exit status: 2
+uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+
+### 4. re-audit pinning only: GHA002 count after pinning
+1
+
+### 5. audit the hardened fixtures
+== fixtures/after/pr-triage.yml: 0 finding(s)
+== fixtures/after/release-caller.yml: 0 finding(s)
+== fixtures/after/release.yml: 0 finding(s)
+summary: critical=0, high=0, medium=0, low=0, info=0
+exit status: 0
+
+### 6. negative controls on the hardened release workflow
+baseline findings: 0
+M1 unpin attest to a tag           expect GHA002 -> fired GHA002 DETECTED
+M2 top-level write-all             expect GHA001 -> fired GHA001 DETECTED
+M3 build inside the publish job    expect GHA007 -> fired GHA007 DETECTED
+M4 cache inside the attest job     expect GHA008 -> fired GHA008,GHA009 DETECTED
+M5 drop the pypi environment       expect GHA009 -> fired GHA009 DETECTED
+M6 add a long-lived PyPI token     expect GHA011 -> fired GHA011 DETECTED
+M7 interpolate a commit message    expect GHA004 -> fired GHA004 DETECTED
+M8 persist checkout credentials    expect GHA005 -> fired GHA005 DETECTED
+M9 remove the attest job           expect GHA012 -> fired GHA012 DETECTED
+exit status: 0

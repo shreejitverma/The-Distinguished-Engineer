@@ -1,0 +1,10 @@
+{
+  "_comment": "Resolved on 2026-11-21 with git ls-remote against github.com; re-resolve before reuse.",
+  "actions/checkout@v7": {"sha": "3d3c42e5aac5ba805825da76410c181273ba90b1", "version": "v7.0.1"},
+  "actions/setup-python@v6": {"sha": "ece7cb06caefa5fff74198d8649806c4678c61a1", "version": "v6"},
+  "actions/upload-artifact@v7": {"sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9", "version": "v7.0.2"},
+  "actions/download-artifact@v8": {"sha": "9000827ccba6bdab643e8b6fd33ac0654aef8333", "version": "v8.0.2"},
+  "actions/attest@v4": {"sha": "1e69f48acb82d1966a394da916b4c1698aa569d6", "version": "v4.2.2"},
+  "pypa/gh-action-pypi-publish@release/v1": {"sha": "7245906fb61fa33a13554f9d5fb856fe61758086", "version": "v1.14.3"},
+  "softprops/action-gh-release@v2": {"sha": "3bb12739c298aeb8a4eeaf626c5b8d85266b0e65", "version": "v2"}
+}

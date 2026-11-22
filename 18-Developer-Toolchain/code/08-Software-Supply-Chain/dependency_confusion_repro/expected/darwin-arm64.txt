@@ -1,0 +1,23 @@
+== Registries ==
+internal index:      http://127.0.0.1:51730/ (serves acme-internal-widgets 1.0.0 only)
+public mirror index: http://127.0.0.1:51731/ (serves acme-internal-widgets 9.9.9, attacker-controlled)
+
+== Scenario A: pip, --index-url (internal) + --extra-index-url (public mirror) ==
+A: installed_version=9.9.9 payload_fired=yes
+pip has no index priority: it merges both indexes and takes the highest version number.
+VULNERABLE: the public mirror's 9.9.9 wins over the internal 1.0.0, and its import-time payload runs.
+
+== Scenario B: pip, --index-url (internal) only, no --extra-index-url ==
+B: installed_version=1.0.0 payload_fired=no
+SAFE: pip never contacts the public mirror, so there is nothing for an attacker to publish against.
+
+== Scenario C: uv, naive pip-flag migration: --index-url (internal) + --extra-index-url (public mirror) ==
+C: installed_version=9.9.9 payload_fired=yes
+uv maps the legacy --index-url to its lowest-priority 'default' index and --extra-index-url to a
+higher-priority named --index, so this inverts the intended priority (uv docs, Indexes, Nov 2026).
+STILL VULNERABLE: uv's first-index-strategy default does not save a lift-and-shift pip invocation.
+
+== Scenario D: uv, correct priority: --index (internal) + --default-index (public mirror) ==
+D: installed_version=1.0.0 payload_fired=no
+SAFE: the internal index is now the highest-priority --index entry, and uv's default
+index-strategy (first-index) stops there without ever considering the public mirror's version.

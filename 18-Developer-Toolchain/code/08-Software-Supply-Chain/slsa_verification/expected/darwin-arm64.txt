@@ -1,0 +1,41 @@
+== 1. The legitimate certificate, decoded from DER ==
+SAN (identity)            : https://github.com/example-org/trusted-builder/.github/workflows/build_slsa3.yml@refs/tags/v1.0.0
+Issuer v2 (1.8)           : https://token.actions.githubusercontent.com
+Build Signer URI (1.9)    : https://github.com/example-org/trusted-builder/.github/workflows/build_slsa3.yml@refs/tags/v1.0.0
+Runner Environment (1.11) : github-hosted
+Source Repo URI (1.12)    : https://github.com/example-org/payments-agent
+Source Repo Digest (1.13) : 3f1c9a7e5b2d4c6a8e0f1b3d5c7a9e2f4b6d8c0a
+Source Repo Ref (1.14)    : refs/tags/v1.4.2
+Build Trigger (1.20)      : push
+validity                  : 2026-11-10T12:00:00Z for 10 minutes
+code-signing EKU          : True
+openssl parses the DER and reads the same SAN: True
+DSSE PAE prefix           : DSSEv1 28 application/vnd.in-toto+json 725 <payload bytes>
+
+== 2. Toy Rekor: RFC 6962 tree, open for anyone to append ==
+log size 17, legitimate entry at index 4
+inclusion proof length for the legitimate entry: 5 hashes
+RFC 9162 verifier, sizes 1..20: 210/210 valid proofs accepted, 210/210 wrong-root proofs rejected
+
+== 3. Verification matrix: 13 bundles x 14 independent checks ==
+checks: dsse_signature cert_chain cert_window tlog_checkpoint tlog_inclusion tlog_binding identity_san identity_issuer predicate_type subject_digest builder_id source_repo source_ref claims_vs_cert
+S00 legitimate                       ADMIT  -
+S01 payload-swapped-after-signing    REJECT dsse_signature,tlog_binding
+S02 genuine-bundle-on-other-binary   REJECT subject_digest
+S03 rogue-fulcio-ca                  REJECT cert_chain
+S04 attacker-workflow-lies           REJECT identity_san,builder_id,source_repo,claims_vs_cert
+S05 same-org-ci-workflow             REJECT identity_san,builder_id,source_ref,claims_vs_cert
+S06 trusted-builder-evil-source      REJECT source_repo
+S07 trusted-builder-branch-build     REJECT source_ref
+S08 signed-after-cert-expiry         REJECT cert_window
+S09 borrowed-log-entry               REJECT tlog_binding
+S10 corrupted-inclusion-proof        REJECT tlog_inclusion
+S11 wrong-predicate-type             REJECT predicate_type
+S12 rogue-log-checkpoint             REJECT tlog_checkpoint
+admitted 1 of 13; failed-check sets match the expectation for every bundle: True
+
+== 4. Identity regex anchoring (re.search is unanchored, like Go MatchString) ==
+SAN              weak-regex  strict-regex
+legit            ACCEPT      ACCEPT
+lookalike-owner  ACCEPT      reject
+tag-suffix       ACCEPT      reject

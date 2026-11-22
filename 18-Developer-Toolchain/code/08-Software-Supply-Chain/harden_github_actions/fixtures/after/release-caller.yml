@@ -1,0 +1,15 @@
+# Fixture: the Build L3 shape - the build and the attestation both happen inside a reusable
+# workflow owned by a central repository (a placeholder name; the SHA below is a fake value).
+name: release-caller
+on:
+  push:
+    tags: ["v*"]
+permissions: {}
+jobs:
+  build-attest:
+    uses: example-org/release-workflows/.github/workflows/build-attest.yml@0123456789abcdef0123456789abcdef01234567
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
