@@ -311,6 +311,7 @@ elapsed_since() {
   while IFS= read -r t; do
     found=1
     myfunc() { echo hi; }
+    # shellcheck disable=SC2312 # a failed call shows up as a mismatch
     [ "$(myfunc)" = hi ] # the function exists in this shell ...
     # shellcheck disable=SC2086 # "busybox timeout" is two words
     run -127 $t 1 myfunc # ... but timeout execs, and exec searches PATH only

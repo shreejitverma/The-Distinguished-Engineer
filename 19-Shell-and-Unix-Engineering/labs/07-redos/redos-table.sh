@@ -3,6 +3,7 @@
 # BIN is the compiled redos-steps program.
 #   Regex (a|a)*b against a^n c: backtracking (bt) versus Thompson simulation (nfa).
 #   Shell pattern *a*a*a*b against a^n: naive star retry versus linear last-star restart.
+# shellcheck disable=SC2312 # every row prints computed step counts; a failed run shows up as a missing value
 bin=$1
 
 steps() {

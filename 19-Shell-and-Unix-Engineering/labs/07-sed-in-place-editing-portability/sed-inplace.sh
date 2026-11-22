@@ -28,24 +28,28 @@ show() {
 
 # inode FILE: print FILE's inode number.
 inode() {
+  # shellcheck disable=SC2012 # ls -i is the portable way to read an inode number; names here are plain ASCII
   ls -id "$1" | awk '{ print $1 }'
 }
 
 # nlink KEY FILE: print KEY=hard-link count of FILE.
 nlink() {
   printf '%s=' "$1"
+  # shellcheck disable=SC2012 # the ls -l link count is the value under test; names here are plain ASCII
   ls -ld "$2" | awk '{ print $2 }'
 }
 
 # perms KEY FILE: print KEY=the ten-character mode string of FILE, for example -rw-------.
 perms() {
   printf '%s=' "$1"
+  # shellcheck disable=SC2012 # the ls -l mode string is the value under test
   ls -ld "$2" | cut -c1-10
 }
 
 # entries KEY DIR: print KEY=every name in DIR (dot files too), space separated, in ls order.
 entries() {
   printf '%s=' "$1"
+  # shellcheck disable=SC2012 # the listing of plain ASCII names is the value under test
   ls -A "$2" | paste -s -d ' ' -
 }
 

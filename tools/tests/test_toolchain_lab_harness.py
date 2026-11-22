@@ -373,11 +373,16 @@ class ContainerDispatchTest(LabTreeTestCase):
     def test_timeout_fails_and_removes_the_container_it_named(self):
         self.linux_lab(linux_aarch64="x\n")
         self.configure(run_sleep=30)
-        with mock.patch.object(verify, "TIMEOUT_S", 0.5):
+        # Read the container name from the harness's own call, not the fake's log: on a loaded host the fake
+        # docker can be killed by the 0.5 s timeout before its interpreter starts and logs the run.
+        with mock.patch.object(verify, "TIMEOUT_S", 0.5), mock.patch.object(
+            verify.subprocess, "run", wraps=subprocess.run
+        ) as spy:
             rc, out = self.run_harness()
         self.assertEqual(rc, 1)
         self.assertIn("FAIL  pillar/probe (timed out after 0.5s", out)
-        argv = self.lab_runs()[0]
+        runs = [c.args[0] for c in spy.call_args_list if c.args and c.args[0][:2] == ["docker", "run"]]
+        argv = next(a for a in runs if a[-2:] != ["uname", "-m"])
         name = argv[argv.index("--name") + 1]
         self.assertIn(["rm", "-f", name], self.calls())
 

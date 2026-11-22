@@ -30,6 +30,7 @@ skip_without_ef() {
 @test "test -ef across shells evaluates hard links vs distinct files" {
   skip_without_ef
   mkdir -p "$BATS_TEST_TMPDIR/t2"
+  # shellcheck disable=SC2016 # the script is expanded by the lab shell; only the test paths are spliced in
   run_lab_c '
     dir="'"$BATS_TEST_TMPDIR"'/t2"
     printf "alpha\n" >"$dir/a.txt"
@@ -119,6 +120,7 @@ skip_without_ef() {
   [ "$status" -eq 0 ]
 
   # lstat must report symlink type (1) and stat must report non-symlink target (0)
+  # shellcheck disable=SC2016 # the script is expanded by the lab shell; only the test output is spliced in
   run_lab_c '
     out="'"$output"'"
     is_lnk=$(printf "%s\n" "$out" | grep "^lstat_is_lnk=1")

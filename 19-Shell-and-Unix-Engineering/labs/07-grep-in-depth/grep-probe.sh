@@ -4,6 +4,7 @@
 # MODE is one of: flavor exit patterns binary maxcount recurse selfout dashfile escape.
 # DIR is an existing scratch directory the probe may fill; the probe never removes it.
 # Every mode prints key=<value> lines that the bats file asserts per implementation.
+# shellcheck disable=SC2312 # every report line prints computed values; a failed command shows up as a wrong value the tests catch
 set -u
 
 mode=${1:?usage: grep-probe.sh MODE DIR}

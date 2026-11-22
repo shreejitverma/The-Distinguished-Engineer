@@ -82,6 +82,7 @@ case $case_name in
     ;;
   c-split-e) # "c\" in one -e option and its text in the next (POSIX joins -e options with a newline)
     input=$(printf '%s\n' 1 2 3 4)
+    # shellcheck disable=SC1003 # c\ ends in a literal backslash: the sed text-follows marker
     set -- "$@" -e '2,3c\' -e 'X'
     ;;
   address-2048 | address-2049) # a script line of exactly 2048 or 2049 bytes: "/" RE "/=" with an RE of 2045 or 2046 bytes

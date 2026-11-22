@@ -138,12 +138,14 @@ case "$mode" in
     # Naive execution with redirection:
     # DRY_RUN=1 naive_exec echo "leak data" > "$file"
     # Redirection happens before naive_exec runs, truncating or writing to file!
+    # shellcheck disable=SC2310 # the failure is expected and ignored; the file is inspected next
     naive_exec 1 echo "leak data" >"$file" 2>/dev/null || true
     size_after_naive=$(wc -c <"$file" | tr -d ' \t')
 
     # Reset file
     printf 'initial content\n' >"$file"
     # Safe encapsulated write:
+    # shellcheck disable=SC2310 # the failure is expected and ignored; the file is inspected next
     safe_write 1 "leak data" "$file" 2>/dev/null || true
     content_after_safe=$(cat "$file")
 

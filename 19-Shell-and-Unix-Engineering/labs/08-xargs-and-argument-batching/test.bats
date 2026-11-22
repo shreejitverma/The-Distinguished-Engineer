@@ -13,6 +13,7 @@ xargs_flavor() {
     *"GNU findutils"* | *"GNU xargs"*) printf 'gnu\n' ;;
     *"BusyBox"*) printf 'busybox\n' ;;
     *)
+      # shellcheck disable=SC2312 # a failed uname only means the system is not Darwin or BSD
       if uname -s | grep -qi "darwin\|bsd"; then
         printf 'bsd\n'
       else

@@ -167,6 +167,7 @@ libc_of() {
 @test "awk needs fflush() to forward a record, and mawk also needs -W interactive" {
   build pipeprobe
   found=0
+  # shellcheck disable=SC2312 # lab_awks only lists installed awks; a missing awk shows up as found=0
   while IFS= read -r awk_cmd; do
     found=1
     # shellcheck disable=SC2086,SC2248 # "busybox awk" is a command plus an argument
