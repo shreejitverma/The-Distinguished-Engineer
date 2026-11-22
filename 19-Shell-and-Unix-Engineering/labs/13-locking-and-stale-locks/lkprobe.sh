@@ -21,7 +21,7 @@
 : "${TMPDIR:?TMPDIR must name a scratch directory}"
 LK_SH=${LK_SH:-sh}
 lk_dir=$(dirname "$0")
-# shellcheck source=lock.sh
+# shellcheck source=SCRIPTDIR/lock.sh
 . "$lk_dir/lock.sh"
 
 scratch() {

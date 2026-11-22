@@ -9,6 +9,7 @@ setup() {
 @test "detect userland flavor from core utilities" {
   run_lab "$PROBE" flavor
   [ "$status" -eq 0 ]
+  # shellcheck disable=SC2312 # a failed uname shows up as a mismatch
   if [ "$(uname -s)" = Darwin ]; then
     [ "$output" = "bsd" ]
   else
@@ -68,6 +69,7 @@ setup() {
   printf 'alpha_omega\n' >"$test_file"
   run_lab "$PROBE" sed_inplace "$test_file" "alpha" "beta"
   [ "$status" -eq 0 ]
+  # shellcheck disable=SC2016 # $1 is the inner shell's argument, expanded there
   run_lab_c 'cat "$1"' "sh" "$test_file"
   [ "$status" -eq 0 ]
   [ "$output" = "beta_omega" ]

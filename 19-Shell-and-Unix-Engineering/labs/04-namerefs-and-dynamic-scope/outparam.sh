@@ -56,7 +56,7 @@ case $mode in
       printf 'namerefs: unsupported\n'
       exit 3
     fi
-    # shellcheck source=outparam_lib.sh
+    # shellcheck source=SCRIPTDIR/outparam_lib.sh
     . "$lib"
     ;;
   portable) ;;

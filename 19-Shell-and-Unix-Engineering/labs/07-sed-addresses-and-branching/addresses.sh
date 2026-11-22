@@ -35,6 +35,7 @@ printf '%s\n' k=1 x k=2 k=3 | "$@" -e '/^k=/{' -e 's//K=/' -e ':a' -e 'n' -e 'b 
   | show 'first match only'
 
 # 6. A loop: join lines that end in a backslash. "$!N" never runs N on the last line.
+# shellcheck disable=SC1003 # each input line ends in a literal backslash
 printf '%s\n' 'a \' 'b \' c d | "$@" -e ':a' -e '/\\$/{' -e '$!N' -e 's/\\\n//' -e 't a' -e '}' \
   | show 'join continuations'
 
@@ -50,6 +51,7 @@ printf '%s\n' a | "$@" -e ':a' -e '$!{' -e 'N' -e 'b a' -e '}' -e 's/\n/+/g' | s
 # 9. Line numbers and $ span all file operands: line 3 is the first line of the second file.
 printf '%s\n' a b >"$dir/f1"
 printf '%s\n' c d >"$dir/f2"
+# shellcheck disable=SC2016 # $p is the sed last-line address, not a shell expansion
 "$@" -n -e '2p' -e '3p' -e '$p' "$dir/f1" "$dir/f2" | show 'two files'
 
 # 10. c with a range writes its text once, at the end of the range; with a

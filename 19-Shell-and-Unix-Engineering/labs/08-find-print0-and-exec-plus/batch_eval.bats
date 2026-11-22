@@ -68,6 +68,7 @@ setup() {
 @test "syntax_trailing_plus reports error when plus does not follow braces" {
   run_lab "$PROBE" syntax_trailing_plus "$TEST_DIR"
   [ "$status" -eq 0 ]
+  # shellcheck disable=SC2312 # a failing find --help only means it is not BusyBox
   if find --help 2>&1 | grep -q BusyBox; then
     # BusyBox find ends -exec at any standalone +, so it runs echo and exits 0
     [ "$output" = "0" ]

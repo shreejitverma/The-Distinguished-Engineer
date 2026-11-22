@@ -12,6 +12,7 @@ case $0 in
   */*) here=${0%/*} ;;
   *) here=. ;;
 esac
+# shellcheck source=/dev/null # stacktrace.bash is bash, sourced only under bash, and is checked on its own
 . "$here/stacktrace.bash"
 
 fetch() {

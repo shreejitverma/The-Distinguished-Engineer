@@ -174,6 +174,7 @@ make_hostile_dir() {
   for line in "${IMPLS[@]}"; do
     IFS=' ' read -r -a cmd <<<"$line"
     flavor=$(ls_flavor "${cmd[@]}")
+    # shellcheck disable=SC2312 # the pipe into cat is the point: ls must see a non-terminal stdout; the bytes are asserted next
     LC_ALL=C "${cmd[@]}" hostile | cat >piped.bin
     hex=$(hexfile piped.bin)
     echo "impl=$line flavor=$flavor hex=$hex"
@@ -229,7 +230,9 @@ make_hostile_dir() {
     echo "impl=$line flavor=$flavor"
     case $flavor in
       gnu | uutils | bsd)
+        # shellcheck disable=SC2312 # the pipe into cat is the point: ls must see a non-terminal stdout; the bytes are asserted next
         LC_ALL=C "${cmd[@]}" -q hostile | cat >q.bin
+        # shellcheck disable=SC2312 # the pipe into cat is the point: ls must see a non-terminal stdout; the bytes are asserted next
         LC_ALL=C "${cmd[@]}" -b hostile | cat >b.bin
         hex_q=$(hexfile q.bin)
         hex_b=$(hexfile b.bin)

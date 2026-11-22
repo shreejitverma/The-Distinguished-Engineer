@@ -13,12 +13,13 @@ mode=$1 n=$2 k=$3 cpu=$4 suffix=${5-}
 
 # posh 0.14.1 has no ulimit builtin: there the caller must set the CPU limit
 # before starting the shell (the lab's test does it from bash).
+# shellcheck disable=SC3045 # guarded by command -v ulimit; a shell without it (posh) skips the block
 if command -v ulimit >/dev/null 2>&1; then
   ulimit -c 0
   ulimit -S -t "$cpu" || exit 4
 fi
 
-s= i=0
+s='' i=0
 while [ "$i" -lt "$n" ]; do
   s=${s}a
   i=$((i + 1))
@@ -27,7 +28,7 @@ s=$s$suffix
 
 case $mode in
   multi)
-    p= i=0
+    p='' i=0
     while [ "$i" -lt "$k" ]; do
       p="$p*a"
       i=$((i + 1))

@@ -31,6 +31,7 @@ build_probe() {
 # lock_impl: which lock utility this host provides.
 lock_impl() {
   if command -v flock >/dev/null 2>&1; then
+    # shellcheck disable=SC2312 # a failing --version or --help only means the flock is not util-linux or BusyBox
     if flock --version 2>&1 | grep -q util-linux; then
       echo util-linux
     elif flock --help 2>&1 | grep -q BusyBox; then
@@ -165,6 +166,7 @@ hold_lock() {
   [ "$output" = "busy" ]
   wait "$HOLDER"
   HOLDER=""
+  # shellcheck disable=SC2312 # a failed read shows up as a mismatch
   [ "$(cat "$out")" = "$(printf 'acquired\nreleased')" ]
 }
 
@@ -386,6 +388,7 @@ hold_lock() {
 
 @test "Linux /proc/locks lists the lock as FLOCK ADVISORY WRITE owned by the flock process" {
   if [ ! -e /proc/locks ]; then
+    # shellcheck disable=SC2312 # a failed uname shows up as a mismatch
     [ "$(uname -s)" = Darwin ]
     return 0
   fi

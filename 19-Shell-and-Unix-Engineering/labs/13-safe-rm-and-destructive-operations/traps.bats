@@ -165,6 +165,7 @@ after" ]
   run_lab_c 'rm -rf "$1/" 2>/dev/null' sh "$T/link"
   # Every arm exits 0: on Linux GNU rm -f treats the final ENOTDIR as a missing file.
   [ "$status" -eq 0 ]
+  # shellcheck disable=SC2312 # a failing rm --help only means it is not BusyBox
   if rm --help 2>&1 | grep -q BusyBox; then
     # BusyBox rm strips the trailing slash before removing, so only the link goes.
     [ ! -h "$T/link" ]

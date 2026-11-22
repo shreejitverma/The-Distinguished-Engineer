@@ -114,6 +114,7 @@ sed -E ^(a+)+$: status 0, 0 lines" ]
   local line="$BATS_TEST_TMPDIR/line" cmd flavor
   local -a awks=() words
   awk 'BEGIN { s = ""; for (i = 0; i < 5000; i++) s = s "a"; print s "!" }' >"$line"
+  # shellcheck disable=SC2312 # lab_awks only lists installed awks; an empty list is caught by the assertions below
   while IFS= read -r cmd; do
     awks+=("$cmd")
   done < <(lab_awks)
