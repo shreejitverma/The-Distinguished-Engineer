@@ -1,0 +1,19 @@
+close_extra_fds() {
+  local fd=3
+  while [ "$fd" -le 30 ]; do
+    eval "exec $fd>&-"
+    fd=$((fd + 1))
+  done
+}
+
+@test "background job with every extra descriptor closed" {
+  (
+    close_extra_fds
+    n=0
+    while [ ! -e "$RELEASE" ] && [ "$n" -lt 60 ]; do
+      /bin/sleep 1
+      n=$((n + 1))
+    done
+    : >"$MARK"
+  ) </dev/null >/dev/null 2>&1 &
+}

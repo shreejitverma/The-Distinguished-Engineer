@@ -1,0 +1,3 @@
+@test "sleeps past the timeout" {
+  sh -c 'printf "%s\n" "$$" >"$PIDFILE"; exec /bin/sleep 30'
+}

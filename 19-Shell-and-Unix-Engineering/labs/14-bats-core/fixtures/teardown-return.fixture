@@ -1,0 +1,6 @@
+teardown() {
+  return 1
+  echo "after-return" >&3
+}
+
+@test "return 1 in teardown" { :; }

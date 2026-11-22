@@ -1,0 +1,6 @@
+teardown() {
+  false
+  echo "after-false" >&3
+}
+
+@test "failing command that is not last in teardown" { :; }

@@ -1,0 +1,7 @@
+setup_file() { echo file-setup >>"$TRACE"; }
+teardown_file() { echo file-teardown >>"$TRACE"; }
+setup() { echo setup >>"$TRACE"; }
+teardown() { echo teardown >>"$TRACE"; }
+
+@test "t1" { echo t1 >>"$TRACE"; }
+@test "t2" { echo t2 >>"$TRACE"; }

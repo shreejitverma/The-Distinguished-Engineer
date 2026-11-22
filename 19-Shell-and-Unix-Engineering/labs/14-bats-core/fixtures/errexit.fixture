@@ -1,0 +1,9 @@
+fn() {
+  false
+  echo after
+}
+
+@test "errexit inside run" {
+  run fn
+  echo "# status=$status output=$output" >&3
+}

@@ -1,0 +1,6 @@
+# Free code: it runs once per evaluation of this file.
+printf 'x\n' >>"$COUNTER"
+
+@test "one" { :; }
+@test "two" { :; }
+@test "three" { :; }

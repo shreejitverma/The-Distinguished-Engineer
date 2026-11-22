@@ -1,0 +1,7 @@
+# bats test_tags=fast, unit
+@test "one" { :; }
+
+# bats test_tags=slow
+@test "two" { :; }
+
+@test "three" { :; }

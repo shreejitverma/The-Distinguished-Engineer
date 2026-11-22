@@ -1,0 +1,6 @@
+@test "background job inherits the TAP pipe" {
+  (
+    /bin/sleep 3
+    : >"$MARK"
+  ) &
+}

@@ -1,0 +1,37 @@
+bump() { COUNT=$((COUNT + 1)); }
+
+@test "a/b c_d-e" {
+  echo "# name=$BATS_TEST_NAME" >&3
+}
+
+@test "variable set under run is lost" {
+  COUNT=0
+  run bump
+  echo "# after-run=$COUNT" >&3
+  bump
+  echo "# direct=$COUNT" >&3
+}
+
+@test "pipe after run does not see the output" {
+  run printf 'foo\n' | wc -c >"$BATS_TEST_TMPDIR/consumer"
+  echo "# consumer-bytes=$(tr -d ' ' <"$BATS_TEST_TMPDIR/consumer")" >&3
+}
+
+@test "bats_pipe status selection" {
+  run bats_pipe sh -c 'echo hi; exit 3' \| cat
+  echo "# default status=$status output=$output" >&3
+  run bats_pipe -0 sh -c 'echo hi; exit 3' \| cat
+  echo "# first status=$status" >&3
+  run bats_pipe -1 sh -c 'echo hi; exit 3' \| cat
+  echo "# last status=$status" >&3
+}
+
+@test "run of a missing command" {
+  run no_such_command_xyz
+  echo "# status=$status" >&3
+}
+
+@test "skip stops the test" {
+  skip "because"
+  echo "# unreachable" >&3
+}

@@ -1,0 +1,29 @@
+bats_require_minimum_version 1.5.0
+
+@test "bang mid-test is ignored" {
+  ! true
+  :
+}
+
+@test "single bracket mid-test fails" {
+  [ 1 = 2 ]
+  :
+}
+
+@test "double bracket mid-test" {
+  [[ 1 = 2 ]]
+  :
+}
+
+@test "arithmetic mid-test" {
+  ((1 == 2))
+  :
+}
+
+@test "run bang fails when the command succeeds" {
+  run ! true
+}
+
+@test "run bang passes when the command fails" {
+  run ! false
+}
