@@ -130,7 +130,7 @@ case $mode in
     kill -TERM "$p"
     # Let bash reap the signaled job without consuming its status with wait.
     while kill -0 "$p"; do /bin/sleep 0.1; done
-    /bin/true
+    /bin/sleep 0
     wait -n
     first=$?
     wait "$p"
