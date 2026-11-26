@@ -360,6 +360,7 @@ set +o posix
 p=$!
 kill -TERM "$p"
 while kill -0 "$p"; do /bin/sleep 0.1; done
+/bin/true
 wait -n
 first=$?
 wait "$p"
@@ -368,6 +369,7 @@ echo "wait-n=$first wait-pid=$?"
 
 It prints `wait-n=127 wait-pid=143` on bash 4.3 through 5.2.29 and `wait-n=143 wait-pid=143` on 5.2.37 and 5.3.15.
 The loop waits until the process has been reaped while leaving its status available to the two `wait` calls.
+The `/bin/true` after it guarantees one foreground command runs after the reap, which is what makes 4.3 through 5.2.29 mark the signaled job notified; without it the reap can land before the first `kill -0` and the old result becomes timing-dependent.
 The separate `rewait` and `rewait-posix` probes set POSIX mode explicitly so the comparison also works when Bash starts as `sh`.
 
 ## Pitfalls
