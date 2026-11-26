@@ -1,0 +1,68 @@
+== 1. Text codemod versus AST codemod
+fleet: 6 repos, baseline tests pass in all, migratable call sites (hand-counted truth): 10
+regex 'old_api.fetch(' over every non-test file: 21 hits, 9 correct, 8 false positives, 4 refused by the AST, 1 call sites missed
+refusal fixtures left untouched: *args, **kwargs, unknown keyword, duplicate keyword (4)
+regex rewrite of billing: 4 of 4 tests fail
+AST codemod on billing/client.py: 2 sites migrated, 0 unmigratable; diff:
+  --- a/client.py
+  +++ b/client.py
+  @@ -1,2 +1,2 @@
+  -import old_api
+  +import new_api
+   
+  @@ -7,5 +7,5 @@
+       # first attempt uses a tight timeout
+  -    return old_api.fetch(
+  +    return new_api.get(
+           url,  # the endpoint
+  -        2500,  # milliseconds
+  +        timeout_s=2.5,  # milliseconds
+       )
+  @@ -14,3 +14,3 @@
+   def retry(url, delay_ms):
+  -    return old_api.fetch(url=url, timeout=delay_ms * 2)
+  +    return new_api.get(url=url, timeout_s=(delay_ms * 2) / 1000)
+   
+second pass over its own output: 0 edits (idempotent)
+skipped: legacy_gen_pb2.py (generated), broken.py (parse-error); reported not migrated: 1 getattr(old_api, 'fetch') site
+search/engine.py keeps the old import because getattr still needs it: ['import old_api', 'import new_api']
+auth/session.py, multibyte character before the call: banner = "caf\xe9"; return new_api.get(token_url, timeout_s=1)
+
+== 2. Shards (repository x CODEOWNERS owner, at most 2 files each)
+  auth/@team-identity#1      files=1 calls=1
+  ledger/@team-pay#1         files=1 calls=1
+  monolith/@team-ads#1       files=1 calls=1
+  monolith/@team-infra#1     files=1 calls=1
+  monolith/@team-platform#2  files=1 calls=1
+  search/@team-search#1      files=1 calls=1
+  billing/@team-pay#1        files=1 calls=2
+  monolith/@team-platform#1  files=2 calls=2
+
+== 3. Rollout: canary, then waves; a failing shard is quarantined
+  wave 0  auth/@team-identity#1      files=1 calls=1  failing 0 -> 0  MERGED
+  wave 1  ledger/@team-pay#1         files=1 calls=1  failing 0 -> 1  QUARANTINED
+  wave 1  monolith/@team-ads#1       files=1 calls=1  failing 0 -> 0  MERGED
+  wave 2  monolith/@team-infra#1     files=1 calls=1  failing 0 -> 0  MERGED
+  wave 2  monolith/@team-platform#2  files=1 calls=1  failing 0 -> 0  MERGED
+  wave 2  search/@team-search#1      files=1 calls=1  failing 0 -> 0  MERGED
+  wave 2  billing/@team-pay#1        files=1 calls=2  failing 0 -> 0  MERGED
+  wave 2  monolith/@team-platform#1  files=2 calls=2  failing 0 -> 0  MERGED
+merged 7, quarantined 1: ['ledger/@team-pay#1']
+
+== 4. Burndown, re-run, ratchet
+category                                     before  after
+static call sites (codemod handles)              10      1
+unmigratable call sites (manual)                  4      4
+getattr(old_api, 'fetch') sites (manual)          1      1
+generated files skipped (fix the generator)       1      1
+unparsable files skipped                          1      1
+text-only or shadowed mentions (untouched)        7      7
+re-plan after merge: 1 shard(s) with edits: ['ledger/@team-pay#1']
+ratchet after a copy-pasted old call lands: violations=['auth/extra.py']
+re-run generates 1 shard (MERGED), ratchet violations after merge: []
+
+== 5. A failing canary halts the campaign
+canary forced to the ledger shard:
+  wave 0  ledger/@team-pay#1         files=1 calls=1  failing 0 -> 1  QUARANTINED
+  HALT after wave 0: 7 shard(s) not started
+repositories left unchanged: 10 call sites still old

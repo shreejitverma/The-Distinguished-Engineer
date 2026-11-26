@@ -1,0 +1,124 @@
+== 1. Worktree isolation ==
+worktrees: 3 (1 main + 2 linked slots)
+slot 1 git-dir: .git/worktrees/1
+slot 2 git-dir: .git/worktrees/2
+slots share one common dir: yes
+slot 2 sees slot 1 edit: no
+slot 2 switch to slot 1's branch: rc=128
+  fatal: 'agent/a' is already used by worktree at '<work>/slots/1'
+slot 2 sees slot 1's branch tip: yes
+hook planted from slot 1 ran on a commit in slot 2: yes
+  planted in slot 1, ran in 2
+
+== 2. Seatbelt confinement ==
+attempt                                        unsandboxed  sandboxed
+write inside worktree                          ALLOWED      ALLOWED
+git commit in worktree                         ALLOWED      ALLOWED
+write into main checkout                       ALLOWED      DENIED (EPERM)
+write outside everything                       ALLOWED      DENIED (EPERM)
+plant hook in shared .git/hooks                ALLOWED      DENIED (EPERM)
+git config in shared .git/config               ALLOWED      DENIED (rc=4)
+delete another slot's branch (shared refs)     ALLOWED      ALLOWED
+read ~/.ssh key                                ALLOWED      DENIED (EPERM)
+read gate attestation key                      ALLOWED      DENIED (EPERM)
+connect to loopback service                    ALLOWED      DENIED (EPERM)
+grandchild writes outside                      ALLOWED      DENIED (child inherited policy)
+AGENT_DEMO_TOKEN in environment                VISIBLE      VISIBLE
+AGENT_DEMO_TOKEN with env -i allowlist: ABSENT
+deny rule on the link path, write via the real path: ALLOWED
+deny rule on the real path, write via the real path: DENIED
+
+== 3. Ship gate ==
+-- A. good change: new function with a test
+  | result: green
+  | ref: refs/heads/agent/good
+  | checks[5]{name,status,detail}:
+  |   ref_policy,pass,"agent branch"
+  |   protected_paths,pass,"none"
+  |   secrets,pass,"0 findings"
+  |   diff_budget,pass,"8 of 200 changed lines"
+  |   tests,pass,"ran 3 tests, base ran 2"
+  | passed: 5 of 5
+  | forwarded: refs/heads/agent/good
+  push exit code: 0
+  origin has agent/good: yes
+-- B. regression: add() now subtracts
+  | result: rejected
+  | ref: refs/heads/agent/regress
+  | checks[5]{name,status,detail}:
+  |   ref_policy,pass,"agent branch"
+  |   protected_paths,pass,"none"
+  |   secrets,pass,"0 findings"
+  |   diff_budget,pass,"2 of 200 changed lines"
+  |   tests,fail,"ran 2 tests, exit code 1"
+  | passed: 4 of 5
+  | help[1]:
+  |   Fix the failing checks and push again; the gate never edits your branch
+  push exit code: 1
+  origin has agent/regress: no
+-- C. agent deletes the failing test instead of fixing it
+  | result: rejected
+  | ref: refs/heads/agent/delete-test
+  | checks[5]{name,status,detail}:
+  |   ref_policy,pass,"agent branch"
+  |   protected_paths,fail,"deleted tests/test_calc.py"
+  |   secrets,pass,"0 findings"
+  |   diff_budget,pass,"10 of 200 changed lines"
+  |   tests,fail,"ran 0 tests, base ran 2 (test-count ratchet)"
+  | passed: 3 of 5
+  | help[1]:
+  |   Fix the failing checks and push again; the gate never edits your branch
+  push exit code: 1
+  origin has agent/delete-test: no
+-- D. agent commits a credential
+  | result: rejected
+  | ref: refs/heads/agent/secret
+  | checks[5]{name,status,detail}:
+  |   ref_policy,pass,"agent branch"
+  |   protected_paths,pass,"none"
+  |   secrets,fail,"1 finding(s): AWS access key id in settings.cfg"
+  |   diff_budget,pass,"1 of 200 changed lines"
+  |   tests,pass,"ran 2 tests, base ran 2"
+  | passed: 4 of 5
+  | help[1]:
+  |   Fix the failing checks and push again; the gate never edits your branch
+  push exit code: 1
+  origin has agent/secret: no
+-- E. agent edits the gate policy and the CI config
+  | result: rejected
+  | ref: refs/heads/agent/edit-gate
+  | checks[5]{name,status,detail}:
+  |   ref_policy,pass,"agent branch"
+  |   protected_paths,fail,"touched .gate/policy.txt; touched .github/ci.yml"
+  |   secrets,pass,"0 findings"
+  |   diff_budget,pass,"3 of 200 changed lines"
+  |   tests,pass,"ran 2 tests, base ran 2"
+  | passed: 4 of 5
+  | help[1]:
+  |   Fix the failing checks and push again; the gate never edits your branch
+  push exit code: 1
+-- F. skipping the local hook does not skip the gate
+plain push to origin:
+  | local pre-push: push to the gate, not origin
+  push exit code: 1
+push --no-verify to origin:
+  | origin: refused refs/heads/agent/direct: no valid gate attestation
+  push exit code: 1
+  origin has agent/direct: no
+
+== 4. Gate CLI contract ==
+result: green
+ref: refs/heads/agent/noop
+checks[5]{name,status,detail}:
+  ref_policy,pass,"agent branch"
+  protected_paths,pass,"none"
+  secrets,pass,"0 findings"
+  diff_budget,pass,"0 of 200 changed lines"
+  tests,pass,"ran 2 tests, base ran 2"
+passed: 5 of 5
+exit code: 0
+error: unrecognized arguments: --bogus
+code: VALIDATION_ERROR
+help[1]:
+  Run `gate.py check --repo DIR --base SHA --new SHA --ref REF`
+exit code: 2

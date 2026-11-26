@@ -1,0 +1,67 @@
+== corpus
+documents: 295
+corpus bytes: 472235
+distinct trigrams: 774
+packed ngram 'par' = 492581412667506 (112 << 42 | 97 << 21 | 114)
+ngram buckets of 512: 1 bucket heads would stay in memory
+
+== substring queries, case sensitive
+query                     hits  docs   cox  cand  pair (dist)         read
+zxqv_checkpoint_flush        2     2     2     2  'zxq'+'_fl' (15)       5
+parse_header(                3     3    11    11  'par'+'se_' (3)       22
+for item in               3101   270   270  3101  'r i'+'tem' (3)     6202
+return                    3105   274   274  3105  'ret'+'urn' (3)     6210
+ab                        2811   270   295     -  scan (<3 chars)        0
+hits = occurrences; docs = documents with a hit; cox = documents holding every trigram of the query
+cand = pair-and-distance candidate occurrences before the final string compare; read = posting entries read
+
+== case-insensitive
+query 'ZXQV_CheckPoint_FLUSH': case sensitive hits 1, case insensitive hits 3
+trigram lookups for 21 chars: 128 (case sensitive would be 19)
+
+== regex to query
+(Path|PathFragment).*=.*/usr/local
+  query AND(OR("Path", "PathFragment"), "/usr/local")
+  candidates 11 of 295, matching documents 6, brute force agrees
+zxqv_checkpoint_(flush|drain)
+  query OR("zxqv_checkpoint_flush", "zxqv_checkpoint_drain")
+  candidates 3 of 295, matching documents 3, brute force agrees
+a.*b
+  query ANY
+  candidates 295 of 295, matching documents 279, brute force agrees
+a+b: unsupported (operator '+'), a real engine falls back to ANY and scans
+[Pp]ath: unsupported (operator '['), a real engine falls back to ANY and scans
+
+== index size
+positional: 471645 entries, 746453 varint bytes, 1.58x corpus
+document-level: 103450 entries, 103649 varint bytes, 0.22x corpus
+
+== differential check against brute force
+177 case-sensitive and 177 case-insensitive queries equal brute force
+absent needle returns no hits
+
+== shard by blob hash
+files 295, unique blobs 265, duplicate files 30
+unique blobs per shard: [54, 56, 76, 79]
+
+== text search for 'parse' through the trigram index
+hits: 11 in 3 files
+  models.py:4:8 definition lab python demo 0.1 models/Config#parse().
+  models.py:8:23 string
+  models.py:12:8 definition lab python demo 0.1 models/Template#parse().
+  notes.py:1:13 comment
+  notes.py:2:21 string
+  service.py:4:4 definition lab python demo 0.1 service/parse().
+  service.py:5:6 comment
+  service.py:12:16 reference lab python demo 0.1 models/Config#parse().
+  service.py:13:17 reference lab python demo 0.1 models/Template#parse().
+  service.py:14:12 reference lab python demo 0.1 service/parse().
+  service.py:19:15 reference lab python demo 0.1 models/Config#parse().
+
+== semantic find-references
+symbol: lab python demo 0.1 models/Config#parse().
+definitions: 1, references: 2
+  models.py:4:8
+  service.py:12:16
+  service.py:19:15
+text hits that are not Config.parse: 8 of 11

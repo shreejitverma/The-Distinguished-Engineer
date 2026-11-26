@@ -1,0 +1,19 @@
+(version 1)
+;; Allow everything, then take away: the shape Claude Code's docs describe (reads open, writes confined).
+(allow default)
+(deny network*)
+;; Writes: nothing, except the slot, the shared git state an agent legitimately needs, and scratch.
+(deny file-write*)
+(allow file-write*
+  (subpath "@WORKTREE@")
+  (subpath "@COMMON@")
+  (subpath "@SCRATCH@")
+  (subpath "/dev"))
+;; Last match wins: carve the code-execution surfaces back out of the shared git dir.
+(deny file-write*
+  (subpath "@COMMON@/hooks")
+  (literal "@COMMON@/config"))
+;; Reads: credentials are denied, everything else stays readable.
+(deny file-read*
+  (subpath "@FAKEHOME@/.ssh")
+  (subpath "@GATEDIR@"))

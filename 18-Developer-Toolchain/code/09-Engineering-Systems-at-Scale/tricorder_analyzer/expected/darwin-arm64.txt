@@ -1,0 +1,116 @@
+
+== 1. Stages: a parse failure costs the COMPILATION stage only ==
+notes from FILES stage: TrailingWhitespace=1
+notice: broken.py: skipped DeadException
+notice: broken.py: skipped NoneComparison
+notice: broken.py: skipped MutableDefaultArgument
+notice: broken.py: skipped UnusedImport
+
+== 2. Where results appear: dashboard, review view, baseline ==
+old file notes:      MutableDefaultArgument=1, UnusedImport=1
+dashboard (all new): DeadException=1, MutableDefaultArgument=1, NoneComparison=1, TrailingWhitespace=1, UnusedImport=3
+changed lines:       [3, 10, 16, 17, 18, 19, 20, 21]
+review view:         DeadException=1, NoneComparison=1, TrailingWhitespace=1, UnusedImport=1
+fingerprint baseline: new=5 unchanged=2 absent=0
+  new: line 2 UnusedImport
+  new: line 3 UnusedImport
+  new: line 19 NoneComparison
+  new: line 19 TrailingWhitespace
+  new: line 20 DeadException
+line-keyed baseline would call 6 of 7 results new
+affected by billing.py (DEPS stage): ['reports.py']
+
+== 3. Applicability gates what an automatic pass may do ==
+machine-only pass leaves '== None': True
+with maybe-incorrect it becomes 'is None': True
+obj == None -> True ; obj is None -> False
+
+== 4. Fix composition: minimal disjoint edits (SARIF Appendix G) ==
+coarse   applied=1 rejected=1 -> <lineItem partNumber="A3101" />
+         rejected: conflicts with an accepted fix
+minimal  applied=2 rejected=0 -> <lineItem partNumber="AA3101" />
+
+== 5. Validation: a fix must not break the file it fixes ==
+sole-statement guard=False applied=0 rejected=1 parses=True
+   rejected: breaks syntax: expected an indented block after 'if' statement on line 2
+sole-statement guard=True  applied=1 rejected=0 parses=True
+trailing whitespace: notes=2 applied=1 rejected=1
+   rejected: changes the AST but is declared style-only
+disjoint edits, invalid combination: applied=1 rejected=1
+
+== 6. Passes: conflicts defer, then the pass reaches a fixed point ==
+pass 1: notes=2 applied=1 rejected=1
+pass 2: notes=0 applied=0 rejected=0
+billing pass 1: notes=7 applied=5 rejected=0
+billing pass 2: notes=2 applied=0 rejected=0
+second run: passes=1 changed=False
+left for a human: MutableDefaultArgument=1, NoneComparison=1
+
+== 7. Can this check become a compiler error? (cleanup rehearsal) ==
+DeadException          instances=2 remaining=0 -> ENABLE AS ERROR
+MutableDefaultArgument instances=1 remaining=1 -> review-time only: 1 of 1 instances survive mechanical cleanup
+UnusedImport           instances=1 remaining=0 -> review-time only: not correctness-only
+NoneComparison         instances=1 remaining=1 -> review-time only: not correctness-only; 1 of 1 instances survive mechanical cleanup
+
+== 8. Sharding: stateless workers give the serial answer ==
+files=12 notes=60 identical=True
+
+== 9. Feedback policy on synthetic click counts ==
+no-signal       NOT_USEFUL=0   PLEASE_FIX=0   APPLY_FIX=0   rate=n/a -> no-signal
+healthy         NOT_USEFUL=3   PLEASE_FIX=600 APPLY_FIX=300 rate=0.003 -> healthy
+boundary-10pct  NOT_USEFUL=10  PLEASE_FIX=60  APPLY_FIX=30  rate=0.100 -> probation
+boundary-25pct  NOT_USEFUL=25  PLEASE_FIX=50  APPLY_FIX=25  rate=0.250 -> probation
+noisy           NOT_USEFUL=26  PLEASE_FIX=50  APPLY_FIX=24  rate=0.260 -> disable-candidate
+
+== 10. The same fix as SARIF 2.1.0 ==
+{
+  "fixes": [
+    {
+      "artifactChanges": [
+        {
+          "artifactLocation": {
+            "uri": "billing.py"
+          },
+          "replacements": [
+            {
+              "deletedRegion": {
+                "charLength": 0,
+                "charOffset": 257
+              },
+              "insertedContent": {
+                "text": "raise "
+              }
+            }
+          ]
+        }
+      ],
+      "description": {
+        "text": "Did you mean 'raise ValueError(...)'?"
+      },
+      "properties": {
+        "applicability": "machine-applicable"
+      }
+    }
+  ],
+  "level": "warning",
+  "locations": [
+    {
+      "physicalLocation": {
+        "artifactLocation": {
+          "uri": "billing.py"
+        },
+        "region": {
+          "startColumn": 9,
+          "startLine": 20
+        }
+      }
+    }
+  ],
+  "message": {
+    "text": "exception created but not raised"
+  },
+  "partialFingerprints": {
+    "toyTricorderLine/v1": "053c5123bfce"
+  },
+  "ruleId": "DeadException"
+}
