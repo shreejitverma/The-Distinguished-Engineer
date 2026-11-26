@@ -1,0 +1,55 @@
+== 1. quota-aware router ==
+name    bucket      used% burn/h    h_exh spend_pr
+fable   fable-week   30.0  0.357    196.0     40.0
+opus    shared-week  55.0  0.655     68.7      0.0
+haiku   shared-week  55.0  0.655     68.7      0.0
+grok    grok-month   20.0  0.056   1440.0     60.0
+gemini  gemini-day   10.0  0.833    108.0     80.0
+dispatch of 10 tasks (tier: choice, reason)
+   1  t2 -> gemini  spend_priority 80.0
+   2  t2 -> gemini  spend_priority 74.0
+   3  t3 -> gemini  spend_priority 68.0
+   4  t1 -> fable   tier1 chain position 1
+   5  t2 -> gemini  spend_priority 67.0
+   6  t3 -> gemini  spend_priority 61.0
+   7  t2 -> grok    spend_priority 60.0
+   8  t1 -> fable   tier1 chain position 1
+   9  t2 -> gemini  spend_priority 60.0
+  10  t3 -> grok    spend_priority 54.0
+end-state used%: fable-week=42.0 gemini-day=23.0 grok-month=23.5 shared-week=55.0
+edge cases
+  fable exhausted: chain -> opus, naive balancer -> gemini
+  all tier1 exhausted: None | STOP: no tier1 candidate has runway
+  grok unknown: tier2 -> gemini
+  grok burn 20.0%/h with 60% left: viable for a 1h task = True
+  gemini burn 40.0%/h with 20% left: viable for a 1h task = False
+  shared bucket: haiku used% 55.0 -> 58.0 after charging opus
+== 2. retry herding (100 workers, server admits 10 per slot) ==
+policy         attempts peak retry/slot   slots
+fixed               550             90      10
+exp                 550             90     319
+full-jitter         303             50      17
+== 3. supervisor restart intensity ==
+  intensity= 5 period=30s sustained<=0.17/s | quick burst: survived 3 crashes | steady every 7s: survived 43 crashes
+  intensity= 1 period= 6s sustained<=0.17/s | quick burst: ESCALATE at t=1 after 1 restarts in 6s | steady every 7s: survived 43 crashes
+  intensity=10 period=60s sustained<=0.17/s | quick burst: survived 3 crashes | steady every 7s: survived 43 crashes
+  nested 10 x 10 supervisors allow up to 100 restarts before the top gives up
+== 4. review queue saturation (mu=40 reviews/day, 8 working hours/day) ==
+lam_agent    rho W analytic h  W simulated h
+     0.0  0.600         0.50           0.51
+     8.0  0.800         1.00           0.97
+    12.0  0.900         2.00           1.93
+    14.0  0.950         4.00           3.77
+    15.0  0.975         8.00           7.11
+overload (lam_agent=20 => rho=1.1), human PR mean sojourn in working hours
+  no cap: 50 days -> 28.7 h, 500 days -> 237.0 h
+  agent WIP cap=6: 50 days -> 1.1 h, 500 days -> 1.1 h
+  agent PRs rejected at the cap over 500 days: 3635 of 10068 (36%)
+== 5. verifier independence (model, assumed parameters) ==
+  one verifier miss rate m=0.40; two verifiers, common-cause coupling rho
+    rho P(both miss)    simulated
+    0.0        0.160        0.159
+    0.5        0.280        0.279
+    1.0        0.400        0.394
+  residual wrong-claim rate with 2 verifiers at rho=0.5: 0.042 (producer alone 0.150)
+ALL CHECKS PASSED

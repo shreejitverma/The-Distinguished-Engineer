@@ -1,0 +1,59 @@
+== Synthetic world (every rate is a model assumption, not a measurement) ==
+engineers: 40 (bonus cohort 30, holdout 10), weeks: 24, bonus on PR and deploy counts from week 13
+PRs generated: 2858 (gamed world), 2055 (null world); deployments: 3222, 2241
+
+== 1. What the executive dashboard shows (bonus cohort, 4-week blocks) ==
+weeks    PRs/eng-wk  deploys/eng-wk  change-fail-rate%  median-PR-lines
+ 1-4           2.12            2.33                8.6              171
+ 5-8           2.20            2.39                8.0              185
+ 9-12          2.11            2.28                7.7              179
+13-16          3.48            3.98                7.3               93
+17-20          4.90            5.66                8.1               64
+21-24          4.72            5.53                7.5               66
+
+== 2. Pre (weeks 1-12) vs post (weeks 13-24), with the holdout as the control group ==
+metric                             bonus pre bonus pst  hold pre  hold pst       DiD
+PRs per engineer-week                   2.14      4.37      2.11      2.17     +2.16
+median lines per PR                      177        71       174       198   -130.00
+deploys per engineer-week               2.33      5.05      2.30      2.39     +2.63
+dashboard change fail rate %             8.1       7.7       8.3       9.1     -1.12
+empty-diff deploys %                     0.0      11.3       0.0       0.0    +11.32
+comments per 100 substantive lines      4.31      3.67      4.37      4.23     -0.50
+rubber-stamp approvals %                 0.0      27.8       0.0       0.0    +27.80
+approval-ring PRs %                      0.0      33.1       0.0       0.0    +33.08
+PRs per ticket key                      1.00      1.77      1.00      1.00     +0.77
+PRs per reconstructed chain             1.09      2.34      1.09      1.08     +1.25
+failed deploys per 100 changes           9.6      20.8       9.9      10.8    +10.34
+
+== 3. Detector verdicts (FLAG = pathology present) ==
+detector                                         gamed bonus gamed hold  null     
+F1 median PR size collapsed (<0.6x)              FLAG        ok          ok       
+F2 PRs per reconstructed chain (>=1.5x)          FLAG        ok          ok       
+F3 comments per 100 lines (<0.8x)                ok          ok          ok       
+F4 rubber-stamp share (+10 points)               FLAG        ok          ok       
+F5 approval ring share (>=5%, +5 points)         FLAG        ok          ok       
+F6 failures per 100 changes (>=1.5x)             FLAG        ok          ok       
+F7 deploys per change (>=1.5x), empty +5         FLAG        ok          ok       
+F8 activity up 1.5x while failures worse 1.2x    FLAG        ok          ok       
+
+F3 note: bonus comments per 100 lines post/pre = 0.85, holdout = 0.97 (bar is 0.80); outside the ring the bonus cohort goes 4.31 -> 5.05
+
+== 4. Reconstruction accuracy (ground truth exists only inside the simulator) ==
+pre : true changes 772, reconstructed chains 710 (-8.0%), ticket keys 772 (+0.0%), failures per 100 true changes 8.8
+post: true changes 715, reconstructed chains 672 (-6.0%), ticket keys 886 (+23.9%), failures per 100 true changes 19.6
+
+== 5. Metric validity: does a per-engineer score track delivered changes? (bonus cohort, Spearman) ==
+pre : bonus score (PRs + deploys) +0.99, reconstructed changes +0.97 (both vs true changes delivered)
+post: bonus score (PRs + deploys) +0.79, reconstructed changes +0.93 (both vs true changes delivered)
+
+== 6. Outcome-first scorecard, bonus cohort (each activity metric beside its counter-metric) ==
+metric                                           pre      post
+PRs per engineer-week (activity)                2.14      4.37
+PRs per reconstructed change                    1.09      2.34
+deploys per engineer-week (activity)            2.33      5.05
+deploys per reconstructed change                1.18      2.71
+dashboard change fail rate %                     8.1       7.7
+failed deploys per 100 reconstructed changes       9.6      20.8
+reconstructed changes per engineer-week         1.97      1.87
+comments per 100 lines, all PRs                 4.31      3.67
+comments per 100 lines, outside the ring        4.31      5.05
