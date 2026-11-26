@@ -1,0 +1,71 @@
+A. Spurious-red probability of one presubmit: 1 - (1 - f)^T
+   f = per-test-run flake rate, T = tests executed
+   f             T=100     T=1000    T=10000
+   0.0001       0.0100     0.0952     0.6321
+   0.001        0.0952     0.6323     1.0000
+   0.0015       0.1394     0.7771     1.0000
+   0.01         0.6340     1.0000     1.0000
+   Monte Carlo check, f=0.005 T=200, 4000 trials: closed form 0.6330, simulated 0.6232
+
+   Batch growth model: pool N=3000 tests, each change selects 300 random tests, f=0.0002
+   B      tests run U(B) P(spurious red)
+   1      300            0.0582      
+   2      570            0.1078      
+   4      1032           0.1865      
+   8      1709           0.2895      
+   16     2444           0.3867      
+   32     2897           0.4398      
+
+B. Retry economics: f=0.01 per test run, T=1000 tests, every test takes one time unit
+   rounds = expected sequential attempt rounds on the critical path
+   attempts  P(test false red)  P(suite false red)       extra runs/test    rounds  
+   1         0.010000           0.999957                 0.0000             1.0000  
+   2         0.000100           0.095167                 0.0100             2.0000  
+   3         0.000001           0.001000                 0.0101             2.0951  
+   Monte Carlo check, attempts=2: closed 2.0000 rounds, simulated 2.0000 rounds
+
+C. Masking: a real race regression fails a test with probability q per run
+   q      P(red) at 1 attempt    P(red) at 3 attempts   presubmits to first red (3)
+   1.0    1.0000                 1.0000                 1.0                     
+   0.5    0.5000                 0.1250                 8.0                     
+   0.2    0.2000                 0.0080                 125.0                   
+
+D. Merge-queue bisection: 19200 changes, 3% truly bad, batch builds flake via model A
+   Red batch is split in half and rebuilt; a red single change is ejected.
+   builds/chg = builds per change; fe = false ejections per 1000 changes (good change ejected)
+   B    no flakes      flaky,k=1    fe       flaky,k=2    fe      
+   1    1.000          1.000        54.6     1.055        3.5     
+   2    0.560          0.666        7.4      0.625        0.2     
+   4    0.368          0.469        3.4      0.432        0.0     
+   8    0.295          0.401        2.5      0.357        0.1     
+   16   0.283          0.371        2.2      0.335        0.1     
+   32   0.277          0.372        3.2      0.332        0.1     
+   cheapest batch size: no flakes B=32, flaky k=1 B=16, flaky k=2 B=32
+
+E. Rerun detection: 600 tests, 100 commits, up to 2 reruns of a red first attempt
+   Flag = some commit shows both a fail and a pass on the same code (same-commit evidence).
+   true pf      tests  flagged   expected  
+   0.002-0.02   86     53        53.7      
+   0.02-0.10    20     19        19.7      
+   0.10-0.50    12     12        12.0      
+   stable tests flagged flaky: 0 of 477
+   broken tests (fail every attempt from commit 60) flagged flaky: 0 of 5, red on all attempts at the tail: 5 of 5
+
+   SPRT quarantine rule on stress runs of a known-good commit
+   H0 pf=0.005, H1 pf=0.05, alpha=beta=0.01; accept H1 at LLR>=4.595, accept H0 at LLR<=-4.595
+   LLR step: fail +2.3026, pass -0.04628
+   true pf  P(quarantine) mean runs   
+   0.0      0.000        100.0       
+   0.005    0.005        134.5       
+   0.02     0.476        232.2       
+   0.05     0.991        78.8        
+   0.2      1.000        14.5        
+   0.5      1.000        5.4         
+
+F. Toy predictive test selection: 40 modules, 400 tests (24 flaky at pf=0.2), 3000 train + 3000 test changes
+   Select the top third of the build-dependency candidates per change by learned score.
+   Truth for recall = deterministic failures (red on all 3 attempts). Build-dependency selection is recall 1.000 by construction.
+   strategy           test recall    change recall  flaky share     
+   random             0.321          0.911          0.065           
+   raw labels         0.956          1.000          0.196           
+   deflaked labels    0.984          1.000          0.138           
