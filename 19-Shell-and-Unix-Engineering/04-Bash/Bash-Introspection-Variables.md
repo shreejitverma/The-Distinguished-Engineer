@@ -108,6 +108,7 @@ The getters in bash 5.3, read in variables.c:
 
 The manual repeats one sentence for most of them, "If BASHPID is unset, it loses its special properties, even if it is subsequently reset" (bash-5.3 doc/bashref.texi, Bash Variables), and the lab shows it: `BASHPID=5` is ignored, but after `unset BASHPID` the same assignment sticks.
 The stack arrays are protected the other way: `init_dynamic_array_var` gives `BASH_SOURCE`, `BASH_LINENO`, `BASH_ARGV`, and `BASH_ARGC` the attributes `att_noassign|att_nounset`, so `unset BASH_SOURCE` fails with status 1 and "cannot unset" in bash 3.2 and 5.3 (lab), and assignment is a silent no-op.
+The lab runs `unset BASH_SOURCE` in a subshell so the surrounding probe can report the failure even when POSIX mode makes it fatal to that subshell.
 `FUNCNAME` is created `att_invisible|att_noassign` by `init_funcname_var`, and `execute_function` calls `make_funcname_visible (1)` on entry while `function_misc_cleanup` hides it again at the top level, which is why `${FUNCNAME-unset}` prints `unset` outside a function even though the `main` frame is on the stack (lab).
 `BASH_VERSINFO` is a readonly array built by `make_vers_array` at startup (major, minor, patch level, build version, release status, `MACHTYPE`), and `BASH_EXECUTION_STRING` is a plain variable bound once to the `-c` argument (bash-5.3 variables.c `initialize_shell_variables`); the lab checks both.
 
@@ -290,7 +291,7 @@ And `demo.bash`, verbatim, which fails two functions deep:
 
 ```bash
 #!/usr/bin/env bash
-# demo.bash: the worked example; die prints a stack trace from two functions deep and exits 3.
+# shellcheck source-path=SCRIPTDIR # die, from stacktrace.bash, reports the stack and exits 3
 case ${BASH_SOURCE[0]} in
   */*) here=${BASH_SOURCE[0]%/*} ;;
   *) here=. ;;

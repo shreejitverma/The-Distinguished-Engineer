@@ -375,7 +375,7 @@ transcript=bye\r\n
 result=eof waiting=Password: 
 $ dialog.sh drive close-early
 transcript=go? 
-result=closed status=129
+result=closed status=129 signal=1
 $ dialog.sh drive wait-eof
 transcript=go? y\r\ndone y\r\n
 result=ok status=0
@@ -394,7 +394,8 @@ Read the pairs against each other.
 `pipe-login` and `login` are the same program: without a terminal it gives up, on a pty it finishes.
 `blind` shows the password in the transcript because it arrived while echo was still on; `blind-getpass` shows it and then hangs, because the prompt flushed it; `wait-getpass` shows neither problem.
 `echo-match` stops at offset 7, inside the echo of what was just sent, while `output-match` reaches offset 15, the program's answer.
-`close-early` leaves no marker file and reports status 129 (128 plus `SIGHUP`), while `wait-eof` lets the program print `done y`.
+`close-early` leaves no marker file and reports `status=129 signal=1` when `SIGHUP` kills the child, while `wait-eof` lets the program print `done y`.
+The driver restores the default `SIGHUP` disposition before starting the terminal's child so a detached caller that ignores the signal cannot suppress this hangup.
 The three `stdio` runs are one C program: on a pty the prompt arrives and the answer is echoed with `\r\n` line endings; on pipes the wait for `ready` times out with an empty transcript (with musl the transcript holds the banner line `stdio target\n`); and when the answer is sent without waiting, everything arrives at exit, with no echo and no carriage returns.
 
 The same `login` dialog in real `expect`, measured by hand on macOS 27.2 with expect 5.45 on 2026-11-11 (the path to `dialog.sh` is shortened here).

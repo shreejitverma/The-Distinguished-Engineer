@@ -59,12 +59,14 @@ MAP_561='\114-\321\322-\377\35-\47\14-\34\0-\13\50-\113'
 }
 
 @test "the same chain on a pipe needs a head that reads no more than it needs" {
+  local head_version system
   printf '0123456789ABCDEFGHIJKLMNOPQRSTUV' >"$BATS_TEST_TMPDIR/in.txt"
   run_lab "$LAB/head-chain-probe.sh" pipe "$BATS_TEST_TMPDIR/in.txt"
   [ "$status" -eq 0 ]
-  if head --version 2>&1 | grep -q 'GNU coreutils'; then
+  system=$(uname)
+  if head_version=$(head --version 2>&1) && [[ $head_version == *'GNU coreutils'* ]]; then
     [ "$output" = "456789ABGHIJKLMN" ]
-  elif [ "$(uname)" = Darwin ]; then
+  elif [ "$system" = Darwin ]; then
     [ -z "$output" ]
   else
     skip "pipe behaviour of this head is not measured; only GNU coreutils and macOS are asserted"
@@ -110,6 +112,7 @@ MAP_561='\114-\321\322-\377\35-\47\14-\34\0-\13\50-\113'
   run_lab "$LAB/build-to-host-analog.sh" --dump-stage1 "$FX/tarball" "$FX/build"
   [ "$status" -eq 0 ]
   via_hook=$output
+  # shellcheck disable=SC2016 # the probe shell expands its own positional parameter
   run_lab_c 'LC_ALL=C; export LC_ALL; sed "r\n" "$1" | tr "\t \-_" " \t_\-" | tail -c +15 | gzip -d' sh "$FX/git/tests/files/bad-3-corrupt_model.gzip"
   [ "$status" -eq 0 ]
   [ "$output" = "$via_hook" ]
@@ -122,32 +125,39 @@ MAP_561='\114-\321\322-\377\35-\47\14-\34\0-\13\50-\113'
 @test "the marker line is plain text in the raw file while the script is not" {
   fixture
   raw="$FX/git/tests/files/bad-3-corrupt_model.gzip"
+  # shellcheck disable=SC2016 # the probe shell expands its own positional parameter
   run_lab_c 'LC_ALL=C grep -c "^####Hello####\$" "$1"' sh "$raw"
   [ "$output" = 1 ]
+  # shellcheck disable=SC2016 # the probe shell expands its own positional parameter
   run_lab_c 'LC_ALL=C grep -c "gzip -dc" "$1"' sh "$raw"
   [ "$output" = 0 ]
+  # shellcheck disable=SC2016 # the probe shell expands its own positional parameter
   run_lab_c 'LC_ALL=C grep -c "bad-3" "$1"' sh "$FX/tarball/m4/build-to-host.m4"
   [ "$output" = 0 ]
 }
 
 @test "the hook injects on a Debian-style build" {
+  local flag
   fixture
   mkdir -p "$FX/tarball/debian" "$FX/build"
   : >"$FX/tarball/debian/rules"
   run_lab "$LAB/build-to-host-analog.sh" "$FX/tarball" "$FX/build"
   [ "$status" -eq 0 ]
   [ "$output" = "hook ran" ]
-  [ "$(cat "$FX/build/injected.flag")" = injected ]
+  flag=$(cat "$FX/build/injected.flag")
+  [ "$flag" = injected ]
   [ ! -e "$FX/build/carrier.tmp" ]
 }
 
 @test "the hook injects when RPM_ARCH is x86_64 and stays quiet otherwise" {
+  local flag
   fixture
   mkdir -p "$FX/build-rpm" "$FX/build-plain"
   export RPM_ARCH=x86_64
   run_lab "$LAB/build-to-host-analog.sh" "$FX/tarball" "$FX/build-rpm"
   [ "$status" -eq 0 ]
-  [ "$(cat "$FX/build-rpm/injected.flag")" = injected ]
+  flag=$(cat "$FX/build-rpm/injected.flag")
+  [ "$flag" = injected ]
   export RPM_ARCH=none
   run_lab "$LAB/build-to-host-analog.sh" "$FX/tarball" "$FX/build-plain"
   [ "$status" -eq 0 ]

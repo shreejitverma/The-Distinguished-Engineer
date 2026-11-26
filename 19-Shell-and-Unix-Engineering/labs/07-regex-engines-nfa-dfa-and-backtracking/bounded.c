@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 static volatile sig_atomic_t expired;
@@ -27,7 +28,9 @@ int main(int argc, char **argv) {
   char *end;
   long secs;
   pid_t pid;
+  pid_t waited = 0;
   int status;
+  const struct timespec interval = {0, 20 * 1000 * 1000};
 
   if (argc < 3) {
     fprintf(stderr, "usage: bounded SECONDS COMMAND [ARG...]\n");
@@ -54,26 +57,33 @@ int main(int argc, char **argv) {
   }
   sa.sa_handler = on_alarm;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0; /* no SA_RESTART: waitpid must return EINTR when the alarm fires */
+  sa.sa_flags = 0;
   if (sigaction(SIGALRM, &sa, NULL) < 0) {
     perror("bounded: sigaction");
     return 125;
   }
   alarm((unsigned)secs);
-  while (waitpid(pid, &status, 0) < 0) {
-    if (errno != EINTR) {
+  while (!expired) {
+    /* A signal delivered just before waitpid must never leave it blocked. */
+    waited = waitpid(pid, &status, WNOHANG);
+    if (waited == pid) {
+      break;
+    }
+    if (waited < 0 && errno != EINTR) {
       perror("bounded: waitpid");
       return 125;
     }
-    if (expired) {
-      /* Kill the group; fall back to the pid if the child had not yet made its group. */
-      if (kill(-pid, SIGKILL) < 0 && kill(pid, SIGKILL) < 0) {
-        perror("bounded: kill");
-      }
-      while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
-      }
-      return 124;
+    nanosleep(&interval, NULL);
+  }
+  alarm(0);
+  if (waited != pid) {
+    /* Kill the group; fall back to the pid if the child had not yet made its group. */
+    if (kill(-pid, SIGKILL) < 0 && kill(pid, SIGKILL) < 0) {
+      perror("bounded: kill");
     }
+    while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {
+    }
+    return 124;
   }
   if (WIFEXITED(status)) {
     return WEXITSTATUS(status);

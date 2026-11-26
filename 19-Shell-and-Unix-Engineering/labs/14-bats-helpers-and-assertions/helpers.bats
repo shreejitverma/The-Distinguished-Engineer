@@ -345,7 +345,9 @@ setup() {
   false
 }
 NESTED
-  run bats --tap "$BATS_TEST_TMPDIR/nested.bats"
+  # Use the public runner and let the outer test own the timeout for the nested suite.
+  run env -i PATH="$BATS_SAVED_PATH" HOME="$BATS_TEST_TMPDIR" TMPDIR="$BATS_TEST_TMPDIR" \
+    BATS_LIB_PATH="$BATS_LIB_PATH" bats --tap "$BATS_TEST_TMPDIR/nested.bats"
   [ "$status" -eq 1 ]
   assert_line "1..5"
   assert_line "ok 1 neg-mid"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# demo.bash: the worked example; die prints a stack trace from two functions deep and exits 3.
+# shellcheck source-path=SCRIPTDIR # die, from stacktrace.bash, reports the stack and exits 3
 case ${BASH_SOURCE[0]} in
   */*) here=${BASH_SOURCE[0]%/*} ;;
   *) here=. ;;

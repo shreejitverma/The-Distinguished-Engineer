@@ -354,6 +354,10 @@ int main(int argc, char **argv) {
       child_on_pipes(to_child[0], from_child[1]);
     } else {
       close(rfd);
+      /* A detached caller may ignore SIGHUP; the terminal's child must receive hangups. */
+      if (signal(SIGHUP, SIG_DFL) == SIG_ERR) {
+        _exit(126);
+      }
       child_on_pty(name);
     }
     if (write(ready[1], &c, 1) != 1) {

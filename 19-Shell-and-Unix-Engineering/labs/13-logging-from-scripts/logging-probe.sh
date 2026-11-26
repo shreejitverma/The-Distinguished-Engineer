@@ -100,10 +100,10 @@ case $mode in
       export TZ
       printf '%(%Y-%m-%dT%H:%M:%SZ)T' "$when" 2>/dev/null
     ); then
-      engine=printf
+      engine='printf'
     else
       now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-      engine=date
+      engine='date'
     fi
     printf 'engine=%s ts=%s\n' "$engine" "$now"
     ;;
@@ -120,7 +120,7 @@ case $mode in
       case $sub_pid in
         '') bang=empty ;;
         0) bang=zero ;;
-        *) bang=set ;;
+        *) bang='set' ;;
       esac
       if wait "$sub_pid" 2>/dev/null; then
         wait_st=0
@@ -164,8 +164,10 @@ case $mode in
     # A failing producer piped into tee: the pipeline status is tee's unless pipefail is on.
     /bin/sh -c 'exit 7' | tee /dev/null >/dev/null
     plain=$?
+    # shellcheck disable=SC3040 # whether the shell supports pipefail is the point of this probe
     if (set -o pipefail) 2>/dev/null; then
       pf=$(
+        # shellcheck disable=SC3040 # only reached after the option probe succeeds
         set -o pipefail
         /bin/sh -c 'exit 7' | tee /dev/null >/dev/null
         echo "$?"

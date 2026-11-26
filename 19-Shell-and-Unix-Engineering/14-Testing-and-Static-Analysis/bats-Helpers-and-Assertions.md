@@ -363,6 +363,7 @@ ok 5 skipper # skip why
 ```
 
 `neg-mid` passes although `! true` is false, because errexit ignores a leading `!` unless it is the last command; `raw-bracket` fails without showing either value; `mini-assert` shows both.
+The lab invokes the public Bats runner with a clean environment and relies on the outer test's timeout to bound the entire nested run.
 
 The lab output, captured from one run on 2026-11-21 with `bats --tap` and `LAB_SHELL` unset (so `sh`, macOS bash 3.2.57):
 

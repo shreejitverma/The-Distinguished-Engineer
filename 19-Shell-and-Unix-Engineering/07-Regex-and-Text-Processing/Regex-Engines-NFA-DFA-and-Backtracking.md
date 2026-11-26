@@ -224,6 +224,7 @@ The engine belongs to the utility and its C library; the shell decides only whet
 ## Worked example
 
 The [lab](../labs/07-regex-engines-nfa-dfa-and-backtracking/) compiles `engines.c` (four matchers over one Thompson NFA, each counting its steps) and `bounded.c` (a timeout that kills the command's process group and exits 124), then drives them and the system's real tools from three scripts.
+`bounded.c` polls for child exit without blocking, so an alarm delivered before the next status check still ends the run.
 
 `race.sh`, verbatim:
 

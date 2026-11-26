@@ -172,8 +172,9 @@ probe_unset() {
   unset BASHPID
   BASHPID=5
   echo "BASHPID=5 before unset: $before; after unset: $BASHPID"
-  unset BASH_SOURCE 2>/dev/null
-  st=$?
+  st=0
+  # In POSIX mode a failed special builtin exits the shell.
+  (unset BASH_SOURCE) 2>/dev/null || st=$?
   echo "unset BASH_SOURCE: status $st"
 }
 

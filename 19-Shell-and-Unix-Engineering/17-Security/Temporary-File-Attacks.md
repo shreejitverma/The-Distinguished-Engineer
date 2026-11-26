@@ -291,7 +291,8 @@ job_file="${workdir}/payload.dat"
 printf '%s\n' "PROTECTED_DATA" >"$job_file"
 
 printf 'DIR_CREATED: %s\n' "$workdir"
-printf 'PAYLOAD: %s\n' "$(cat "$job_file")"
+payload=$(cat "$job_file")
+printf 'PAYLOAD: %s\n' "$payload"
 ```
 
 ### Captured Lab Output
@@ -313,6 +314,7 @@ When `vulnerable_temp.sh` runs, standard redirection resolves the link and overw
 In test 2, `noclobber_guard.sh` runs with `set -C`; the shell's noclobber check (in bash, the "stat first" method with `O_EXCL` on the create step) detects the pre-existing link to a regular file, aborts the redirection without writing, and outputs `RESULT: BLOCKED`; the test asserts both that output and that the target still holds `ORIGINAL_SECRET`.
 The output above is from a single run of the suite on the macOS host (2026-11), where `#!/usr/bin/env sh` is bash 3.2 in POSIX mode.
 In test 5, `secure_tempdir.sh` executes inside its isolated directory, prints `PAYLOAD: PROTECTED_DATA`, and the `EXIT` trap unlinks the directory hierarchy before the process terminates.
+A failed payload read exits under `set -e` and still runs the cleanup trap.
 
 ## Pitfalls
 

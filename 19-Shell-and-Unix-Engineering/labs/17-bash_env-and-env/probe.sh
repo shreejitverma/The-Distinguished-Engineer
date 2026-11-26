@@ -160,6 +160,7 @@ EOF
         "$shell" "$@" "$sandbox/script.sh" first second
     ) >"$out" 2>"$err" || exit_code=$?
     ;;
+  *) die "unknown mode '$mode'" ;;
 esac
 
 # Collect trace line

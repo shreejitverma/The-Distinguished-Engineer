@@ -141,7 +141,8 @@ if (startup_state == 0 && WIFSIGNALED (s) == 0 &&
 So in a script file a job that exited normally was kept for `wait -n`, but a job killed by a signal fell through and was marked notified; under `bash -c` every dead job was marked notified the next time the shell ran that function, which it does after foreground commands and even during a loop of builtins (ad hoc, 5.2.29: `(exit 3) &`, a 300000-iteration `while` loop, then `wait -n` gave 127).
 Steven Pelley reported the signal case on bug-bash on 2024-01-22 ("wait -n misses signaled subprocess": "wait -n fails to return for processes that terminate due to a signal prior to calling wait -n. Instead, it returns 127"), reproduced on 4.4.12, 5.2.15 and 5.2.21.
 Patch bash52-030 ("`wait -n' can fail to return some jobs if they exit due to signals the shell does not report to the user") added two `continue` cases, one for unreported signals in non-interactive shells and one commented "hang onto the status if the shell is running -c command", and bash 5.3 shipped the same code plus `check_nonjobs` (5.3 NEWS: "`wait -n' can now return terminated process substitutions, jobs about which the user has already been notified").
-The lab pins the boundary: under `sh -c`, 5.2.29 prints `status=127` and 5.2.37 prints `status=3`; in a script file, a job killed by `SIGTERM` gives `wait-n=127 wait-pid=143` on 4.3 through 5.2.29 and `wait-n=143 wait-pid=143` from 5.2.30.
+Under `sh -c`, 5.2.29 prints `status=127` and 5.2.37 prints `status=3`.
+In a script file with Bash POSIX mode explicitly off, a job killed by `SIGTERM` gives `wait-n=127 wait-pid=143` on 4.3 through 5.2.29 and `wait-n=143 wait-pid=143` from 5.2.30.
 The 5.3 fix is not total: a job that `jobs` has already listed is still invisible to a bare `wait -n` outside POSIX mode, though `wait -n PID` and POSIX mode find it (ad hoc, 5.3.15: 127, 3 and 3).
 
 ### `-p`: what it stores and when it stays unset
@@ -354,11 +355,11 @@ The fallback is exercised by running the same file as `bash -c` with `POOL_WORK_
 `probe.sh` reproduces each claim of this note in one mode; the core of the version story is mode `signaled`, shown here as a simplified excerpt (the probe adds `need_n` and runs it inside a `case`):
 
 ```sh
-/bin/sleep 5 &
+set +o posix
+/bin/sleep 60 &
 p=$!
-/bin/sleep 1
 kill -TERM "$p"
-/bin/sleep 1
+while kill -0 "$p"; do /bin/sleep 0.1; done
 wait -n
 first=$?
 wait "$p"
@@ -366,6 +367,8 @@ echo "wait-n=$first wait-pid=$?"
 ```
 
 It prints `wait-n=127 wait-pid=143` on bash 4.3 through 5.2.29 and `wait-n=143 wait-pid=143` on 5.2.37 and 5.3.15.
+The loop waits until the process has been reaped while leaving its status available to the two `wait` calls.
+The separate `rewait` and `rewait-posix` probes set POSIX mode explicitly so the comparison also works when Bash starts as `sh`.
 
 ## Pitfalls
 

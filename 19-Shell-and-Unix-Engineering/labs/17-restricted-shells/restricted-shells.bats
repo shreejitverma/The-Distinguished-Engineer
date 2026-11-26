@@ -165,6 +165,7 @@ link_as() {
       [ "$status" -ne 0 ]
       case $output in
         *started*) false ;;
+        *) ;;
       esac
       ;;
     *) false ;;
@@ -210,6 +211,7 @@ link_as() {
   [ "$status" -eq 0 ]
   case $output in
     *r*) false ;;
+    *) ;;
   esac
   case $(lab_shell_family) in
     bash | zsh | zsh-sh | ksh93 | mksh)
@@ -238,12 +240,14 @@ link_as() {
       # mksh marks restricted as command-line only (sh_flags.opt, OF_CMDLINE).
       case $output in
         *"cd=1"*) false ;;
+        *) ;;
       esac
       ;;
     dash | yash | busybox | posh)
       # No restricted mode: either the shell rejects set -r or it ignores it, and cd works or the shell exits.
       case $output in
         *"cd=1"*) false ;;
+        *) ;;
       esac
       ;;
     *) false ;;
@@ -290,12 +294,19 @@ link_as() {
   esac
 }
 
-@test "bash runs BASH_ENV before the restriction starts; no other shell reads it" {
+@test "non-POSIX bash runs BASH_ENV before the restriction starts; the other startup modes ignore it" {
   local family
   family=$(lab_shell_family)
+  if [ "$family" = bash ]; then
+    run_lab_c '[ -o posix ]'
+    if [ "$status" -eq 0 ]; then
+      family=bash-posix
+    fi
+  fi
   printf 'cd / && echo "startup: cd worked"\n' >"$DIR/benv"
   export BASH_ENV="$DIR/benv"
   run_lab -c 'echo main'
+  [ "$status" -eq 0 ]
   case $family in
     bash)
       [ "$output" = "$(printf 'startup: cd worked\nmain')" ]
@@ -304,7 +315,7 @@ link_as() {
       case $output in *"startup: cd worked"*) ;; *) false ;; esac
       case $output in *"main:1"*) ;; *) false ;; esac
       ;;
-    zsh | zsh-sh | ksh93 | mksh | dash | yash | busybox | posh)
+    bash-posix | zsh | zsh-sh | ksh93 | mksh | dash | yash | busybox | posh)
       [ "$output" = main ]
       ;;
     *) false ;;

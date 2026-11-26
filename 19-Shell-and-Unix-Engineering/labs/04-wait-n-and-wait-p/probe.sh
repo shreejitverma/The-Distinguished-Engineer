@@ -124,11 +124,12 @@ case $mode in
     ;;
   signaled)
     need_n
-    /bin/sleep 5 &
+    set +o posix
+    /bin/sleep 60 &
     p=$!
-    /bin/sleep 1
     kill -TERM "$p"
-    /bin/sleep 1
+    # Let bash reap the signaled job without consuming its status with wait.
+    while kill -0 "$p"; do /bin/sleep 0.1; done
     wait -n
     first=$?
     wait "$p"
@@ -182,6 +183,8 @@ case $mode in
         exit 0
       fi
       set -o posix
+    else
+      set +o posix
     fi
     (exit 6) &
     p=$!

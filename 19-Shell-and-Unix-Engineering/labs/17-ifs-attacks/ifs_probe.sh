@@ -173,10 +173,12 @@ EOF
     wrap() {
       eval "$*"
     }
+    # shellcheck disable=SC2310 # this probe captures output even when the evaluated text fails
     out=$(wrap echo marker 2>/dev/null) || true
     flat_out=$(flat "$out")
     printf 'default: %s\n' "$flat_out"
     IFS=';'
+    # shellcheck disable=SC2310 # this probe captures output even when the evaluated text fails
     out=$(wrap echo marker 2>/dev/null) || true
     flat_out=$(flat "$out")
     printf 'leaked: %s\n' "$flat_out"

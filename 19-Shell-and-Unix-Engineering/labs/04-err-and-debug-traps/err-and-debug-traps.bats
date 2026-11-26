@@ -350,20 +350,20 @@ R:top" ] ;;
   case $FAMILY in
     bash)
       [ "$status" -eq 3 ]
-      # The trap $LINENO fix is bash-4.1-alpha CHANGES item p: 4.3.0 reports 18 (measured),
-      # 4.0.0 reports 1 (measured), and bash 3.2 reports the function's first line, 17.
+      # The trap $LINENO fix is bash-4.1-alpha CHANGES item p: 4.3.0 reports the failing line,
+      # 4.0.0 reports 1, and bash 3.2 reports the function's first line.
       if bash_at_least 4 1; then
-        fetch_line=18
+        fetch_line=19
       elif bash_at_least 4 0; then
         fetch_line=1
       else
-        fetch_line=17
+        fetch_line=18
       fi
       [ "$output" = "error: status 3 from [/bin/sh -c \"exit \$1\"]
   at fetch (err-trace.sh:$fetch_line)
-  at process (err-trace.sh:23)
-  at run (err-trace.sh:27)
-  at main (err-trace.sh:30)" ]
+  at process (err-trace.sh:24)
+  at run (err-trace.sh:28)
+  at main (err-trace.sh:31)" ]
       ;;
     zsh | zsh-sh | ksh93 | mksh | busybox | dash | yash | posh)
       [ "$status" -eq 2 ]

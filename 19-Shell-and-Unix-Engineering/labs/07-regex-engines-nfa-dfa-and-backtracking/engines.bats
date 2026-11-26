@@ -94,7 +94,8 @@ cap=1024: nfa=33 states=1024 flushes=0" ]
 }
 
 @test "bounded.c kills a command that outlives its bound and exits 124" {
-  run_lab_c '"$1" 1 /bin/sleep 5; echo "status $?"' sh "$BOUNDED"
+  # Keep the child alive across scheduler stalls while leaving the timeout at one second.
+  run_lab_c '"$1" 1 /bin/sleep 30; echo "status $?"' sh "$BOUNDED"
   [ "$status" -eq 0 ]
   [ "$output" = "status 124" ]
   run_lab_c '"$1" 5 /bin/sh -c "exit 7"; echo "status $?"' sh "$BOUNDED"

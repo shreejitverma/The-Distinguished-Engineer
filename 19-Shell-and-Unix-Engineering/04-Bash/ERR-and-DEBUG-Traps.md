@@ -221,6 +221,7 @@ case $0 in
   */*) here=${0%/*} ;;
   *) here=. ;;
 esac
+# shellcheck source=/dev/null # stacktrace.bash is bash, sourced only under bash, and is checked on its own
 . "$here/stacktrace.bash"
 
 fetch() {
@@ -244,14 +245,16 @@ Output under bash 5.3 (exit status 3), as the lab asserts:
 
 ```text
 error: status 3 from [/bin/sh -c "exit $1"]
-  at fetch (err-trace.sh:18)
-  at process (err-trace.sh:23)
-  at run (err-trace.sh:27)
-  at main (err-trace.sh:30)
+  at fetch (err-trace.sh:19)
+  at process (err-trace.sh:24)
+  at run (err-trace.sh:28)
+  at main (err-trace.sh:31)
 ```
 
-Under macOS bash 3.2 the first frame reads `err-trace.sh:17`, the line of `fetch() {`, not the failing line (measured in the lab).
-bash 4.0.0 built from the GNU tarball reads `err-trace.sh:1`, and bash 4.1.0, 4.2.0, and 4.3.0 built the same way all read the correct `err-trace.sh:18` (measured here), so the fix predates the bash-4.4-alpha `$LINENO` item; the matching entry is bash-4.1-alpha CHANGES item p, "Fixed a bug that caused traps to set $LINENO to the wrong value when they execute" (bash-5.3 CHANGES).
+Under macOS bash 3.2 the first frame reads `err-trace.sh:18`, the line of `fetch() {` (measured in the lab).
+Bash 4.0.0 built from the GNU tarball reads `err-trace.sh:1`.
+Bash 4.1.0, 4.2.0, and 4.3.0 built the same way report the failing line, which is line 19 in the current listing.
+The fix predates the bash-4.4-alpha `$LINENO` item and matches bash-4.1-alpha CHANGES item p, "Fixed a bug that caused traps to set $LINENO to the wrong value when they execute" (bash-5.3 CHANGES).
 Under every other shell the script prints `err-trace.sh: needs bash` and exits 2.
 Three details make it correct: `$BASH_COMMAND` is accurate here only because `errtrace` fires the trap inside `fetch`, before the stale value problem can arise; `${BASH_LINENO[i - 1]}` is the line inside `FUNCNAME[i]`, because `BASH_LINENO[j]` is where `FUNCNAME[j]` was called from (bash-5.3 doc/bashref.texi, `BASH_LINENO`); and `exit` inside the handler stops the trap from running again in `process`, `run`, and at top level, which `-E` would otherwise do.
 
