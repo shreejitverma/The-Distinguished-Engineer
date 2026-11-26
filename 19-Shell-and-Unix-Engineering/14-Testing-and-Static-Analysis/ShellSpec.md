@@ -251,30 +251,32 @@ The lab is [lab](../labs/14-shellspec/).
 The spec is written in the DSL that `translate.sh` understands; this is `spec/sample_spec.sh` verbatim:
 
 ```text
+# shellcheck shell=sh
 Include subject.sh
 
 Describe 'sample'
-  Describe 'greet'
-    It 'says hello'
-      When call greet world
-      The stdout should eq 'hello world'
-    End
-  End
-  It 'keeps a quote ('"'"') in the description'
-    When call bump
-    The variable COUNTER should eq 1
-  End
-  It 'reports an unhandled stdout as a warning'
-    When call greet unhandled
-    The status should be success
-  End
+Describe 'greet'
+It 'says hello'
+When call greet world
+The stdout should eq 'hello world'
+End
+End
+It 'keeps a quote ('"'"') in the description'
+When call bump
+The variable COUNTER should eq 1
+End
+It 'reports an unhandled stdout as a warning'
+When call greet unhandled
+The status should be success
+End
 End
 ```
 
-`translate.sh` turns it into the plain script below (captured on 2026-11-21); nothing in it is a DSL any more:
+`translate.sh` turns it into the plain script below (captured on 2026-11-26); nothing in it is a DSL any more, and the directive comment passes through unchanged:
 
 ```text
 . "$MS_LIB/minispec.sh"
+# shellcheck shell=sh
 . "$MS_LIB/subject.sh"
 
 ms_ex1() {
