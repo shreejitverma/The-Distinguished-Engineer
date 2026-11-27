@@ -1,0 +1,20 @@
+<element xmlns="http://relaxng.org/ns/structure/1.0"
+         xmlns:a="urn:example:archive"
+         ns="urn:example:catalog" name="catalog">
+  <oneOrMore>
+    <element name="item">
+      <attribute name="id"><text/></attribute>
+      <attribute name="state">
+        <choice><value>active</value><value>pending</value></choice>
+      </attribute>
+      <text/>
+    </element>
+  </oneOrMore>
+  <optional>
+    <element name="a:item">
+      <attribute name="id"><text/></attribute>
+      <attribute name="state"><text/></attribute>
+      <text/>
+    </element>
+  </optional>
+</element>

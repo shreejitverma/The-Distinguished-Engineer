@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog xmlns="urn:example:catalog" xmlns:old="urn:example:archive">
+  <item id="a" state="active">Salt &amp; Pepper</item>
+  <item id="b" state="pending">Tea</item>
+  <old:item id="c" state="active">Archive</old:item>
+</catalog>
