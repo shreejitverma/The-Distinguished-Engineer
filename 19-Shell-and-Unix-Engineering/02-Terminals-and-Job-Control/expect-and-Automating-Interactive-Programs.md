@@ -53,7 +53,7 @@ Part of [Terminals and Job Control](README.md) in [Shell and Unix Engineering](.
 - Mechanism: `spawn` allocates a pty, forks, makes the slave the child's controlling terminal and descriptors 0 to 2, and executes the program; `expect` reads the master until a pattern matches, the timeout (10 seconds by default) passes, or end of file; `send` writes bytes to the master as if typed.
 - Rule: wait for each prompt before answering it, give every wait a `timeout` and an `eof` branch that exit non-zero, end with `expect eof` and `wait`, and exit with the program's status.
 - Trap: the driver sees what a terminal sees, not what the program printed - lines end in `\r\n`, everything sent is echoed back (so a pattern can match the script's own input), and input sent before a password prompt is echoed in clear and then thrown away by `tcsetattr(TCSAFLUSH)`.
-- Portability: `expect` is a Tcl extension, not a POSIX utility; macOS 27.2 ships version 5.45 while the Debian 13 and Alpine 3.22 matrix images ship none, and the bytes an interactive shell puts around its prompt differ per shell (zsh and BusyBox ash emit escape sequences even with `TERM=dumb`, yash replaces a `PS1` inherited from the environment with its own default, and zsh exits with status 1 on a hangup where the other shells are killed by `SIGHUP`).
+- Portability: `expect` is a Tcl extension, not a POSIX utility; macOS 27.2 ships version 5.45 while the Debian 13 and Alpine 3.22 matrix images ship none, and the bytes an interactive shell puts around its prompt differ per shell (zsh and BusyBox ash emit escape sequences even with `TERM=dumb`, yash replaces a `PS1` inherited from the environment with its own default, and on a hangup zsh exits with status 1 and mksh and posh exit with 129, where the other shells are killed by `SIGHUP`).
 - When not to use it: when the interaction can be removed (a flag, a key, an API, an askpass hook) or the program only needs unbuffered output; screen-scraping a human interface is a contract nobody promised to keep.
 
 ## Mental model
@@ -164,9 +164,9 @@ Bytes are written as the driver reports them: `\r`, `\n`, and `\x1b` for the esc
 | dash 0.5.12 and 0.5.13 | none needed | used | prompt, the terminal's own echo, `\r\n` | 129 |
 | ksh93u+m 1.0.10 (Debian) | none needed | used | prompt, `\r`, 79 spaces, `\r\r`, prompt again; a typed line is echoed once or twice from run to run | 129 |
 | ksh93u+ 2012-08-01 (macOS `/bin/ksh`) | none needed | used | prompt; a typed line is echoed once or twice from run to run | 129 |
-| mksh R59 (2020 and 2025) | none needed | used | prompt, the line, `\r\r\n` | 129 |
+| mksh R59 (2020 and 2025) | none needed | used | prompt, the line, `\r\r\n` | 129: mksh exits with 128 + 1, it is not killed |
 | yash 2.58.1 | `--norcfile` | overwritten at startup with yash's default: the prompt stays `$ ` and the wait for `LAB> ` times out | plain once the prompt is set by typing the assignment | 129 |
-| posh 0.14.1 | none needed | used | prompt, the terminal's own echo, `\r\n` | 129 |
+| posh 0.14.1 | none needed | used | prompt, the terminal's own echo, `\r\n` | 129: posh exits with 128 + 1, it is not killed |
 | BusyBox ash 1.37.0 | none needed | used | `\x1b[6n` after a prompt unless input is already pending; Debian's build first prints a two-line banner | 129 |
 
 Every non-POSIX row is asserted by the lab tests "the interactive shell as the program, prompt taken from PS1 in the environment: each family's bytes" and "closing the terminal right after the last send hangs the program up before it finishes its work".
@@ -180,8 +180,9 @@ POSIX instead has variables "initialized from the environment" and calls `$ ` on
 POSIX mode does not change it: by hand in the Alpine image on 2026-11-11, `PS1='LAB> ' yash --posix -c 'printf "[%s]\n" "$PS1"'` printed `[$ ]`, and `export -p` listed `PS1`, `PS2`, and `PS4` as exported with yash's values, so a child of yash inherits `$ ` as well.
 No entry in yash's `NEWS` file changes this (not found in the changelog as of 2026-11).
 The zsh status is the signal's number and not a failure code of its own: zsh installs a handler for `SIGHUP` unless the signal was ignored on entry (zsh 5.9 `Src/init.c`, `init_signals`), and with no trap set the handler calls `zexit(SIGHUP, ZEXIT_SIGNAL)`, which ends in `exit(exit_val)` (zsh 5.9 `Src/signals.c`, `handler`, and `Src/builtin.c`, `zexit`).
-`SIGHUP` is signal 1, so zsh exits normally with status 1, while every other shell of the matrix dies of the signal and the driver reports 128 + 1.
-POSIX specifies that a hangup sends `SIGHUP` to the controlling process (XBD 11.1.10) and which signal actions commands inherit from the shell (XCU 2.12), not how the shell itself has to end, so neither outcome is required; no changelog entry on the exit status was found as of 2026-11.
+`SIGHUP` is signal 1, so zsh exits normally with status 1.
+mksh and posh also catch the hangup but exit normally with 128 + 1 = 129, so the driver reports `status=129` with no signal, while bash, dash, ksh93, yash, and BusyBox ash die of the signal and the driver reports `status=129 signal=1`.
+POSIX specifies that a hangup sends `SIGHUP` to the controlling process (XBD 11.1.10) and which signal actions commands inherit from the shell (XCU 2.12), not how the shell itself has to end, so none of these outcomes is required; no changelog entry on the exit status was found as of 2026-11.
 
 Dialogs whose result does not depend on the shell, with the one exception found:
 

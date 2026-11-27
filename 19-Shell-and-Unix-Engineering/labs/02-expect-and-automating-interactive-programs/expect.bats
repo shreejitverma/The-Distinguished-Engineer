@@ -216,9 +216,14 @@ result=eof waiting=Password: '
   [ "${lines[0]}" = "transcript=go? " ]
   case $(lab_shell_family) in
     # killed by SIGHUP (1): 128 + 1
-    bash | dash | posh | mksh | ksh93 | yash | busybox)
+    bash | dash | ksh93 | yash | busybox)
       [ "${status}" -eq 129 ]
       [ "${lines[1]}" = "result=closed status=129 signal=1" ]
+      ;;
+    # mksh and posh catch the hangup and exit with status 128 + 1, so no signal is reported
+    mksh | posh)
+      [ "${status}" -eq 129 ]
+      [ "${lines[1]}" = "result=closed status=129" ]
       ;;
     # zsh catches the hangup and exits with status 1
     zsh | zsh-sh)
