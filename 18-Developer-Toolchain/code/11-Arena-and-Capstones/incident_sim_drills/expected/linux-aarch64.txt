@@ -1,0 +1,93 @@
+==================================================================
+RUNNING DRILL 1: REMOTE BUILD CACHE POISONING VERIFICATION
+==================================================================
+[DRILL 1] Initializing Remote Execution Action Cache...
+[DRILL 1] Legitimate Action Digest: 7f5ed311aea1c831...
+[DRILL 1] Poisoned ActionResult injected into Action Cache by unhardened worker.
+[DRILL 1] Clean CI Runner querying Action Cache for build...
+[DRILL 1] ACTION_CACHE_HIT: Retrieved cached engine.o (0858ca4ee75f77c0...)
+[DRILL 1] DETECTED: Poisoned object file found in remote cache!
+[DRILL 1] Applying Fix: SLSA v1.2 Cryptographic Action Verification & Strict Sandboxing...
+[DRILL 1] REJECTED: Builder 'worker-pool-us-east-412' lacks verified cryptographic provenance signature.
+[DRILL 1] EVICTED: Poisoned ActionDigest purged from remote cache.
+[DRILL 1] SUCCESS: Hermetic compilation restored clean cache entry.
+==================================================================
+RUNNING DRILL 2: SHARED-LIBRARY ABI DRIFT & MEMORY CORRUPTION
+==================================================================
+[DRILL 2] Compiling libmarket.so.1 (v1 baseline)...
+[DRILL 2] Compiling app against market_v1.h...
+[DRILL 2] Running app against v1 DSO:
+[DRILL 2] Client binary compiled against v1 headers (sizeof Order: 24 bytes)
+[DRILL 2] SUCCESS: Canary intact (0xADDR)
+[DRILL 2] Compiling upgraded libmarket_v2.so (32-byte layout, UNBUMPED SONAME libmarket.so.1)...
+[DRILL 2] Running unmodified app against silently drifted v2 DSO:
+[DRILL 2] Client binary compiled against v1 headers (sizeof Order: 24 bytes)
+[DRILL 2] ABI_CORRUPTION_DETECTED: Canary corrupted! Expected 0xADDR, found 0xADDR
+[DRILL 2] Expected memory corruption detected by client (exit code 1).
+[DRILL 2] Applying Remediation: Bumping SONAME to libmarket.so.2...
+[DRILL 2] Restored libmarket.so.1 for legacy client; app runs cleanly:
+[DRILL 2] Client binary compiled against v1 headers (sizeof Order: 24 bytes)
+[DRILL 2] SUCCESS: Canary intact (0xADDR)
+[DRILL 2] SUCCESS: Drill 2 ABI drift isolation and remediation verified.
+==================================================================
+RUNNING DRILL 3: COMPROMISED DEPENDENCY CREDENTIAL EXFILTRATION
+==================================================================
+[DRILL 3] --- SIMULATING UNHARDENED CI BUILD RUNNER ---
+[DRILL 3] MALICIOUS_PAYLOAD: Harvested 3 secrets from environment:
+  - AWS_ACCESS_KEY_ID: AKIAIOSF...
+  - AWS_SECRET_ACCESS_KEY: wJalrXUt...
+  - GITHUB_TOKEN: ghp_EXAM...
+[DRILL 3] MALICIOUS_PAYLOAD: Attempting outbound exfiltration to https://198.51.100.42:443/collect...
+[DRILL 3] VULNERABILITY_CONFIRMED: Runner permitted outbound network socket during build step!
+
+[DRILL 3] --- SIMULATING HARDENED SANDBOXED RUNNER (REMEDIATION) ---
+[DRILL 3] HARVEST_CHECK: Found 0 credentials in build environment (Hermetic Secret Scoping).
+[DRILL 3] EGRESS_FILTER: Connection to 198.51.100.42:443 BLOCKED by network sandbox (ENETUNREACH / EPERM).
+[DRILL 3] AUDIT_EVENT: Alert dispatched to SOC: unauthorized egress attempt trapped in build sandbox.
+[DRILL 3] SUPPLY_CHAIN_POLICY: Enforcing cargo --locked and pip --require-hashes.
+[DRILL 3] SUCCESS: Drill 3 exfiltration containment verified.
+==================================================================
+RUNNING DRILL 4: ASYNC RUNTIME THREAD POOL STARVATION
+==================================================================
+[DRILL 4] --- SIMULATING EVENT LOOP BLOCKING (FLAWED CODE) ---
+[DRILL 4] MEASURED_LOOP_LAG: EXCEEDED_THRESHOLD (mean lag > 20.00 ms)
+[DRILL 4] STARVATION_CONFIRMED: Event loop thread stalled! Health checks timed out.
+
+[DRILL 4] --- SIMULATING REMEDIATED RUNTIME (THREAD POOL OFFLOAD) ---
+[DRILL 4] MEASURED_LOOP_LAG: WITHIN_SLA (mean lag < 10.00 ms)
+[DRILL 4] SUCCESS: Event loop remained fully responsive during background execution.
+==================================================================
+RUNNING DRILL 5: DYNAMIC LINKER RPATH VS RUNPATH INTERPOSITION
+==================================================================
+[DRILL 5] Bare -Wl,-rpath on this toolchain emits: (RUNPATH)
+[DRILL 5] Compiling app_runpath with DT_RUNPATH (--enable-new-dtags)...
+[DRILL 5] app_runpath dynamic tags: (RUNPATH)
+[DRILL 5] Case A1: Clean environment (no LD_LIBRARY_PATH):
+[DRILL 5] Engine Version Resolved: 202611
+[DRILL 5] SUCCESS: Hermetic library resolved correctly (202611).
+[DRILL 5] Case A2: Tainted environment with LD_LIBRARY_PATH=lib_system:
+[DRILL 5] Engine Version Resolved: 201801
+[DRILL 5] INTERPOSITION_DETECTED: System library hijacked resolution (201801)!
+[DRILL 5] Expected symbol interposition occurred (LD_LIBRARY_PATH took precedence over DT_RUNPATH).
+[DRILL 5] Compiling app_rpath with DT_RPATH (--disable-new-dtags)...
+[DRILL 5] app_rpath dynamic tags: (RPATH)
+[DRILL 5] Case B1: Tainted environment with LD_LIBRARY_PATH=lib_system against DT_RPATH:
+[DRILL 5] Engine Version Resolved: 202611
+[DRILL 5] SUCCESS: Hermetic library resolved correctly (202611).
+[DRILL 5] SUCCESS: DT_RPATH immune to LD_LIBRARY_PATH hijacking.
+==================================================================
+RUNNING DRILL 6: CORRUPTED GIT OBJECT RESCUE UNDER P0 EMERGENCY
+==================================================================
+[DRILL 6] Initializing clean Git repository structure...
+[DRILL 6] Hotfix blob object SHA-1: 709fde956aa5a6f2b37b18c1234442cfe481e1e7
+[DRILL 6] Valid Git loose object stored at objects/70/9fde956aa5a6f2b37b18c1234442cfe481e1e7
+[DRILL 6] Injecting filesystem corruption into loose object: 70/9fde956aa5a6f2b37b18c1234442cfe481e1e7...
+[DRILL 6] Executing diagnostic object integrity check...
+[DRILL 6] FSCK_ERROR_DETECTED: error in loose object 709fde956aa5a6f2b37b18c1234442cfe481e1e7: inflate: data stream error (Error -3 while decompressing data: incorrect header check)
+[DRILL 6] Applying Recovery: Reconstructing Git loose object from working copy...
+[DRILL 6] Loose object reconstructed and re-compressed with zlib.
+[DRILL 6] POST_RECOVERY_CHECK: SHA-1 matches (709fde956aa5a6f2...). Object valid.
+[DRILL 6] SUCCESS: Git repository integrity restored! 0 errors detected.
+==================================================================
+ALL SIX DRILL VERIFICATIONS COMPLETED SUCCESSFULLY
+==================================================================

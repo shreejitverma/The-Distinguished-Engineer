@@ -1,0 +1,8 @@
+Total samples collected: True
+Leaf worker resolved: True
+Stack order verified: root-to-leaf
+Task alpha (expected ~50%): True
+Task beta (expected ~30%): True
+Task gamma (expected ~20%): True
+Proportions monotonic (alpha > beta > gamma): True
+Capstone sampling profiler verification: PASS

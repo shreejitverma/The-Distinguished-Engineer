@@ -1,0 +1,9 @@
+=== Tracer Target Setup ===
+Target executable: ./target
+Architecture: aarch64
+DWARF lines parsed: 10
+Target breakpoint line: 7
+Breakpoint armed at 0xADDR (offset +0x734)
+Breakpoint trap caught: SIGTRAP
+Resolved source line: 7 (expected 7)
+=== Trace Completed Successfully ===

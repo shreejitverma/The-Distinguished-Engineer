@@ -1,0 +1,59 @@
+Cross-Pillar Debugging Scenario Bank lab
+=== SCENARIO 1: COPY RELOCATION SIZE MISMATCH ===
+kind: walkthrough (printed text, not a reproduction)
+  executable linked against a 64-byte engine_config reserves 64 bytes in .bss
+  upgraded DSO defines a 128-byte engine_config
+  R_X86_64_COPY copies MIN(sym st_size, refsym st_size) bytes (glibc dl-machine.h)
+  glibc warns 'Symbol ... has different size in shared object'
+  -fPIE alone does not remove copy relocations on x86-64; see the note for the flags that do
+
+=== SCENARIO 2: SIGKILL LEAVES NO CORE DUMP AND SHELLS REPORT 137 ===
+child terminated by signal 9, core dump flag clear: yes
+shell status of a SIGKILLed child: 137
+
+=== SCENARIO 3: FORK WITHOUT EXEC KEEPS A LOCK ITS OWNER THREAD NO LONGER HAS ===
+child lock.acquire(timeout=0.5) while parent thread held the lock at fork: timeout
+note: glibc fork() resets its own malloc locks; this hazard is for locks it does not know about
+
+=== SCENARIO 4: NULL CHECK DELETED AFTER A DEREFERENCE ===
+kind: walkthrough (printed text, not a reproduction)
+  p is dereferenced, then tested against NULL
+  -fdelete-null-pointer-checks removes the test; -fno-strict-aliasing does not restore it
+  GCC 13.2 and Clang 21 emit a scalar compare, not vector moves
+
+=== SCENARIO 5: TLS DESTRUCTOR RUNS WITHOUT A PYTHON THREAD STATE ===
+kind: walkthrough (printed text, not a reproduction)
+  thread exit: CPython clears its thread state, then glibc runs __call_tls_dtors
+  a Rust or C++ destructor that calls into the C-API then finds a NULL thread state
+  CPython aborts with a fatal error naming the NULL thread state
+
+=== SCENARIO 6: SIGNAL-TIME UNWIND WITHOUT ASYNCHRONOUS CFI ===
+kind: walkthrough (printed text, not a reproduction)
+  a profiling signal can land on any instruction, not only at calls
+  tables built without asynchronous unwind tables are exact only at call sites
+  the unwinder then computes the wrong CFA and the trace is truncated or wrong
+
+=== SCENARIO 7: LAZY BINDING UNDER SIGNALS ===
+kind: walkthrough (printed text, not a reproduction)
+  lazy binding resolves a PLT slot on first call inside _dl_runtime_resolve
+  a signal handler that first-calls an unresolved function re-enters the resolver
+  -Wl,-z,relro,-z,now resolves everything at load time
+
+=== SCENARIO 8: STORE ORDERING ON x86-64 VERSUS AARCH64 ===
+kind: walkthrough (printed text, not a reproduction)
+  x86 TSO keeps stores in program order; AArch64 may commit them out of order
+  the compiler may also reorder plain stores on either architecture
+  a release store (stlr) on the index publishes the data store before it
+
+=== SCENARIO 9: RSS FAR ABOVE LIVE HEAP ===
+kind: walkthrough (printed text, not a reproduction)
+  glibc creates per-thread arenas on demand, up to 8 * cores by default on 64-bit
+  glibc malloc releases memory with MADV_DONTNEED, not MADV_FREE
+  MALLOC_ARENA_MAX bounds the arena count; malloc_trim(0) returns free pages
+
+=== SCENARIO 10: ENOSYS VERSUS EPERM FROM A SECCOMP FILTER ===
+model of the glibc rule: ENOSYS from clone3 -> clone; EPERM -> thread creation fails
+symbolic names: ENOSYS, EPERM
+kind: model (the rule is read from glibc clone-internal.c; no seccomp filter is installed)
+
+real checks passed: scenarios 2 and 3; scenario 10 is a model

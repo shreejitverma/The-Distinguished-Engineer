@@ -1,0 +1,34 @@
+=== Capstone Mini Git in Rust: Multi-Stage Interop Suite ===
+
+[Stage 1: Content-Addressable Storage and Loose Object Inflation]
+  SHA-1 loose blob written: 4e7ee2547a54162c5c924f247c6552e8feb4a270
+  SHA-1 loose blob decompression and verification: PASS
+  SHA-256 loose blob written: 81e24d671054dc82a284f9116ff4ae0b8347883e9cc6e846617fc7da32c51817
+  SHA-256 loose blob decompression and verification: PASS
+
+[Stage 2: Git DIRC Index File Parsing and Stat Cache]
+  Parsed DIRC index entries count: 2
+  Entry: README.md (mode=100644, size=16, oid=c1bb941e00e3e49f7f89cd77d5326f8895b74f02)
+  Entry: src/lib.rs (mode=100644, size=2815, oid=284461a567ef38481ee036d343bb0f2b2d51c5d6)
+  DIRC v2 header, entry stat cache, and SHA-1 trailer: PASS
+
+[Stage 3: Packfile Index v2 and Delta Decompression]
+  Pack index v2 magic and version verified
+  Total packed objects in .idx: 17
+  Pack trailer checksum: 4250fb8493e80df74f0af15975ab6657c7cd4647
+  Index trailer checksum: ff6b0224616e76e3765970faee1b49b7540ba534
+  Decompressed and verified packed objects bit-for-bit: 17/17
+  Packfile index v2 fanout table and delta decompression: PASS
+
+[Stage 4: Commit-Graph Format and Generation Numbers]
+  Commit graph header: signature=CGPH, version=1, commits=4
+  Commit #0: oid=9015cbd12aa1633cd3d6d3242037eaa77cce60a6, tree=8d38d765f6097089db8a3672447071812401e6ab, gen=4, timestamp=1795694640
+  Commit #1: oid=954ef870c75dea65395e0dbc56da2ff4602b9296, tree=75b03b64bd19dbb6d38ccadaad6637bbf25da5c0, gen=1, timestamp=1795694400
+  Commit #2: oid=a2d0bfbab3cf69b023ec7634a146cc1fc232f663, tree=d18fec39f21373b9cbd532d182173bcec01738b7, gen=3, timestamp=1795694580
+  Commit #3: oid=b9d33088ee5c56144bf78ff8c3e25ea10d5427ee, tree=4cb8c6563235a47134089962ac659359f3b81575, gen=2, timestamp=1795694520
+  Commit-graph binary chunks (OIDF, OIDL, CDAT) and topological generation: PASS
+
+[Stage 5: Wire Protocol v2 Packet-Line Framing]
+  Pkt-line length prefixes, delimiters, and flush packets: PASS
+
+=== Capstone Multi-Stage Verification Complete: ALL TESTS PASSED ===
