@@ -1,0 +1,15 @@
+status: 0
+--- stdout
+report generated 2026-01-02 03:04:05 by pid <PID>
+total 0
+skipped 0
+--- stderr
+--- files
+== tmp/report.<PID>.tmp
+total 0
+skipped 0
+== work/report.txt
+report generated 2026-01-02 03:04:05 by pid <PID>
+total 0
+skipped 0
+--- calls

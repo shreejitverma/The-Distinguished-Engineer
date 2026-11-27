@@ -1,0 +1,13 @@
+status: 2
+--- stdout
+--- stderr
+usage: legacy-report.sh DIR
+--- files
+== work/logs/app.log
+a
+b
+c
+== work/logs/db.log
+x
+y
+--- calls

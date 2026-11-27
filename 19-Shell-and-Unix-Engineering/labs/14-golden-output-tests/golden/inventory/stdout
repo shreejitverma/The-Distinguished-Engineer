@@ -1,0 +1,6 @@
+generated <TIMESTAMP>
+pid=<PID>
+workdir=<TMPDIR>/d
+lc_all=C tz=UTC leak=unset
+order: 10 9 B a
+count=4

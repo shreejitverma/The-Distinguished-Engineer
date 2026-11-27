@@ -1,0 +1,13 @@
+status: 1
+--- stdout
+--- stderr
+no such directory: nope
+--- files
+== work/logs/app.log
+a
+b
+c
+== work/logs/db.log
+x
+y
+--- calls

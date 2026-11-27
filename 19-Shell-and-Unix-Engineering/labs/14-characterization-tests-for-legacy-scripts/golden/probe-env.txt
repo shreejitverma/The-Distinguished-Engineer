@@ -1,0 +1,14 @@
+status: 0
+--- stdout
+HOME=<SANDBOX>/home
+TMPDIR=<SANDBOX>/tmp
+LC_ALL=C
+TZ=UTC
+USER=unset
+leak=unset
+pwd=<SANDBOX>/work
+bare date: 2026-01-02 03:04:05
+absolute date: a four digit year
+--- stderr
+--- files
+--- calls

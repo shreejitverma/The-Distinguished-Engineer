@@ -1,0 +1,7 @@
+status: 0
+--- stdout
+rc=127
+--- stderr
+<shell diagnostic naming nosuchcmd-xyz>
+--- files
+--- calls

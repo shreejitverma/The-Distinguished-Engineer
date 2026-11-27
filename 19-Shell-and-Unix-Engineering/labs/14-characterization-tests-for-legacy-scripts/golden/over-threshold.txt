@@ -1,0 +1,30 @@
+status: 0
+--- stdout
+report generated 2026-01-02 03:04:05 by pid <PID>
+logs/app.log 3
+logs/db.log 2
+total 5
+skipped 0
+--- stderr
+--- files
+== tmp/report.<PID>.tmp
+logs/app.log 3
+logs/db.log 2
+total 5
+skipped 0
+== work/logs/app.log
+a
+b
+c
+== work/logs/db.log
+x
+y
+== work/report.txt
+report generated 2026-01-02 03:04:05 by pid <PID>
+logs/app.log 3
+logs/db.log 2
+total 5
+skipped 0
+--- calls
+mail <-s> <log alert> <ops@example.invalid>
+  | total=5
