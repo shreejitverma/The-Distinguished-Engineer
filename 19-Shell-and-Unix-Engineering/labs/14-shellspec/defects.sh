@@ -24,6 +24,7 @@ fi
 # Defect BUILTIN: a builtin cannot be shadowed by a function.
 if ! (
   false() { :; }
+  # shellcheck disable=SC2310 # whether this name shadows the builtin is the probe
   false
 ) 2>/dev/null; then
   echo BUILTIN
@@ -46,9 +47,10 @@ errexit_out=$(
     false
     :
   }
+  # shellcheck disable=SC2310 # the left side of && must suppress errexit for this probe
   errexit && echo OK
 )
-if [ ! "$errexit_out" ]; then
+if [ -z "$errexit_out" ]; then
   echo ERREXIT
 fi
 

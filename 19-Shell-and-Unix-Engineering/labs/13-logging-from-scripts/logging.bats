@@ -29,30 +29,42 @@ bash_at_least() {
 }
 
 @test "data goes to stdout and every log line goes to stderr" {
+  local out_lines err_lines invalid_lines timestamped
   probe_split "$BATS_TEST_TMPDIR/out" "$BATS_TEST_TMPDIR/err" fd_clean
   [ "$probe_status" -eq 0 ]
-  [ "$(wc -l <"$BATS_TEST_TMPDIR/out" | tr -d ' \t')" -eq 2 ]
-  [ "$(wc -l <"$BATS_TEST_TMPDIR/err" | tr -d ' \t')" -eq 2 ]
+  out_lines=$(wc -l <"$BATS_TEST_TMPDIR/out")
+  err_lines=$(wc -l <"$BATS_TEST_TMPDIR/err")
+  [ "$out_lines" -eq 2 ]
+  [ "$err_lines" -eq 2 ]
   # A downstream parser sees only records: no stdout line is anything but a JSON object.
-  [ "$(grep -c -v '^{.*}$' "$BATS_TEST_TMPDIR/out" || true)" -eq 0 ]
+  invalid_lines=$(grep -c -v '^{.*}$' "$BATS_TEST_TMPDIR/out") || [ "$?" -eq 1 ]
+  [ "$invalid_lines" -eq 0 ]
   # Every stderr line is a timestamped record carrying the pid of the writer.
-  [ "$(grep -c -E '^2026-11-15T00:00:00Z \[INFO\] \[pid:[0-9]+\] ' "$BATS_TEST_TMPDIR/err")" -eq 2 ]
+  timestamped=$(grep -c -E '^2026-11-15T00:00:00Z \[INFO\] \[pid:[0-9]+\] ' "$BATS_TEST_TMPDIR/err")
+  [ "$timestamped" -eq 2 ]
 }
 
 @test "log lines written to stdout contaminate the data stream a parser reads" {
+  local out_lines err_bytes invalid_lines
   probe_split "$BATS_TEST_TMPDIR/out" "$BATS_TEST_TMPDIR/err" fd_polluted
   [ "$probe_status" -eq 0 ]
-  [ "$(wc -l <"$BATS_TEST_TMPDIR/out" | tr -d ' \t')" -eq 4 ]
-  [ "$(wc -c <"$BATS_TEST_TMPDIR/err" | tr -d ' \t')" -eq 0 ]
+  out_lines=$(wc -l <"$BATS_TEST_TMPDIR/out")
+  err_bytes=$(wc -c <"$BATS_TEST_TMPDIR/err")
+  [ "$out_lines" -eq 4 ]
+  [ "$err_bytes" -eq 0 ]
   # The same parser check as the clean test now finds two non-record lines.
-  [ "$(grep -c -v '^{.*}$' "$BATS_TEST_TMPDIR/out")" -eq 2 ]
+  invalid_lines=$(grep -c -v '^{.*}$' "$BATS_TEST_TMPDIR/out")
+  [ "$invalid_lines" -eq 2 ]
 }
 
 @test "a saved copy of stderr on fd 3 keeps logging after fd 2 is redirected away" {
+  local actual_out actual_err
   probe_split "$BATS_TEST_TMPDIR/out" "$BATS_TEST_TMPDIR/err" fd3_log
   [ "$probe_status" -eq 0 ]
-  [ "$(cat "$BATS_TEST_TMPDIR/out")" = "data" ]
-  [ "$(cat "$BATS_TEST_TMPDIR/err")" = "logged-on-fd3" ]
+  actual_out=$(cat "$BATS_TEST_TMPDIR/out")
+  actual_err=$(cat "$BATS_TEST_TMPDIR/err")
+  [ "$actual_out" = "data" ]
+  [ "$actual_err" = "logged-on-fd3" ]
 }
 
 @test "printf %(...)T is a builtin in bash 4.2+ and ksh93 only" {
@@ -168,20 +180,24 @@ bash_at_least() {
 }
 
 @test "O_APPEND keeps every concurrent record whole; a plain > open loses most of them" {
+  local total_records valid_records worker_records
   appended="$BATS_TEST_TMPDIR/append.log"
   run_lab "$PROBE" append_race "$appended" append
   [ "$status" -eq 0 ]
   [ "$output" = "workers=4 lines_each=100" ]
-  [ "$(wc -l <"$appended" | tr -d ' \t')" -eq 400 ]
-  [ "$(grep -c -E '^w=0[1-4] seq=[0-9]{3} pad=x{20}$' "$appended")" -eq 400 ]
+  total_records=$(wc -l <"$appended")
+  valid_records=$(grep -c -E '^w=0[1-4] seq=[0-9]{3} pad=x{20}$' "$appended")
+  [ "$total_records" -eq 400 ]
+  [ "$valid_records" -eq 400 ]
   for w in 1 2 3 4; do
-    [ "$(grep -c "^w=0$w " "$appended")" -eq 100 ]
+    worker_records=$(grep -c "^w=0$w " "$appended")
+    [ "$worker_records" -eq 100 ]
   done
   # Without O_APPEND each worker keeps its own offset from 0, so at most 100 line slots exist.
   truncated="$BATS_TEST_TMPDIR/trunc.log"
   run_lab "$PROBE" append_race "$truncated" trunc
   [ "$status" -eq 0 ]
-  good=$(grep -c -E '^w=0[1-4] seq=[0-9]{3} pad=x{20}$' "$truncated" || true)
+  good=$(grep -c -E '^w=0[1-4] seq=[0-9]{3} pad=x{20}$' "$truncated") || [ "$?" -eq 1 ]
   [ "$good" -le 100 ]
 }
 
@@ -225,17 +241,21 @@ bash_at_least() {
 }
 
 @test "the sd-daemon prefix carries the RFC 5424 severity computed from the level name" {
+  local actual_out actual_err records
   n=0
   for level in emerg alert crit err warning notice info debug; do
     probe_split "$BATS_TEST_TMPDIR/out" "$BATS_TEST_TMPDIR/err" systemd_prefix "$level" "msg $level"
     [ "$probe_status" -eq 0 ]
-    [ "$(cat "$BATS_TEST_TMPDIR/out")" = "priority=$n" ]
-    [ "$(cat "$BATS_TEST_TMPDIR/err")" = "<$n>msg $level" ]
+    actual_out=$(cat "$BATS_TEST_TMPDIR/out")
+    actual_err=$(cat "$BATS_TEST_TMPDIR/err")
+    [ "$actual_out" = "priority=$n" ]
+    [ "$actual_err" = "<$n>msg $level" ]
     n=$((n + 1))
   done
   probe_split "$BATS_TEST_TMPDIR/out" "$BATS_TEST_TMPDIR/err" systemd_prefix verbose x
   [ "$probe_status" -eq 2 ]
-  [ "$(grep -c '^<' "$BATS_TEST_TMPDIR/err" || true)" -eq 0 ]
+  records=$(grep -c '^<' "$BATS_TEST_TMPDIR/err") || [ "$?" -eq 1 ]
+  [ "$records" -eq 0 ]
 }
 
 @test "log injection: raw input forges a second record and carries ESC; sanitized does not" {
@@ -251,11 +271,13 @@ bash_at_least() {
 }
 
 @test "BASH_XTRACEFD moves the trace off stderr in bash 4.1+ and BusyBox ash only" {
+  local actual_out bytes
   family=$(lab_shell_family)
   trace="$BATS_TEST_TMPDIR/trace.log"
   probe_split "$BATS_TEST_TMPDIR/out" "$BATS_TEST_TMPDIR/err" xtrace_separation "$trace"
   [ "$probe_status" -eq 0 ]
-  [ "$(cat "$BATS_TEST_TMPDIR/out")" = "completed=xtrace" ]
+  actual_out=$(cat "$BATS_TEST_TMPDIR/out")
+  [ "$actual_out" = "completed=xtrace" ]
   honored=no
   case $family in
     bash)
@@ -274,9 +296,11 @@ bash_at_least() {
   esac
   if [ "$honored" = yes ]; then
     grep -q probe_traced_command "$trace"
-    [ "$(wc -c <"$BATS_TEST_TMPDIR/err" | tr -d ' \t')" -eq 0 ]
+    bytes=$(wc -c <"$BATS_TEST_TMPDIR/err")
+    [ "$bytes" -eq 0 ]
   else
-    [ "$(wc -c <"$trace" | tr -d ' \t')" -eq 0 ]
+    bytes=$(wc -c <"$trace")
+    [ "$bytes" -eq 0 ]
     grep -q probe_traced_command "$BATS_TEST_TMPDIR/err"
   fi
 }

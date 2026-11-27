@@ -33,19 +33,22 @@ cmd_cp_flavor() {
   esac
 }
 
-# busybox_has_reflink DIR: BusyBox accepts --reflink only when built with
-# FEATURE_CP_REFLINK, and its --help does not say so; try it on an empty file.
-busybox_has_reflink() {
-  probe_dir=$(mktemp -d "${1}/.reflink-probe.XXXXXX")
-  : >"${probe_dir}/a"
-  if cp --reflink=auto "${probe_dir}/a" "${probe_dir}/b" 2>/dev/null; then
-    has=0
-  else
-    has=1
+# busybox_reflink_option DIR: print --reflink=auto if BusyBox was built with FEATURE_CP_REFLINK.
+# Its --help does not say so; try it on an empty file.
+busybox_reflink_option() {
+  probe_dir=$(mktemp -d "${1}/.reflink-probe.XXXXXX") || return
+  if ! (: >"${probe_dir}/a"); then
+    rmdir "${probe_dir}"
+    return 1
   fi
-  rm -f "${probe_dir}/a" "${probe_dir}/b"
-  rmdir "${probe_dir}"
-  return "${has}"
+  if cp --reflink=auto "${probe_dir}/a" "${probe_dir}/b" 2>/dev/null; then
+    option=--reflink=auto
+  else
+    option=
+  fi
+  rm -f "${probe_dir}/a" "${probe_dir}/b" || return
+  rmdir "${probe_dir}" || return
+  printf '%s' "${option}"
 }
 
 # best_copy SRC DST: clone when possible, fall back to a byte copy, and say which cp ran.
@@ -59,11 +62,9 @@ cmd_best_copy() {
       set -- cp --reflink=auto
       ;;
     busybox)
-      if busybox_has_reflink "$(dirname -- "${dst}")"; then
-        set -- cp --reflink=auto
-      else
-        set -- cp
-      fi
+      dst_dir=$(dirname -- "${dst}")
+      option=$(busybox_reflink_option "${dst_dir}")
+      set -- cp ${option:+"${option}"}
       ;;
     bsd)
       # macOS cp -c tries clonefile(2) and falls back to a copy on EXDEV or ENOTSUP;

@@ -48,9 +48,13 @@ detect_fs() {
   fi
 }
 
-# A 1 MiB payload of the letter a: large enough to span many file system blocks.
+# make_payload FILE BYTE MIB: write a repeated byte across many file system blocks.
 make_payload() {
-  head -c 1048576 /dev/zero | tr '\0' 'a' >"$1"
+  awk -v byte="$2" -v mib="$3" 'BEGIN {
+    chunk = byte
+    for (i = 0; i < 10; i++) chunk = chunk chunk
+    for (i = 0; i < mib * 1024; i++) printf "%s", chunk
+  }' >"$1"
 }
 
 @test "probe compiles with the C compiler" {
@@ -64,7 +68,7 @@ make_payload() {
 @test "a clone is a separate file whose writes stay private (copy on write)" {
   require_known_family
   build_probe
-  make_payload "${D}/src"
+  make_payload "${D}/src" a 1
   detect_fs
   fs=${FS}
   probe clone "${D}/src" "${D}/clone"
@@ -78,8 +82,10 @@ make_payload() {
       [ "${src_ino%% *}" != "${clone_ino%% *}" ]
       # Overwrite the first byte of the clone in place.
       printf 'Z' | dd of="${D}/clone" bs=1 seek=0 conv=notrunc 2>/dev/null
-      [ "$(head -c 1 "${D}/src")" = a ]
-      [ "$(head -c 1 "${D}/clone")" = Z ]
+      src_first=$(head -c 1 "${D}/src")
+      clone_first=$(head -c 1 "${D}/clone")
+      [ "${src_first}" = a ]
+      [ "${clone_first}" = Z ]
       # The written block is now private; the rest is still shared.
       probe shared "${D}/clone"
       [ "${output}" = "shared some" ]
@@ -97,7 +103,7 @@ make_payload() {
 @test "a clone shares all its blocks; a read-write copy shares none" {
   require_known_family
   build_probe
-  make_payload "${D}/src"
+  make_payload "${D}/src" a 1
   cat "${D}/src" >"${D}/plain"
   detect_fs
   fs=${FS}
@@ -128,7 +134,7 @@ make_payload() {
 @test "cloning onto an existing destination: EEXIST on APFS, replace on Linux" {
   require_known_family
   build_probe
-  make_payload "${D}/src"
+  make_payload "${D}/src" a 1
   printf 'old\n' >"${D}/dst"
   detect_fs
   fs=${FS}
@@ -137,7 +143,8 @@ make_payload() {
     apfs)
       # clonefile(2) creates the destination itself and refuses an existing one.
       [ "${output}" = "clone EEXIST" ]
-      [ "$(cat "${D}/dst")" = old ]
+      dst_contents=$(cat "${D}/dst")
+      [ "${dst_contents}" = old ]
       ;;
     btrfs | xfs | overlay-reflink)
       # FICLONE works on an open destination and replaces its contents.
@@ -154,7 +161,7 @@ make_payload() {
 @test "copy_file_range copies a 3 MiB file in the kernel, or is absent on macOS" {
   require_known_family
   build_probe
-  head -c 3145728 /dev/zero | tr '\0' 'b' >"${D}/src"
+  make_payload "${D}/src" b 3
   sysname=$(uname -s)
   probe cfr "${D}/src" "${D}/dst"
   [ "${status}" -eq 0 ]
@@ -187,7 +194,8 @@ make_payload() {
     Linux)
       # The file has content but reports st_size 0.
       [ ! -s /proc/self/status ]
-      [ "$(wc -c </proc/self/status)" -gt 0 ]
+      proc_bytes=$(wc -c </proc/self/status)
+      [ "${proc_bytes}" -gt 0 ]
       probe cfr /proc/self/status "${D}/dst"
       # Since Linux 5.19 a cross-file-system copy without a shared ->copy_file_range is EXDEV.
       [ "${output}" = "cfr EXDEV bytes=0" ]
@@ -213,7 +221,7 @@ make_payload() {
 @test "cp --reflink=always fails instead of falling back to a copy" {
   require_known_family
   build_probe
-  make_payload "${D}/src"
+  make_payload "${D}/src" a 1
   detect_fs
   fs=${FS}
   run_lab "${TOOL}" cp-flavor
@@ -269,7 +277,7 @@ make_payload() {
 @test "best-copy clones when the file system can and copies when it cannot" {
   require_known_family
   build_probe
-  make_payload "${D}/src"
+  make_payload "${D}/src" a 1
   detect_fs
   fs=${FS}
   run_lab "${TOOL}" best-copy "${D}/src" "${D}/dst"
@@ -288,7 +296,7 @@ make_payload() {
 @test "macOS cp clones only with -c; GNU cp clones by default" {
   require_known_family
   build_probe
-  make_payload "${D}/src"
+  make_payload "${D}/src" a 1
   detect_fs
   fs=${FS}
   run_lab "${TOOL}" cp-flavor

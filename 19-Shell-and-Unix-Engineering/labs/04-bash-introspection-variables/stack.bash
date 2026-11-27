@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # stack.bash: show FUNCNAME, BASH_SOURCE, BASH_LINENO and caller from three frames deep.
-# h is defined in stack-lib.bash, which this script sources; run it by absolute path.
+# shellcheck source-path=SCRIPTDIR # h is defined in stack-lib.bash; run this script by absolute path
 here=${BASH_SOURCE[0]%/*}
 . "$here/stack-lib.bash"
 g() {

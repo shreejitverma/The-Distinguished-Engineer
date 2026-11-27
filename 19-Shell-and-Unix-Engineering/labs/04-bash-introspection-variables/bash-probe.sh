@@ -11,4 +11,5 @@ case $0 in
   */*) here=${0%/*} ;;
   *) here=. ;;
 esac
+# shellcheck source=/dev/null # Bash-only code is checked separately in its own dialect
 . "$here/bash-probes.bash"

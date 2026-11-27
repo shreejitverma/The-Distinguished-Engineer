@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 Include subject.sh
 
 Describe 'sample'

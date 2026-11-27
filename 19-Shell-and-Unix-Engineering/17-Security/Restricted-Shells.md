@@ -84,6 +84,7 @@ A shell invoked afresh is by definition not restricted.
 
 bash does the sequencing explicitly: it saves the `-r` request in `saverst`, sets `restricted = 0`, runs the startup files, then restores it with `restricted = saverst || restricted` and calls `maybe_make_restricted` (bash-5.3 shell.c, `main`).
 The comment in that code states the consequence: `bash -r` or `set -r` invoked from a startup file turns the restrictions on after the startup files are executed.
+The lab also checks that noninteractive Bash in POSIX mode skips `BASH_ENV`.
 Two things happen earlier, because `shell_initialize` computes `should_be_restricted` before anything is read: shell functions are not imported from the environment, and `SHELLOPTS` and `BASHOPTS` are not parsed (bash-5.3 shell.c, `shell_initialize`; bash(1) RESTRICTED SHELL).
 I measured the `SHELLOPTS` half: `env SHELLOPTS=xtrace bash -r -c 'echo "$SHELLOPTS"'` printed `braceexpand:hashall:interactive-comments` with no `xtrace` (bash 5.3.15), and an exported `BASH_FUNC_foo%%` function was not imported by `bash -r` while a plain `bash` did import it.
 An environment-carried function definition is therefore never parsed by a restricted bash, which is the property [[Shellshock]] turned on for the unrestricted case; bash CHANGES records that restricted shells stopped exporting functions in bash-2.05a-alpha1 and that a restricted shell attempting to import them was fixed in bash-4.4-alpha.
@@ -307,7 +308,7 @@ ok 10 a script found on PATH runs unrestricted, with or without a #! line
 ok 11 the restricted flag shows in the option string only when -r is given
 ok 12 set -r inside a running shell turns the restrictions on where the shell allows it
 ok 13 the restricted name prefix works in bash (exactly rbash), zsh, ksh93 and mksh
-ok 14 bash runs BASH_ENV before the restriction starts; no other shell reads it
+ok 14 non-POSIX bash runs BASH_ENV before the restriction starts; the other startup modes ignore it
 ok 15 bash shopt restricted_shell reports the state and cannot be switched off
 ok 16 zsh modules write files in restricted mode; the other shells have no such module
 ```

@@ -358,6 +358,7 @@ do_resolve() {
       printf 'NOT_FOUND: %s\n' "$cmd"
       return 1
       ;;
+    *) ;;
   esac
 
   if [ -z "$target_path" ]; then

@@ -270,11 +270,9 @@ cmd_best_copy() {
       set -- cp --reflink=auto
       ;;
     busybox)
-      if busybox_has_reflink "$(dirname -- "${dst}")"; then
-        set -- cp --reflink=auto
-      else
-        set -- cp
-      fi
+      dst_dir=$(dirname -- "${dst}")
+      option=$(busybox_reflink_option "${dst_dir}")
+      set -- cp ${option:+"${option}"}
       ;;
     bsd)
       # macOS cp -c tries clonefile(2) and falls back to a copy on EXDEV or ENOTSUP;
@@ -296,6 +294,7 @@ cmd_best_copy() {
 ```
 
 `cmd_cp_flavor` identifies `cp` from what `cp --version` prints (GNU and uutils name themselves, BusyBox prints its banner, BSD prints `usage: cp`), never from the platform.
+The BusyBox branch uses plain `cp` when the option probe returns no flag and propagates failures to prepare or clean up the probe directory.
 Captured on the macOS 27.3 host on APFS (2026-11), first with `/bin/cp`, then with GNU coreutils 9.12 first in `PATH`, checking the result with the probe:
 
 ```text

@@ -22,4 +22,5 @@ job_file="${workdir}/payload.dat"
 printf '%s\n' "PROTECTED_DATA" >"$job_file"
 
 printf 'DIR_CREATED: %s\n' "$workdir"
-printf 'PAYLOAD: %s\n' "$(cat "$job_file")"
+payload=$(cat "$job_file")
+printf 'PAYLOAD: %s\n' "$payload"

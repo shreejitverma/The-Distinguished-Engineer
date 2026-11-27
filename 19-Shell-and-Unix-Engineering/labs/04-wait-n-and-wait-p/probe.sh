@@ -9,7 +9,7 @@
 #   order         two jobs have both ended before wait -n runs: which status comes first?
 #   pidarg        wait -n PID while a different job ends first
 #   finished      a job ends during a foreground command, then wait -n
-#   signaled      a job is killed by SIGTERM during a foreground command, then wait -n and wait PID
+#   signaled      a job is killed by SIGTERM and reaped, a foreground command runs, then wait -n and wait PID
 #   trap          a trapped SIGUSR1 arrives while wait -n -p blocks
 #   procsub       the only child is a live process substitution
 #   subscript     the -p name is an array element whose subscript holds a command substitution
@@ -124,11 +124,13 @@ case $mode in
     ;;
   signaled)
     need_n
-    /bin/sleep 5 &
+    set +o posix
+    /bin/sleep 60 &
     p=$!
-    /bin/sleep 1
     kill -TERM "$p"
-    /bin/sleep 1
+    # Let bash reap the signaled job without consuming its status with wait.
+    while kill -0 "$p"; do /bin/sleep 0.1; done
+    /bin/sleep 0
     wait -n
     first=$?
     wait "$p"
@@ -182,6 +184,8 @@ case $mode in
         exit 0
       fi
       set -o posix
+    else
+      set +o posix
     fi
     (exit 6) &
     p=$!

@@ -24,9 +24,11 @@ last_line() {
 }
 
 @test "fake-curl: ok prints the whole file, cut prints a prefix and exits 18, fail exits 22" {
+  local fixture
+  fixture=$(cat "$LAB/installer-unwrapped.sh")
   run_lab "$LAB/fake-curl.sh" ok "$LAB/installer-unwrapped.sh"
   [ "$status" -eq 0 ]
-  [ "$output" = "$(cat "$LAB/installer-unwrapped.sh")" ]
+  [ "$output" = "$fixture" ]
   run_lab "$LAB/fake-curl.sh" cut "$LAB/installer-unwrapped.sh" 5
   [ "$status" -eq 18 ]
   [ "$output" = '#!/bi' ]
@@ -55,7 +57,9 @@ last_line() {
 }
 
 @test "stdin-reader: the script's own read takes the next script line unless the shell read ahead" {
-  run_lab "$LAB/feed.sh" "$(cat "$LAB/stdin-reader.sh")" "${LAB_SHELL_WORDS[@]}"
+  local script
+  script=$(cat "$LAB/stdin-reader.sh")
+  run_lab "$LAB/feed.sh" "$script" "${LAB_SHELL_WORDS[@]}"
   [ "$status" -eq 0 ]
   local posix='line=[echo executed-by-the-shell]'
   local ahead
@@ -72,6 +76,7 @@ last_line() {
 }
 
 @test "a script piped to sh -s sees its arguments, and standard input is not a terminal" {
+  # shellcheck disable=SC2016 # the piped script must expand its own arguments
   run_lab "$LAB/feed.sh" 'echo "args=$1,$2 n=$#"' "${LAB_SHELL_WORDS[@]}" -s -- a b
   case $(lab_shell_family) in
     # measured: posh 0.14.1 has no -s option, so `posh -s -- a b` is an error and the script never runs
@@ -129,21 +134,22 @@ last_line() {
 @test "wrapped installer: only a cut inside the final main line runs, and it runs the whole body" {
   run_lab "$LAB/truncate-sweep.sh" "$LAB/installer-wrapped.sh" "${LAB_SHELL_WORDS[@]}"
   [ "$status" -eq 0 ]
-  local ran
-  ran=$(printf '%s\n' "$output" | awk -F'\t' '$2 != "-"' | wc -l)
-  ran=${ran##* }
+  local ran unexpected
+  ran=$(printf '%s\n' "$output" | awk -F'\t' '$2 != "-" { count++ } END { print count + 0 }')
   # a cut after "main", after "main ", and after the closing quote; ksh93u+ 2012 also accepts "main \"$"
   [ "$ran" -ge 3 ]
   [ "$ran" -le 4 ]
-  [ -z "$(printf '%s\n' "$output" | awk -F'\t' '$2 != "-" && $2 != "/opt/tool/cache"')" ]
+  unexpected=$(printf '%s\n' "$output" | awk -F'\t' '$2 != "-" && $2 != "/opt/tool/cache"')
+  [ -z "$unexpected" ]
 }
 
 @test "piped install: a cut download runs a partial installer and the pipeline status hides curl's 18" {
-  local n
+  local n expected
   n=$(cut_after "$LAB/installer-unwrapped.sh" 'remove /opt')
   run_lab "$LAB/fetch-modes.sh" pipe "$LAB/installer-unwrapped.sh" "$n" "${LAB_SHELL_WORDS[@]}"
   [ "$status" -eq 0 ]
-  [ "$output" = "$(printf 'install: begin\nREMOVE /opt\nstatus=0')" ]
+  expected=$(printf 'install: begin\nREMOVE /opt\nstatus=0')
+  [ "$output" = "$expected" ]
 }
 
 @test "pipefail reports curl's 18, but only after the partial installer has already run" {
@@ -178,41 +184,44 @@ last_line() {
 }
 
 @test "a cut inside the wrapped function body runs nothing and the shell reports an error" {
-  local n
+  local n last
   n=$(cut_after "$LAB/installer-wrapped.sh" 'remove /opt')
   run_lab "$LAB/fetch-modes.sh" pipe "$LAB/installer-wrapped.sh" "$n" "${LAB_SHELL_WORDS[@]}"
   [ "$status" -eq 0 ]
   [[ $output != *REMOVE* ]]
   [[ $output != *"install: begin"* ]]
-  [[ "$(last_line)" == status=* ]]
-  [ "$(last_line)" != status=0 ]
+  last=$(last_line)
+  [[ $last == status=* ]]
+  [ "$last" != status=0 ]
 }
 
 @test "a truncated here-document: most shells write a short config file, mksh, posh and yash refuse it" {
-  local n out="$BATS_TEST_TMPDIR/conf" want
+  local n out="$BATS_TEST_TMPDIR/conf" want actual last
   n=$(cut_after "$LAB/installer-heredoc.sh" 'data_dir = /var')
   export CONF_OUT="$out"
   run_lab "$LAB/fetch-modes.sh" pipe "$LAB/installer-heredoc.sh" "$n" "${LAB_SHELL_WORDS[@]}"
   [ "$status" -eq 0 ]
   want=$(printf 'listen = 127.0.0.1:8080\ndata_dir = /var')
+  last=$(last_line)
   case $(lab_shell_family) in
     # measured on bash 3.2 and 5.3, dash 0.5.12 and 0.5.13, zsh 5.9 (native and sh), ksh93u+ 2012,
     # ksh93u+m 1.0.10 and BusyBox ash 1.37.0: the command ran on the partial text
     bash | zsh | zsh-sh | dash | ksh93 | busybox)
       [ -e "$out" ]
-      [ "$(cat "$out")" = "$want" ]
-      [ "$(last_line)" = status=0 ]
+      actual=$(cat "$out")
+      [ "$actual" = "$want" ]
+      [ "$last" = status=0 ]
       ;;
     # measured: mksh R59c and posh 0.14.1 report "here document 'EOF' unclosed" and exit 1;
     # nothing is written
     mksh | posh)
       [ ! -e "$out" ]
-      [ "$(last_line)" = status=1 ]
+      [ "$last" = status=1 ]
       ;;
     # measured: yash 2.58.1 reports a syntax error and exits 2; nothing is written
     yash)
       [ ! -e "$out" ]
-      [ "$(last_line)" = status=2 ]
+      [ "$last" = status=2 ]
       ;;
     *) false ;;
   esac
